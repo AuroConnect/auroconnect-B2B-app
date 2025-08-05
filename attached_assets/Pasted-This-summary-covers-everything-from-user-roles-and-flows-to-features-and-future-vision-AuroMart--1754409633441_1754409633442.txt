@@ -1,0 +1,111 @@
+This summary covers everything from user roles and flows to features and future vision.
+🧾 AuroMart (Your B2B Ordering & Billing Platform) — Full Product Overview
+
+👥 Who Will Use It?
+
+Retailers (Local shop owners):
+Mattress stores
+Clothing shops
+Electronics/Laptop retailers
+Grocery stores, etc.
+Distributors (Wholesalers):
+Supply stock to retailers in specific locations or verticals
+Manufacturers (Brands / Factories):
+Produce goods and want visibility, analytics & direct access to market demand
+📦 Core Idea
+AuroMart is a B2B web platform (and future mobile app) where retailers can place product orders from nearby distributors or manufacturers. It uses WhatsApp to enable instant communication, order alerts, and invoice sharing.
+
+End-to-End Flow (With All 3 Roles)
+
+Step 1: Manufacturer adds products and connects with Distributors.
+Step 2: Distributor adds available stock and sets delivery options.
+Step 3: Retailer signs in, browses products, and places an order.
+Step 4: Distributor gets an instant WhatsApp alert: “New Order from XYZ Retailer.”
+Step 5: Distributor reviews, acknowledges, and selects:
+  ✅ I will deliver
+  ✅ Retailer will pick up
+Step 6: System generates a PDF invoice.
+Step 7: Retailer receives the invoice via WhatsApp and can download from the dashboard.
+Step 8: Admin or system tracks:
+  - Order status
+  - Monthly reports
+  - Total order count by retailer
+  - Category-wise performance
+
+Step 9: Manufacturer can view sales reports from distributors (without accessing specific retailer details unless allowed).
+
+🧰 Core Modules by User Role
+
+Retailer Dashboard:
+
+Browse products by category
+Place orders instantly
+Track order status (Confirmed, Packed, Out for Delivery, Delivered)
+Receive real-time WhatsApp updates
+Download PDF invoices
+View/download monthly reports
+Distributor Dashboard:
+Receive and confirm orders from retailers
+Accept/reject or update delivery mode
+Inventory management
+Auto-invoice generation and delivery
+Order tracking panel (by status, date, retailer)
+WhatsApp message integration
+Analytics dashboard
+Manufacturer Dashboard:
+Upload SKUs (product catalog)
+Link with distributors
+View distribution performance by location
+Access summary of which products are performing
+Optional: View which retailers are re-ordering
+Brand visibility insights (stock vs sold vs requested)
+🚀 Key Features
+✅ WhatsApp-first experience: Order alerts, confirmations, invoice delivery
+✅ Real-time dashboards for each user
+✅ Role-based logins (Retailer / Distributor / Manufacturer / Admin)
+✅ Auto PDF invoice & report generation
+✅ Reporting: Daily, Monthly, and Date-range reports
+✅ Delivery modes: Self-pickup or Distributor-delivered
+✅ Order approval/acknowledgement workflow
+✅ Smart catalog search & filter
+✅ Mobile responsive + future mobile app integration
+✅ Cron job to send monthly invoice summary via WhatsApp
+
+📈 Reporting & Analytics
+
+For Retailers:
+
+View how much they’ve ordered monthly
+Sort/filter by product category
+Get downloadable reports
+For Distributors:
+Track which retailer is ordering what
+Performance by product/category
+Know top-selling SKUs
+Auto monthly summaries
+For Manufacturers:
+View distributor-wise performance
+Forecast demand by category or region
+Optional: Identify which retailers are most loyal buyers
+🔐 Admin Panel (for platform owner)
+View and manage all users (Retailers / Distributors / Manufacturers)
+Manage product categories and approvals
+Track total order volume across the platform
+View top-selling products across all regions
+Push platform-wide WhatsApp notifications
+🔮 Future Add-Ons
+Loyalty Program (Rewards for bulk or frequent orders)
+Payment Integration (UPI, credit, etc.)
+Delivery Agent Module (Assign/track delivery staff)
+Geo-tagging (auto-assign distributor based on pin code)
+Voice command ordering (via WhatsApp voice messages)
+Multi-language support (Hindi, Marathi, English, etc.)
+AI Recommendations (“Popular in your area”, “You might need to restock X”)
+💡 Why It’s Unique
+Hyper-local focus: Built for Indian market behavior
+WhatsApp-first: Simple and fast adoption
+Personalized: You can onboard small local distributors
+Flexible: Supports manufacturer visibility + analytics
+Auto-reporting & billing: Saves time, increases professionalism
+🏁 One-line Summary
+AuroMart is a smart B2B ordering and billing platform that connects Retailers, Distributors, and Manufacturers with real-time WhatsApp workflows, auto invoicing, and complete reporting — built for India’s hyper-local market.
