@@ -401,20 +401,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
-      const { product } = req.query;
+      const productSearchTerm = req.query.product || req.query[1]; // Handle both query patterns
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      if (product) {
+      if (productSearchTerm && productSearchTerm.length > 2) {
         // Search partners by product
-        const partners = await storage.searchPartnersByProduct(product, user.role);
+        const partners = await storage.searchPartnersByProduct(productSearchTerm, user.role);
         res.json(partners);
       } else {
-        // Get all global partners
-        const partners = await storage.getGlobalPartners(user.role);
-        res.json(partners);
+        // Return empty array for short search terms
+        res.json([]);
       }
     } catch (error) {
       console.error("Error searching partners:", error);
