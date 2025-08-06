@@ -247,11 +247,11 @@ export default function Products() {
     setImageUploadType('url');
   };
 
-  const filteredProducts = Array.isArray(products) ? products.filter((product: any) =>
-    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+     const filteredProducts = (Array.isArray(products) ? products : []).filter((product: any) =>
+     product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+   );
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -395,13 +395,13 @@ export default function Products() {
                           <SelectTrigger className="w-full enhanced-select">
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
-                          <SelectContent className="bg-white border border-gray-200 shadow-lg">
-                            {Array.isArray(categories) && categories.map((category: any) => (
-                              <SelectItem key={category.id} value={category.id} className="hover:bg-gray-50">
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
+                                                     <SelectContent className="bg-white border border-gray-200 shadow-lg">
+                             {(Array.isArray(categories) ? categories : []).map((category: any) => (
+                               <SelectItem key={category.id} value={category.id} className="hover:bg-gray-50">
+                                 {category.name}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
                         </Select>
                       </div>
                     </div>
@@ -582,14 +582,14 @@ export default function Products() {
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-200 shadow-lg">
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {Array.isArray(categories) && categories.map((category: any) => (
-                    <SelectItem key={category.id} value={category.id} className="hover:bg-gray-50">
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                                 <SelectContent className="bg-white border border-gray-200 shadow-lg">
+                   <SelectItem value="all">All Categories</SelectItem>
+                   {(Array.isArray(categories) ? categories : []).map((category: any) => (
+                     <SelectItem key={category.id} value={category.id} className="hover:bg-gray-50">
+                       {category.name}
+                     </SelectItem>
+                   ))}
+                 </SelectContent>
               </Select>
             </div>
           </CardContent>
@@ -610,12 +610,12 @@ export default function Products() {
 
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-4">
-            <ProductGrid 
-              products={filteredProducts} 
-              isLoading={productsLoading} 
-              userRole={user?.role || 'retailer'} 
-              categories={categories || []}
-            />
+                         <ProductGrid 
+               products={filteredProducts} 
+               isLoading={productsLoading} 
+               userRole={user?.role || 'retailer'} 
+               categories={Array.isArray(categories) ? categories : []}
+             />
           </TabsContent>
 
           {/* Partners Tab */}
@@ -643,19 +643,19 @@ export default function Products() {
                     <SelectTrigger className="w-full md:w-48">
                       <SelectValue placeholder="All Partners" />
                     </SelectTrigger>
-                    <SelectContent className="bg-white border border-gray-200 shadow-lg">
-                      <SelectItem value="all">All Partners</SelectItem>
-                      {availablePartners.map((partner) => (
-                        <SelectItem key={partner.id} value={partner.id} className="hover:bg-gray-50">
-                          {partner.businessName || `${partner.firstName} ${partner.lastName}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                                         <SelectContent className="bg-white border border-gray-200 shadow-lg">
+                       <SelectItem value="all">All Partners</SelectItem>
+                       {(Array.isArray(availablePartners) ? availablePartners : []).map((partner) => (
+                         <SelectItem key={partner.id} value={partner.id} className="hover:bg-gray-50">
+                           {partner.businessName || `${partner.firstName} ${partner.lastName}`}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredPartners.map((partner) => (
+                                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                   {(Array.isArray(filteredPartners) ? filteredPartners : []).map((partner) => (
                     <Card key={partner.id} className="hover:shadow-md transition-shadow">
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
