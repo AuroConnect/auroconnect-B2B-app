@@ -33,7 +33,14 @@ export default function Register() {
       }
       
       const { confirmPassword, ...registrationData } = data;
-      await apiRequest("POST", "/api/auth/register", registrationData);
+      const response = await apiRequest("POST", "/api/auth/register", registrationData);
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || "Registration failed");
+      }
+      
+      return result;
     },
     onSuccess: () => {
       toast({

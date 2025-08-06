@@ -105,7 +105,7 @@ def get_orders():
             })
         
         return jsonify(formatted_orders)
-    
+        
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
@@ -185,7 +185,7 @@ def get_order_details(order_id):
         }
         
         return jsonify(order_details)
-    
+        
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
@@ -228,7 +228,7 @@ def update_order_status(order_id):
                 and_(Product.id.in_(product_ids), Product.manufacturer_id == current_user_id)
             ).count()
             if manufacturer_products == 0:
-                return jsonify({'message': 'Access denied'}), 403
+            return jsonify({'message': 'Access denied'}), 403
         
         # Update order status
         order.status = new_status
@@ -245,7 +245,7 @@ def update_order_status(order_id):
             'orderId': order.id,
             'newStatus': new_status
         })
-    
+        
     except Exception as e:
         return jsonify({'message': str(e)}), 500
 
@@ -305,6 +305,6 @@ def get_order_stats():
         }
         
         return jsonify(stats)
-    
+        
     except Exception as e:
         return jsonify({'message': str(e)}), 500 

@@ -63,7 +63,7 @@ export default function Orders() {
   useEffect(() => {
     if (!isLoading && !user) {
       toast({
-        title: "Unauthorized", 
+        title: "Unauthorized",
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
@@ -196,9 +196,9 @@ export default function Orders() {
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            Order Management
-          </h1>
-          <p className="text-gray-600 mt-1">
+                Order Management
+              </h1>
+              <p className="text-gray-600 mt-1">
             {user.role === 'manufacturer' ? 'Manage orders for your products' : 
              user.role === 'distributor' ? 'Manage incoming orders from retailers' :
              'Track your order history'}
@@ -207,7 +207,7 @@ export default function Orders() {
 
         {/* Search and Filters */}
         <Card className="mb-8">
-          <CardContent className="pt-6">
+            <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -233,17 +233,17 @@ export default function Orders() {
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
 
         {/* Orders List */}
         <div className="space-y-4">
-          {ordersLoading ? (
+        {ordersLoading ? (
             <div className="text-center py-12">
               <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-gray-600">Loading orders...</p>
-            </div>
+                    </div>
           ) : filteredOrders.length === 0 ? (
             <Card>
               <CardContent className="py-12">
@@ -255,9 +255,9 @@ export default function Orders() {
                       ? "No orders match your current filters." 
                       : "You don't have any orders yet."}
                   </p>
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
           ) : (
             filteredOrders.map((order) => (
               <Card key={order.id} className="hover:shadow-md transition-shadow">
@@ -272,8 +272,8 @@ export default function Orders() {
                           <div className="flex items-center gap-1">
                             {getStatusIcon(order.status)}
                             {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                          </div>
-                        </Badge>
+                    </div>
+                    </Badge>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -299,7 +299,7 @@ export default function Orders() {
                               ? order.distributor?.email 
                               : order.distributor?.email}
                           </p>
-                        </div>
+                            </div>
                         
                         <div>
                           <p className="text-sm font-medium text-gray-600">Total Amount</p>
@@ -466,7 +466,7 @@ export default function Orders() {
               ) : (
                 "Update Status"
               )}
-            </Button>
+              </Button>
           </div>
         </DialogContent>
       </Dialog>

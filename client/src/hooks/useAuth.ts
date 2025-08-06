@@ -47,6 +47,10 @@ export function useAuth() {
       const response = await apiRequest('POST', '/api/auth/login', data);
       const result = await response.json();
       
+      if (!response.ok) {
+        throw new Error(result.message || "Login failed");
+      }
+      
       if (result.access_token) {
         setAuthToken(result.access_token);
         queryClient.setQueryData(["api", "auth", "user"], result.user);

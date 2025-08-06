@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, ShoppingCart, Factory, Shield, MessageCircle, FileText, BarChart3, Users, Sparkles, Zap, TrendingUp, Bell, Truck } from "lucide-react";
+import { Building2, ShoppingCart, Factory, Shield, MessageCircle, FileText, BarChart3, Users, Sparkles, Zap, TrendingUp, Bell, Truck, Info } from "lucide-react";
 import LoginForm from "@/components/auth/login-form";
 import { Play } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function Landing() {
   const [showLogin, setShowLogin] = useState(false);
+  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
 
   const features = [
     {
@@ -71,6 +73,33 @@ export default function Landing() {
     }
   ];
 
+  const demoAccounts = [
+    {
+      role: "Manufacturer",
+      email: "hrushikesh@auromart.com",
+      password: "password123",
+      description: "AuroMart Manufacturing - Hrushikesh Waghmare"
+    },
+    {
+      role: "Manufacturer", 
+      email: "manufacturer1@test.com",
+      password: "password123",
+      description: "TechPro Manufacturing - Arun Gupta"
+    },
+    {
+      role: "Distributor",
+      email: "distributor1@test.com", 
+      password: "password123",
+      description: "Metro Distributors - Priya Sharma"
+    },
+    {
+      role: "Retailer",
+      email: "retailer1@test.com",
+      password: "password123", 
+      description: "City Mart - Amit Patel"
+    }
+  ];
+
   if (showLogin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-green-50 flex items-center justify-center p-4">
@@ -104,6 +133,13 @@ export default function Landing() {
             </div>
             <div className="flex gap-3">
               <Button 
+                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
+                className="glass-button text-gray-700 border-gray-300 hover:bg-white/80"
+              >
+                <Info className="h-4 w-4 mr-2" />
+                Demo Accounts
+              </Button>
+              <Button 
                 onClick={() => setShowLogin(true)}
                 className="glass-button text-gray-700 border-gray-300 hover:bg-white/80"
                 data-testid="button-login"
@@ -121,6 +157,58 @@ export default function Landing() {
           </div>
         </div>
       </header>
+
+      {/* Demo Accounts Modal */}
+      {showDemoAccounts && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Demo Accounts for Testing
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-600 mb-4">
+                Use these accounts to test the different user roles and features:
+              </p>
+              {demoAccounts.map((account, index) => (
+                <div key={index} className="p-4 border rounded-lg bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-gray-900">{account.role}</h4>
+                    <Badge variant="outline">{account.role}</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{account.description}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="font-medium">Email:</span> {account.email}
+                    </div>
+                    <div>
+                      <span className="font-medium">Password:</span> {account.password}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowDemoAccounts(false)}
+                >
+                  Close
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowDemoAccounts(false);
+                    setShowLogin(true);
+                  }}
+                >
+                  Try Login
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
