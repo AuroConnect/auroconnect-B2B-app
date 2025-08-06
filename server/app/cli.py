@@ -208,66 +208,218 @@ def register_commands(app):
         click.echo('Creating products...')
         products = []
         
-        # Electronics products (manufactured by Hrushikesh - AuroMart Manufacturing)
+        # AuroMart products (manufactured by Hrushikesh)
         auromart_products = [
             Product(
                 id=str(uuid.uuid4()),
-                name="AuroMart Smart LED TV 55\"",
-                description="4K Ultra HD Smart LED Television with Android OS - AuroMart Premium Series",
-                sku="AM-TV-55-4K-001",
+                name="AuroMart Premium Laptop Pro",
+                description="High-performance laptop with latest Intel processor and 16GB RAM",
+                sku="AM-LAPTOP-001",
                 category_id=categories[0].id,  # Electronics
-                manufacturer_id=manufacturers[0].id,
-                image_url="https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400",
-                base_price=52000.00,
+                manufacturer_id=manufacturers[3].id,  # Hrushikesh's company
+                image_url="https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400",
+                base_price=75000.00,
                 is_active=True
             ),
             Product(
                 id=str(uuid.uuid4()),
-                name="AuroMart Wireless Bluetooth Headphones",
-                description="Premium noise-cancelling wireless headphones with 30-hour battery life",
-                sku="AM-HP-BT-001",
+                name="AuroMart Business Laptop",
+                description="Reliable business laptop with security features and long battery life",
+                sku="AM-LAPTOP-002",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[3].id,  # Hrushikesh's company
+                image_url="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400",
+                base_price=65000.00,
+                is_active=True
+            ),
+        ]
+
+        # ASUS Products (manufactured by manufacturer1)
+        asus_products = [
+            Product(
+                id=str(uuid.uuid4()),
+                name="ASUS VivoBook S15",
+                description="Student/Everyday Use laptop with Intel i5, 8GB RAM, 512GB SSD",
+                sku="ASUS-VIVO-001",
                 category_id=categories[0].id,  # Electronics
                 manufacturer_id=manufacturers[0].id,
-                image_url="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
-                base_price=3200.00,
+                image_url="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400",
+                base_price=45000.00,
                 is_active=True
             ),
             Product(
                 id=str(uuid.uuid4()),
-                name="AuroMart Gaming Laptop Pro",
-                description="High-performance gaming laptop with RTX 4070 graphics and 32GB RAM",
-                sku="AM-LAP-GAM-001",
+                name="ASUS ROG Strix G15",
+                description="High-End Gaming laptop with RTX 4060, 16GB RAM, 1TB SSD",
+                sku="ASUS-ROG-001",
                 category_id=categories[0].id,  # Electronics
                 manufacturer_id=manufacturers[0].id,
-                image_url="https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400",
+                image_url="https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400",
                 base_price=95000.00,
                 is_active=True
             ),
             Product(
                 id=str(uuid.uuid4()),
-                name="AuroMart Smartphone X1",
-                description="5G smartphone with 108MP camera and 5000mAh battery",
-                sku="AM-PHONE-X1-001",
+                name="ASUS TUF Gaming A15",
+                description="Mid-Range Gaming laptop with GTX 1650, 8GB RAM, 512GB SSD",
+                sku="ASUS-TUF-001",
                 category_id=categories[0].id,  # Electronics
                 manufacturer_id=manufacturers[0].id,
-                image_url="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400",
+                image_url="https://images.unsplash.com/photo-1544735716-392fe248dcec?w=400",
+                base_price=65000.00,
+                is_active=True
+            ),
+        ]
+
+        # HP Products (manufactured by manufacturer2)
+        hp_products = [
+            Product(
+                id=str(uuid.uuid4()),
+                name="HP ProBook 450 G8",
+                description="Business/Office Use laptop with Intel i7, 16GB RAM, 512GB SSD",
+                sku="HP-PRO-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[1].id,
+                image_url="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400",
+                base_price=75000.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="HP Victus 16",
+                description="Gaming (Mid-range) laptop with RTX 3050, 8GB RAM, 512GB SSD",
+                sku="HP-VICTUS-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[1].id,
+                image_url="https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400",
+                base_price=70000.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="HP Omen 15",
+                description="High-End Gaming laptop with RTX 4070, 16GB RAM, 1TB SSD",
+                sku="HP-OMEN-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[1].id,
+                image_url="https://images.unsplash.com/photo-1544735716-392fe248dcec?w=400",
+                base_price=120000.00,
+                is_active=True
+            ),
+        ]
+
+        # Dell Products (manufactured by manufacturer3)
+        dell_products = [
+            Product(
+                id=str(uuid.uuid4()),
+                name="Dell Inspiron 15 3000",
+                description="Student/Budget laptop with Intel i3, 4GB RAM, 256GB SSD",
+                sku="DELL-INS-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[2].id,
+                image_url="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400",
+                base_price=35000.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="Dell G Series G15",
+                description="Mid-Range Gaming laptop with GTX 1650, 8GB RAM, 512GB SSD",
+                sku="DELL-G-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[2].id,
+                image_url="https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400",
+                base_price=60000.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="Dell Alienware m15",
+                description="High-End Gaming laptop with RTX 4080, 32GB RAM, 2TB SSD",
+                sku="DELL-ALIEN-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[2].id,
+                image_url="https://images.unsplash.com/photo-1544735716-392fe248dcec?w=400",
+                base_price=180000.00,
+                is_active=True
+            ),
+        ]
+
+        # Lenovo Products (manufactured by manufacturer4)
+        lenovo_products = [
+            Product(
+                id=str(uuid.uuid4()),
+                name="Lenovo IdeaPad 3",
+                description="Budget/Students laptop with Intel i3, 4GB RAM, 256GB SSD",
+                sku="LENOVO-IDEA-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[3].id,
+                image_url="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400",
+                base_price=32000.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="Lenovo Legion 5",
+                description="Gaming laptop with RTX 3060, 16GB RAM, 512GB SSD",
+                sku="LENOVO-LEGION-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[3].id,
+                image_url="https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400",
+                base_price=85000.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="Lenovo ThinkPad X1 Carbon",
+                description="Business/Corporate laptop with Intel i7, 16GB RAM, 1TB SSD",
+                sku="LENOVO-THINK-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[3].id,
+                image_url="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400",
+                base_price=95000.00,
+                is_active=True
+            ),
+        ]
+
+        # Acer Products (manufactured by manufacturer3)
+        acer_products = [
+            Product(
+                id=str(uuid.uuid4()),
+                name="Acer Aspire 5",
+                description="Budget/Entry-level laptop with Intel i3, 4GB RAM, 256GB SSD",
+                sku="ACER-ASPIRE-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[2].id,
+                image_url="https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400",
                 base_price=28000.00,
                 is_active=True
             ),
             Product(
                 id=str(uuid.uuid4()),
-                name="AuroMart Smart Watch",
-                description="Fitness tracking smartwatch with heart rate monitor and GPS",
-                sku="AM-WATCH-001",
+                name="Acer Nitro 5",
+                description="Gaming (Affordable) laptop with GTX 1650, 8GB RAM, 512GB SSD",
+                sku="ACER-NITRO-001",
                 category_id=categories[0].id,  # Electronics
-                manufacturer_id=manufacturers[0].id,
-                image_url="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400",
-                base_price=8500.00,
+                manufacturer_id=manufacturers[2].id,
+                image_url="https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400",
+                base_price=55000.00,
                 is_active=True
-            )
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="Acer Predator Helios 300",
+                description="Premium Gaming laptop with RTX 3070, 16GB RAM, 1TB SSD",
+                sku="ACER-PRED-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[2].id,
+                image_url="https://images.unsplash.com/photo-1544735716-392fe248dcec?w=400",
+                base_price=110000.00,
+                is_active=True
+            ),
         ]
-        
-        # Electronics products (manufactured by other manufacturers)
+
+        # Electronics products (manufactured by manufacturer1)
         electronics_products = [
             Product(
                 id=str(uuid.uuid4()),
@@ -275,7 +427,7 @@ def register_commands(app):
                 description="4K Ultra HD Smart LED Television with Android OS",
                 sku="TV-55-4K-001",
                 category_id=categories[0].id,  # Electronics
-                manufacturer_id=manufacturers[1].id,
+                manufacturer_id=manufacturers[0].id,
                 image_url="https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400",
                 base_price=45000.00,
                 is_active=True
@@ -286,32 +438,21 @@ def register_commands(app):
                 description="Premium noise-cancelling wireless headphones",
                 sku="HP-BT-001",
                 category_id=categories[0].id,  # Electronics
-                manufacturer_id=manufacturers[1].id,
+                manufacturer_id=manufacturers[0].id,
                 image_url="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
                 base_price=2500.00,
                 is_active=True
             ),
-            Product(
-                id=str(uuid.uuid4()),
-                name="Gaming Laptop",
-                description="High-performance gaming laptop with RTX graphics",
-                sku="LAP-GAM-001",
-                category_id=categories[0].id,  # Electronics
-                manufacturer_id=manufacturers[1].id,
-                image_url="https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400",
-                base_price=85000.00,
-                is_active=True
-            )
         ]
-        
+
         # Clothing products (manufactured by manufacturer2)
         clothing_products = [
             Product(
                 id=str(uuid.uuid4()),
-                name="Cotton T-Shirt",
-                description="Premium cotton t-shirt in various colors",
-                sku="TS-COT-001",
-                category_id=categories[2].id,  # Clothing
+                name="Premium Cotton T-Shirt",
+                description="High-quality cotton t-shirt with modern design",
+                sku="TSHIRT-COTTON-001",
+                category_id=categories[1].id,  # Clothing
                 manufacturer_id=manufacturers[1].id,
                 image_url="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
                 base_price=800.00,
@@ -320,65 +461,43 @@ def register_commands(app):
             Product(
                 id=str(uuid.uuid4()),
                 name="Denim Jeans",
-                description="Comfortable denim jeans for all occasions",
-                sku="JN-DEN-001",
-                category_id=categories[2].id,  # Clothing
+                description="Comfortable denim jeans with stretch fabric",
+                sku="JEANS-DENIM-001",
+                category_id=categories[1].id,  # Clothing
                 manufacturer_id=manufacturers[1].id,
                 image_url="https://images.unsplash.com/photo-1542272604-787c3835535d?w=400",
                 base_price=1200.00,
                 is_active=True
             ),
-            Product(
-                id=str(uuid.uuid4()),
-                name="Formal Shirt",
-                description="Professional formal shirt for office wear",
-                sku="SH-FRM-001",
-                category_id=categories[2].id,  # Clothing
-                manufacturer_id=manufacturers[1].id,
-                image_url="https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400",
-                base_price=1500.00,
-                is_active=True
-            )
         ]
-        
+
         # Furniture products (manufactured by manufacturer3)
         furniture_products = [
             Product(
                 id=str(uuid.uuid4()),
-                name="Office Chair",
-                description="Ergonomic office chair with lumbar support",
-                sku="CH-OFF-001",
-                category_id=categories[1].id,  # Furniture
+                name="Ergonomic Office Chair",
+                description="Comfortable office chair with lumbar support",
+                sku="CHAIR-OFFICE-001",
+                category_id=categories[2].id,  # Furniture
                 manufacturer_id=manufacturers[2].id,
                 image_url="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400",
-                base_price=3500.00,
+                base_price=8500.00,
                 is_active=True
             ),
             Product(
                 id=str(uuid.uuid4()),
-                name="Study Table",
-                description="Modern study table with storage compartments",
-                sku="TB-STD-001",
-                category_id=categories[1].id,  # Furniture
+                name="Modern Coffee Table",
+                description="Elegant coffee table with glass top",
+                sku="TABLE-COFFEE-001",
+                category_id=categories[2].id,  # Furniture
                 manufacturer_id=manufacturers[2].id,
-                image_url="https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=400",
-                base_price=2800.00,
+                image_url="https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?w=400",
+                base_price=12000.00,
                 is_active=True
             ),
-            Product(
-                id=str(uuid.uuid4()),
-                name="Bookshelf",
-                description="Wooden bookshelf with multiple compartments",
-                sku="BK-SHF-001",
-                category_id=categories[1].id,  # Furniture
-                manufacturer_id=manufacturers[2].id,
-                image_url="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400",
-                base_price=4200.00,
-                is_active=True
-            )
         ]
-        
-        products = auromart_products + electronics_products + clothing_products + furniture_products
+
+        products = auromart_products + asus_products + hp_products + dell_products + lenovo_products + acer_products + electronics_products + clothing_products + furniture_products
         
         for product in products:
             db.session.add(product)
@@ -394,50 +513,49 @@ def register_commands(app):
             {
                 'retailer': retailers[0],
                 'distributor': distributors[0],
-                'products': [auromart_products[0], auromart_products[1]],  # AuroMart TV and Headphones
-                'quantities': [3, 8],
+                'products': [auromart_products[0], auromart_products[1]],  # AuroMart Laptops
+                'quantities': [5, 3],
                 'status': 'delivered',
                 'date': datetime.utcnow() - timedelta(days=5)
             },
             {
                 'retailer': retailers[1],
                 'distributor': distributors[1],
-                'products': [auromart_products[2], auromart_products[3]],  # AuroMart Laptop and Smartphone
-                'quantities': [2, 5],
+                'products': [asus_products[0], asus_products[1]],  # ASUS Laptops
+                'quantities': [8, 4],
                 'status': 'shipped',
                 'date': datetime.utcnow() - timedelta(days=3)
             },
             {
                 'retailer': retailers[2],
                 'distributor': distributors[2],
-                'products': [auromart_products[4]],  # AuroMart Smart Watch
-                'quantities': [12],
+                'products': [hp_products[0], hp_products[1]],  # HP Laptops
+                'quantities': [6, 2],
                 'status': 'pending',
                 'date': datetime.utcnow() - timedelta(days=1)
             },
             {
                 'retailer': retailers[0],
                 'distributor': distributors[1],
-                'products': [auromart_products[0], auromart_products[3]],  # AuroMart TV and Smartphone
-                'quantities': [1, 3],
-                'status': 'confirmed',
-                'date': datetime.utcnow() - timedelta(hours=6)
+                'products': [dell_products[0], dell_products[1]],  # Dell Laptops
+                'quantities': [10, 5],
+                'status': 'accepted',
+                'date': datetime.utcnow() - timedelta(days=2)
             },
-            # Other manufacturer orders
             {
                 'retailer': retailers[1],
                 'distributor': distributors[1],
-                'products': [clothing_products[0], clothing_products[1]],
-                'quantities': [10, 8],
-                'status': 'shipped',
-                'date': datetime.utcnow() - timedelta(days=2)
+                'products': [lenovo_products[0], lenovo_products[1]],  # Lenovo Laptops
+                'quantities': [7, 3],
+                'status': 'rejected',
+                'date': datetime.utcnow() - timedelta(days=4)
             },
             {
                 'retailer': retailers[2],
                 'distributor': distributors[2],
-                'products': [furniture_products[0], furniture_products[1]],
-                'quantities': [3, 2],
-                'status': 'pending',
+                'products': [acer_products[0], acer_products[1]],  # Acer Laptops
+                'quantities': [4, 6],
+                'status': 'processing',
                 'date': datetime.utcnow() - timedelta(hours=12)
             }
         ]

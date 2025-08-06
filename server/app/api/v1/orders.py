@@ -1,20 +1,16 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Order, OrderItem, Product, WhatsAppNotification
+from app.models import User, Order, OrderItem, Product
 from app import db
-from datetime import datetime
-import uuid
-from app.utils.decorators import role_required, validate_json
+from datetime import datetime, timedelta
+from sqlalchemy import and_
 
 orders_bp = Blueprint('orders', __name__)
-
-# Valid order statuses
-VALID_ORDER_STATUSES = ['pending', 'confirmed', 'accepted', 'packed', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled', 'rejected']
 
 @orders_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_orders():
-    """Get orders for current user based on role"""
+    """Get orders for the current user"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
@@ -22,30 +18,101 @@ def get_orders():
         if not user:
             return jsonify({'message': 'User not found'}), 404
         
+        # Get query parameters
+        status_filter = request.args.get('status')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        
+        # Build query based on user role
         if user.role == 'retailer':
-            # Retailers see their own orders
-            orders = Order.query.filter_by(retailer_id=current_user_id).order_by(Order.created_at.desc()).all()
+            query = Order.query.filter(Order.retailer_id == current_user_id)
         elif user.role == 'distributor':
-            # Distributors see orders assigned to them
-            orders = Order.query.filter_by(distributor_id=current_user_id).order_by(Order.created_at.desc()).all()
+            query = Order.query.filter(Order.distributor_id == current_user_id)
         elif user.role == 'manufacturer':
             # Manufacturers see orders for their products
-            # This would require joining through products and order items
-            orders = Order.query.join(OrderItem).join(Product).filter(
+            query = Order.query.join(OrderItem).join(Product).filter(
                 Product.manufacturer_id == current_user_id
-            ).order_by(Order.created_at.desc()).distinct().all()
+            ).distinct()
         else:
             return jsonify({'message': 'Invalid user role'}), 400
         
-        return jsonify([order.to_dict() for order in orders]), 200
+        # Apply filters
+        if status_filter:
+            query = query.filter(Order.status == status_filter)
         
+        if date_from:
+            try:
+                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+                query = query.filter(Order.created_at >= date_from_obj)
+            except ValueError:
+                pass
+        
+        if date_to:
+            try:
+                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
+                query = query.filter(Order.created_at < date_to_obj)
+            except ValueError:
+                pass
+        
+        # Order by creation date
+        query = query.order_by(Order.created_at.desc())
+        
+        orders = query.all()
+        
+        # Format orders with details
+        formatted_orders = []
+        for order in orders:
+            # Get order items with product details
+            order_items = OrderItem.query.filter(OrderItem.order_id == order.id).all()
+            items_with_products = []
+            
+            for item in order_items:
+                product = Product.query.get(item.product_id)
+                items_with_products.append({
+                    'id': item.id,
+                    'productId': item.product_id,
+                    'productName': product.name if product else 'Unknown Product',
+                    'productSku': product.sku if product else '',
+                    'quantity': item.quantity,
+                    'unitPrice': float(item.unit_price),
+                    'totalPrice': float(item.total_price),
+                    'productImage': product.image_url if product else None
+                })
+            
+            # Get retailer and distributor details
+            retailer = User.query.get(order.retailer_id)
+            distributor = User.query.get(order.distributor_id)
+            
+            formatted_orders.append({
+                'id': order.id,
+                'orderNumber': order.order_number,
+                'status': order.status,
+                'totalAmount': float(order.total_amount),
+                'notes': order.notes,
+                'createdAt': order.created_at.isoformat(),
+                'updatedAt': order.updated_at.isoformat(),
+                'retailer': {
+                    'id': retailer.id,
+                    'name': retailer.business_name or f"{retailer.first_name} {retailer.last_name}",
+                    'email': retailer.email
+                } if retailer else None,
+                'distributor': {
+                    'id': distributor.id,
+                    'name': distributor.business_name or f"{distributor.first_name} {distributor.last_name}",
+                    'email': distributor.email
+                } if distributor else None,
+                'items': items_with_products
+            })
+        
+        return jsonify(formatted_orders)
+    
     except Exception as e:
-        return jsonify({'message': 'Failed to fetch orders', 'error': str(e)}), 500
+        return jsonify({'message': str(e)}), 500
 
 @orders_bp.route('/<order_id>', methods=['GET'])
 @jwt_required()
-def get_order(order_id):
-    """Get specific order details"""
+def get_order_details(order_id):
+    """Get detailed order information"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
@@ -57,368 +124,187 @@ def get_order(order_id):
         if not order:
             return jsonify({'message': 'Order not found'}), 404
         
-        # Check access permissions
+        # Check if user has access to this order
         if user.role == 'retailer' and order.retailer_id != current_user_id:
             return jsonify({'message': 'Access denied'}), 403
-        
-        if user.role == 'distributor' and order.distributor_id != current_user_id:
+        elif user.role == 'distributor' and order.distributor_id != current_user_id:
             return jsonify({'message': 'Access denied'}), 403
-        
-        if user.role == 'manufacturer':
-            # Check if this order contains products from this manufacturer
-            manufacturer_products = db.session.query(OrderItem).join(Product).filter(
-                OrderItem.order_id == order_id,
-                Product.manufacturer_id == current_user_id
-            ).first()
-            if not manufacturer_products:
+        elif user.role == 'manufacturer':
+            # Check if any products in the order belong to this manufacturer
+            order_items = OrderItem.query.filter(OrderItem.order_id == order_id).all()
+            product_ids = [item.product_id for item in order_items]
+            manufacturer_products = Product.query.filter(
+                and_(Product.id.in_(product_ids), Product.manufacturer_id == current_user_id)
+            ).count()
+            if manufacturer_products == 0:
                 return jsonify({'message': 'Access denied'}), 403
         
-        return jsonify(order.to_dict()), 200
+        # Get order items with product details
+        order_items = OrderItem.query.filter(OrderItem.order_id == order_id).all()
+        items_with_products = []
         
-    except Exception as e:
-        return jsonify({'message': 'Failed to fetch order', 'error': str(e)}), 500
-
-@orders_bp.route('/', methods=['POST'])
-@jwt_required()
-@role_required('retailer')
-@validate_json
-def create_order():
-    """Create new order (retailers only)"""
-    try:
-        current_user_id = get_jwt_identity()
-        data = request.get_json()
-        
-        distributor_id = data.get('distributorId')
-        items = data.get('items', [])
-        notes = data.get('notes', '')
-        delivery_mode = data.get('deliveryMode', 'delivery')
-        
-        if not distributor_id:
-            return jsonify({'message': 'Distributor ID is required'}), 400
-            
-        if not items or len(items) == 0:
-            return jsonify({'message': 'At least one item is required'}), 400
-        
-        # Verify distributor exists and is active
-        distributor = User.query.get(distributor_id)
-        if not distributor or distributor.role != 'distributor':
-            return jsonify({'message': 'Invalid distributor'}), 400
-        
-        # Validate delivery mode
-        if delivery_mode not in ['delivery', 'pickup']:
-            return jsonify({'message': 'Invalid delivery mode. Must be "delivery" or "pickup"'}), 400
-        
-        # Generate order number
-        order_number = f"ORD-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
-        
-        # Calculate total amount and validate items
-        total_amount = 0
-        order_items = []
-        
-        for item_data in items:
-            product_id = item_data.get('productId')
-            quantity = item_data.get('quantity', 0)
-            unit_price = item_data.get('unitPrice', 0)
-            
-            if not product_id:
-                return jsonify({'message': 'Product ID is required for all items'}), 400
-                
-            if not isinstance(quantity, (int, float)) or quantity <= 0:
-                return jsonify({'message': 'Quantity must be a positive number'}), 400
-                
-            if not isinstance(unit_price, (int, float)) or unit_price <= 0:
-                return jsonify({'message': 'Unit price must be a positive number'}), 400
-            
-            # Verify product exists and is active
-            product = Product.query.get(product_id)
-            if not product:
-                return jsonify({'message': f'Product {product_id} not found'}), 404
-            
-            total_price = quantity * unit_price
-            total_amount += total_price
-            
-            order_items.append({
-                'product_id': product_id,
-                'quantity': quantity,
-                'unit_price': unit_price,
-                'total_price': total_price
+        for item in order_items:
+            product = Product.query.get(item.product_id)
+            items_with_products.append({
+                'id': item.id,
+                'productId': item.product_id,
+                'productName': product.name if product else 'Unknown Product',
+                'productSku': product.sku if product else '',
+                'quantity': item.quantity,
+                'unitPrice': float(item.unit_price),
+                'totalPrice': float(item.total_price),
+                'productImage': product.image_url if product else None,
+                'productDescription': product.description if product else ''
             })
         
-        # Create order
-        new_order = Order(
-            order_number=order_number,
-            retailer_id=current_user_id,
-            distributor_id=distributor_id,
-            status='pending',
-            delivery_mode=delivery_mode,
-            total_amount=total_amount,
-            notes=notes
-        )
+        # Get retailer and distributor details
+        retailer = User.query.get(order.retailer_id)
+        distributor = User.query.get(order.distributor_id)
         
-        db.session.add(new_order)
-        db.session.flush()  # Get the order ID
+        order_details = {
+            'id': order.id,
+            'orderNumber': order.order_number,
+            'status': order.status,
+            'totalAmount': float(order.total_amount),
+            'notes': order.notes,
+            'createdAt': order.created_at.isoformat(),
+            'updatedAt': order.updated_at.isoformat(),
+            'retailer': {
+                'id': retailer.id,
+                'name': retailer.business_name or f"{retailer.first_name} {retailer.last_name}",
+                'email': retailer.email,
+                'phone': retailer.phone_number
+            } if retailer else None,
+            'distributor': {
+                'id': distributor.id,
+                'name': distributor.business_name or f"{distributor.first_name} {distributor.last_name}",
+                'email': distributor.email,
+                'phone': distributor.phone_number
+            } if distributor else None,
+            'items': items_with_products
+        }
         
-        # Create order items
-        for item_data in order_items:
-            order_item = OrderItem(
-                order_id=new_order.id,
-                product_id=item_data['product_id'],
-                quantity=item_data['quantity'],
-                unit_price=item_data['unit_price'],
-                total_price=item_data['total_price']
-            )
-            db.session.add(order_item)
-        
-        db.session.commit()
-        
-        # Send WhatsApp alert to distributor
-        retailer = User.query.get(current_user_id)
-        message = f"🛒 New order from {retailer.firstName} {retailer.lastName}\n"
-        message += f"Order: {order_number}\n"
-        message += f"Amount: ₹{total_amount}\n"
-        message += f"Items: {len(items)} products\n"
-        message += f"Delivery Mode: {delivery_mode.title()}\n\n"
-        message += "Please acknowledge:\n"
-        message += "1️⃣ Accept\n"
-        message += "2️⃣ Reject"
-        
-        notification = WhatsAppNotification(
-            user_id=distributor_id,
-            message=message,
-            type='order_alert',
-            sent_at=datetime.utcnow(),
-            is_delivered=True
-        )
-        
-        db.session.add(notification)
-        db.session.commit()
-        
-        print(f"📱 Order Alert to Distributor {distributor.email}: {message}")
-        
-        return jsonify(new_order.to_dict()), 201
-        
+        return jsonify(order_details)
+    
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': 'Failed to create order', 'error': str(e)}), 500
+        return jsonify({'message': str(e)}), 500
 
 @orders_bp.route('/<order_id>/status', methods=['PUT'])
 @jwt_required()
-@role_required('distributor')
 def update_order_status(order_id):
-    """Update order status (distributors only)"""
+    """Update order status (for distributors and manufacturers)"""
     try:
         current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        if user.role not in ['distributor', 'manufacturer']:
+            return jsonify({'message': 'Only distributors and manufacturers can update order status'}), 403
+        
         data = request.get_json()
         new_status = data.get('status')
-        delivery_mode = data.get('deliveryMode')
         
         if not new_status:
             return jsonify({'message': 'Status is required'}), 400
         
-        if new_status not in VALID_ORDER_STATUSES:
-            return jsonify({'message': f'Invalid status. Must be one of: {", ".join(VALID_ORDER_STATUSES)}'}), 400
+        valid_statuses = ['pending', 'accepted', 'rejected', 'processing', 'shipped', 'delivered', 'cancelled']
+        if new_status not in valid_statuses:
+            return jsonify({'message': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'}), 400
         
         order = Order.query.get(order_id)
         if not order:
             return jsonify({'message': 'Order not found'}), 404
         
-        # Verify distributor owns this order
-        if order.distributor_id != current_user_id:
+        # Check if user has access to this order
+        if user.role == 'distributor' and order.distributor_id != current_user_id:
             return jsonify({'message': 'Access denied'}), 403
+        elif user.role == 'manufacturer':
+            # Check if any products in the order belong to this manufacturer
+            order_items = OrderItem.query.filter(OrderItem.order_id == order_id).all()
+            product_ids = [item.product_id for item in order_items]
+            manufacturer_products = Product.query.filter(
+                and_(Product.id.in_(product_ids), Product.manufacturer_id == current_user_id)
+            ).count()
+            if manufacturer_products == 0:
+                return jsonify({'message': 'Access denied'}), 403
         
-        # Validate status transition
-        current_status = order.status
-        valid_transitions = {
-            'pending': ['confirmed', 'accepted', 'rejected', 'cancelled'],
-            'confirmed': ['packed', 'cancelled'],
-            'accepted': ['packed', 'cancelled'],
-            'packed': ['dispatched', 'cancelled'],
-            'dispatched': ['out_for_delivery', 'delivered'],
-            'out_for_delivery': ['delivered'],
-            'delivered': [],  # Final status
-            'cancelled': [],  # Final status
-            'rejected': []    # Final status
-        }
-        
-        if current_status in valid_transitions and new_status not in valid_transitions[current_status]:
-            return jsonify({'message': f'Invalid status transition from {current_status} to {new_status}'}), 400
-        
-        # Update status
-        old_status = order.status
+        # Update order status
         order.status = new_status
-        
-        if delivery_mode and delivery_mode in ['delivery', 'pickup']:
-            order.delivery_mode = delivery_mode
-        
         order.updated_at = datetime.utcnow()
+        
+        # Add notes if provided
+        if data.get('notes'):
+            order.notes = f"{order.notes or ''}\n{datetime.utcnow().strftime('%Y-%m-%d %H:%M')}: {data['notes']}"
+        
         db.session.commit()
-        
-        # Send WhatsApp notification to retailer
-        retailer = User.query.get(order.retailer_id)
-        status_emojis = {
-            'confirmed': '✅',
-            'accepted': '✅',
-            'packed': '📦',
-            'dispatched': '🚚',
-            'out_for_delivery': '🚛',
-            'delivered': '🎉',
-            'rejected': '❌',
-            'cancelled': '🚫'
-        }
-        
-        emoji = status_emojis.get(new_status, '📋')
-        message = f"{emoji} Order Status Update\n"
-        message += f"Order: {order.order_number}\n"
-        message += f"Status: {new_status.replace('_', ' ').title()}\n"
-        
-        if new_status == 'delivered':
-            message += "\nYour order has been delivered! 🎉\nThank you for your business!"
-        elif new_status in ['dispatched', 'out_for_delivery']:
-            message += "\nYour order is on the way! 🚚"
-        elif new_status == 'packed':
-            message += "\nYour order is packed and ready! 📦"
-        elif new_status in ['confirmed', 'accepted']:
-            message += "\nYour order has been accepted! ✅"
-        elif new_status == 'rejected':
-            message += "\nYour order has been rejected. Please contact us for details."
-        elif new_status == 'cancelled':
-            message += "\nYour order has been cancelled."
-        
-        notification = WhatsAppNotification(
-            user_id=order.retailer_id,
-            message=message,
-            type='status_update',
-            sent_at=datetime.utcnow(),
-            is_delivered=True
-        )
-        
-        db.session.add(notification)
-        db.session.commit()
-        
-        print(f"📱 Status Update to Retailer {retailer.email}: {message}")
         
         return jsonify({
             'message': 'Order status updated successfully',
-            'order': order.to_dict()
-        }), 200
-        
+            'orderId': order.id,
+            'newStatus': new_status
+        })
+    
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': 'Failed to update order status', 'error': str(e)}), 500
+        return jsonify({'message': str(e)}), 500
 
-@orders_bp.route('/<order_id>/delivery-mode', methods=['PUT'])
+@orders_bp.route('/stats', methods=['GET'])
 @jwt_required()
-@role_required('distributor')
-def update_delivery_mode(order_id):
-    """Update delivery mode (distributors only)"""
+def get_order_stats():
+    """Get order statistics for the current user"""
     try:
         current_user_id = get_jwt_identity()
-        data = request.get_json()
-        delivery_mode = data.get('deliveryMode')
+        user = User.query.get(current_user_id)
         
-        if not delivery_mode:
-            return jsonify({'message': 'Delivery mode is required'}), 400
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
         
-        order = Order.query.get(order_id)
-        if not order:
-            return jsonify({'message': 'Order not found'}), 404
+        # Build query based on user role
+        if user.role == 'retailer':
+            base_query = Order.query.filter(Order.retailer_id == current_user_id)
+        elif user.role == 'distributor':
+            base_query = Order.query.filter(Order.distributor_id == current_user_id)
+        elif user.role == 'manufacturer':
+            base_query = Order.query.join(OrderItem).join(Product).filter(
+                Product.manufacturer_id == current_user_id
+            ).distinct()
+        else:
+            return jsonify({'message': 'Invalid user role'}), 400
         
-        # Verify distributor owns this order
-        if order.distributor_id != current_user_id:
-            return jsonify({'message': 'Access denied'}), 403
+        # Get total orders
+        total_orders = base_query.count()
         
-        # Update delivery mode
-        order.delivery_mode = delivery_mode
-        order.updated_at = datetime.utcnow()
-        db.session.commit()
+        # Get orders by status
+        status_counts = {}
+        for status in ['pending', 'accepted', 'rejected', 'processing', 'shipped', 'delivered', 'cancelled']:
+            count = base_query.filter(Order.status == status).count()
+            status_counts[status] = count
         
-        # Send WhatsApp notification to retailer
-        retailer = User.query.get(order.retailer_id)
-        mode_emojis = {
-            'delivery': '🚚',
-            'pickup': '🏬'
+        # Get total revenue
+        total_revenue = base_query.filter(Order.status.in_(['delivered', 'shipped'])).with_entities(
+            db.func.sum(Order.total_amount)
+        ).scalar() or 0
+        
+        # Get recent orders (last 30 days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        recent_orders = base_query.filter(Order.created_at >= thirty_days_ago).count()
+        
+        # Get monthly revenue
+        current_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        monthly_revenue = base_query.filter(
+            and_(Order.status.in_(['delivered', 'shipped']), Order.created_at >= current_month_start)
+        ).with_entities(db.func.sum(Order.total_amount)).scalar() or 0
+        
+        stats = {
+            'totalOrders': total_orders,
+            'totalRevenue': float(total_revenue),
+            'monthlyRevenue': float(monthly_revenue),
+            'recentOrders': recent_orders,
+            'statusBreakdown': status_counts
         }
         
-        emoji = mode_emojis.get(delivery_mode, '📋')
-        message = f"{emoji} Delivery Mode Updated\n"
-        message += f"Order: {order.order_number}\n"
-        message += f"Mode: {delivery_mode.title()}\n"
-        
-        if delivery_mode == 'delivery':
-            message += "\nWe will deliver your order to your address."
-        elif delivery_mode == 'pickup':
-            message += "\nPlease pick up your order from our location."
-        
-        notification = WhatsAppNotification(
-            user_id=order.retailer_id,
-            message=message,
-            type='delivery_update',
-            sent_at=datetime.utcnow(),
-            is_delivered=True
-        )
-        
-        db.session.add(notification)
-        db.session.commit()
-        
-        print(f"📱 Delivery Update to Retailer {retailer.email}: {message}")
-        
-        return jsonify({
-            'message': 'Delivery mode updated successfully',
-            'order': order.to_dict()
-        }), 200
-        
+        return jsonify(stats)
+    
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': 'Failed to update delivery mode', 'error': str(e)}), 500 
-
-@orders_bp.route('/history/<partner_id>', methods=['GET'])
-@jwt_required()
-def get_order_history(partner_id):
-    """Get order history with a specific partner"""
-    try:
-        current_user_id = get_jwt_identity()
-        current_user = User.query.get(current_user_id)
-        partner = User.query.get(partner_id)
-        
-        if not partner:
-            return jsonify({'message': 'Partner not found'}), 404
-        
-        # Determine the relationship and get appropriate orders
-        orders = []
-        
-        if current_user.role == 'distributor' and partner.role == 'retailer':
-            # Distributor viewing orders with a retailer
-            orders = Order.query.filter_by(
-                distributor_id=current_user_id,
-                retailer_id=partner_id
-            ).order_by(Order.created_at.desc()).all()
-            
-        elif current_user.role == 'manufacturer' and partner.role == 'distributor':
-            # Manufacturer viewing orders with a distributor
-            orders = Order.query.filter_by(
-                distributor_id=partner_id
-            ).join(OrderItem).join(Product).filter(
-                Product.manufacturer_id == current_user_id
-            ).order_by(Order.created_at.desc()).all()
-            
-        elif current_user.role == 'retailer' and partner.role == 'distributor':
-            # Retailer viewing orders with a distributor
-            orders = Order.query.filter_by(
-                retailer_id=current_user_id,
-                distributor_id=partner_id
-            ).order_by(Order.created_at.desc()).all()
-            
-        else:
-            return jsonify({'message': 'Access denied'}), 403
-        
-        # Convert to dict with items
-        order_data = []
-        for order in orders:
-            order_dict = order.to_dict()
-            order_dict['items'] = [item.to_dict() for item in order.items]
-            order_data.append(order_dict)
-        
-        return jsonify(order_data), 200
-        
-    except Exception as e:
-        return jsonify({'message': 'Failed to fetch order history', 'error': str(e)}), 500 
+        return jsonify({'message': str(e)}), 500 
