@@ -3,28 +3,19 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
-import os
-from datetime import timedelta
+from app.config import Config
 
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
 
-def create_app(config_name=None):
+def create_app(config_class=Config):
     """Application factory pattern"""
     app = Flask(__name__)
     
     # Load configuration
-    if config_name is None:
-        config_name = os.environ.get('FLASK_ENV', 'development')
-    
-    if config_name == 'production':
-        app.config.from_object('app.config.ProductionConfig')
-    elif config_name == 'testing':
-        app.config.from_object('app.config.TestingConfig')
-    else:
-        app.config.from_object('app.config.DevelopmentConfig')
+    app.config.from_object(config_class)
     
     # Initialize extensions
     db.init_app(app)
@@ -32,36 +23,34 @@ def create_app(config_name=None):
     jwt.init_app(app)
     
     # Setup CORS
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:80']),
-            "methods": ["GET", "POST", "PUT", "DELETE", "PATCH"],
-            "allow_headers": ["Content-Type", "Authorization"]
-        }
-    })
+    CORS(app, origins=app.config['CORS_ORIGINS'])
     
     # Register blueprints
     from app.api.v1.auth import auth_bp
-    from app.api.v1.partners import partners_bp
     from app.api.v1.products import products_bp
     from app.api.v1.orders import orders_bp
-    from app.api.v1.favorites import favorites_bp
+    from app.api.v1.partners import partners_bp
     from app.api.v1.partnerships import partnerships_bp
+    from app.api.v1.favorites import favorites_bp
     from app.api.v1.search import search_bp
     from app.api.v1.health import health_bp
     from app.api.v1.analytics import analytics_bp
     from app.api.v1.notifications import notifications_bp
+    from app.api.v1.whatsapp import whatsapp_bp
+    from app.api.v1.invoices import invoices_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(partners_bp, url_prefix='/api/partners')
     app.register_blueprint(products_bp, url_prefix='/api/products')
     app.register_blueprint(orders_bp, url_prefix='/api/orders')
-    app.register_blueprint(favorites_bp, url_prefix='/api/favorites')
+    app.register_blueprint(partners_bp, url_prefix='/api/partners')
     app.register_blueprint(partnerships_bp, url_prefix='/api/partnerships')
+    app.register_blueprint(favorites_bp, url_prefix='/api/favorites')
     app.register_blueprint(search_bp, url_prefix='/api/search')
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
+    app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')
+    app.register_blueprint(invoices_bp, url_prefix='/api/invoices')
     
     # Error handlers
     from app.errors import register_error_handlers

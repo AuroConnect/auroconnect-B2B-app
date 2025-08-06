@@ -17,33 +17,8 @@ def get_notifications():
         if not user:
             return jsonify({'message': 'User not found'}), 404
         
-        # For now, return mock notifications
-        # In a real app, you'd have a notifications table
-        mock_notifications = [
-            {
-                'id': '1',
-                'message': 'Your order #ORD-001 has been confirmed',
-                'type': 'order_update',
-                'createdAt': (datetime.utcnow() - timedelta(hours=2)).isoformat(),
-                'read': False
-            },
-            {
-                'id': '2', 
-                'message': 'New product available from your favorite distributor',
-                'type': 'product_update',
-                'createdAt': (datetime.utcnow() - timedelta(hours=5)).isoformat(),
-                'read': False
-            },
-            {
-                'id': '3',
-                'message': 'Invoice for order #ORD-002 is ready for download',
-                'type': 'invoice',
-                'createdAt': (datetime.utcnow() - timedelta(days=1)).isoformat(),
-                'read': True
-            }
-        ]
-        
-        return jsonify(mock_notifications), 200
+        # Return empty array - notifications are now handled by WhatsApp API
+        return jsonify([]), 200
         
     except Exception as e:
         return jsonify({'message': 'Error fetching notifications', 'error': str(e)}), 500 

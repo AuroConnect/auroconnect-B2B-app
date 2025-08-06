@@ -8,6 +8,15 @@ import { Download, TrendingUp, TrendingDown, Package, DollarSign } from "lucide-
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
+interface AnalyticsStats {
+  total_orders: number;
+  total_revenue: number;
+  pending_orders: number;
+  completed_orders: number;
+  total_products: number;
+  active_partners: number;
+}
+
 export default function Reports() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
@@ -27,7 +36,7 @@ export default function Reports() {
     }
   }, [user, isLoading, toast]);
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<AnalyticsStats>({
     queryKey: ["api", "analytics", "stats"],
     enabled: !!user,
   });
@@ -42,21 +51,6 @@ export default function Reports() {
       </div>
     );
   }
-
-  // Mock data for demonstration
-  const mockStats = {
-    totalOrders: 45,
-    monthlySpend: 125000,
-    pendingOrders: 8,
-    averageOrderValue: 2777,
-    topProducts: [
-      { name: "Office Chairs", quantity: 12, revenue: 240000 },
-      { name: "Desk Lamps", quantity: 25, revenue: 75000 },
-      { name: "Storage Cabinets", quantity: 8, revenue: 120000 }
-    ]
-  };
-
-  const reportStats = stats || mockStats;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -96,7 +90,7 @@ export default function Reports() {
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{(reportStats as any).totalOrders || 0}</div>
+                  <div className="text-2xl font-bold">{stats?.total_orders || 0}</div>
                   <p className="text-xs text-muted-foreground">
                     +20.1% from last month
                   </p>
@@ -105,11 +99,11 @@ export default function Reports() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Monthly Spend</CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">₹{(reportStats as any).monthlySpend || 0}</div>
+                  <div className="text-2xl font-bold">₹{stats?.total_revenue || 0}</div>
                   <p className="text-xs text-muted-foreground">
                     +12.5% from last month
                   </p>
@@ -122,7 +116,7 @@ export default function Reports() {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{(reportStats as any).pendingOrders || 0}</div>
+                  <div className="text-2xl font-bold">{stats?.pending_orders || 0}</div>
                   <p className="text-xs text-muted-foreground">
                     -5.2% from last month
                   </p>
@@ -131,11 +125,11 @@ export default function Reports() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
+                  <CardTitle className="text-sm font-medium">Completed Orders</CardTitle>
                   <TrendingDown className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">₹{(reportStats as any).averageOrderValue || 0}</div>
+                  <div className="text-2xl font-bold">{stats?.completed_orders || 0}</div>
                   <p className="text-xs text-muted-foreground">
                     +2.1% from last month
                   </p>
@@ -143,28 +137,26 @@ export default function Reports() {
               </Card>
             </div>
 
-            {/* Top Products */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Products</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {(reportStats as any).topProducts?.map((product: any, index: number) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{product.name}</p>
-                        <p className="text-sm text-gray-600">{product.quantity} units sold</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">₹{product.revenue}</p>
-                        <p className="text-sm text-gray-600">Revenue</p>
-                      </div>
+            {/* Additional Stats */}
+            {stats?.total_products && (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle>Product Statistics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium">Total Products</p>
+                      <p className="text-2xl font-bold">{stats.total_products}</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <div>
+                      <p className="text-sm font-medium">Active Partners</p>
+                      <p className="text-2xl font-bold">{stats.active_partners || 0}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Download Reports */}
             <div className="mt-8">

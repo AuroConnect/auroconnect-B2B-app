@@ -25,6 +25,15 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Endpoints that need trailing slashes
+const ENDPOINTS_NEEDING_TRAILING_SLASH = [
+  'api/products',
+  'api/orders', 
+  'api/favorites',
+  'api/notifications',
+  'api/partnerships'
+];
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -41,7 +50,17 @@ export async function apiRequest(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  // Clean the URL and ensure trailing slash for specific API endpoints
+  const cleanUrl = url.replace(/\/+/g, '/').replace(/^\//, '');
+  const finalUrl = `${API_BASE_URL}/${cleanUrl}`;
+  
+  // Add trailing slash only for endpoints that need it
+  const needsTrailingSlash = ENDPOINTS_NEEDING_TRAILING_SLASH.some(endpoint => 
+    finalUrl.includes(endpoint) && !finalUrl.includes('categories')
+  );
+  const urlWithTrailingSlash = needsTrailingSlash && !finalUrl.endsWith('/') ? `${finalUrl}/` : finalUrl;
+
+  const res = await fetch(urlWithTrailingSlash, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -64,15 +83,34 @@ export const getQueryFn: <T>(options: {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Construct URL properly with trailing slash for endpoints that need it
-    const path = queryKey.join("/");
-    const url = path.startsWith('/') ? path : `/${path}`;
+    // Build the path from query key
+    const pathParts = queryKey.map(part => String(part)).filter(part => part !== '');
+    let path = pathParts.join('/');
     
-    // Add trailing slash for specific endpoints that need it
-    const endpointsNeedingTrailingSlash = ['api/orders', 'api/products', 'api/favorites', 'api/partnerships', 'api/notifications'];
-    const finalUrl = endpointsNeedingTrailingSlash.some(endpoint => url.includes(endpoint)) ? `${url}/` : url;
+    // Handle query parameters
+    const lastPart = pathParts[pathParts.length - 1];
+    if (lastPart && lastPart.includes('?')) {
+      const [basePath, queryString] = lastPart.split('?');
+      if (basePath && queryString) {
+        // Remove the last part and add the base path
+        pathParts.pop();
+        pathParts.push(basePath);
+        path = pathParts.join('/');
+        path = `${path}?${queryString}`;
+      }
+    }
+    
+    // Clean the path to remove double slashes
+    const cleanPath = path.replace(/\/+/g, '/').replace(/^\//, '');
+    const finalUrl = `${API_BASE_URL}/${cleanPath}`;
+    
+    // Add trailing slash only for endpoints that need it
+    const needsTrailingSlash = ENDPOINTS_NEEDING_TRAILING_SLASH.some(endpoint => 
+      finalUrl.includes(endpoint) && !finalUrl.includes('categories')
+    );
+    const urlWithTrailingSlash = needsTrailingSlash && !finalUrl.endsWith('/') ? `${finalUrl}/` : finalUrl;
 
-    const res = await fetch(`${API_BASE_URL}${finalUrl}`, {
+    const res = await fetch(urlWithTrailingSlash, {
       headers,
     });
 
@@ -98,3 +136,4 @@ export const queryClient = new QueryClient({
     },
   },
 });
+

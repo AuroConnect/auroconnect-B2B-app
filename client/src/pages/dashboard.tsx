@@ -5,6 +5,7 @@ import MobileNav from "@/components/layout/mobile-nav";
 import StatsCards from "@/components/dashboard/stats-cards";
 import RecentOrders from "@/components/dashboard/recent-orders";
 import QuickActions from "@/components/dashboard/quick-actions";
+import WhatsAppNotifications from "@/components/whatsapp/notifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageCircle, TrendingUp, Users, Package } from "lucide-react";
 import { useEffect } from "react";
@@ -19,7 +20,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!isLoading && !user) {
       toast({
-        title: "Unauthorized",
+        title: "Unauthorized", 
         description: "You are logged out. Logging in again...",
         variant: "destructive",
       });
@@ -88,43 +89,7 @@ export default function Dashboard() {
             <QuickActions userRole={(user as User)?.role || 'retailer'} />
 
             {/* WhatsApp Notifications */}
-            <Card className="dashboard-card whatsapp-section">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center whatsapp-header">
-                  <div className="w-8 h-8 whatsapp-icon rounded-lg flex items-center justify-center mr-3">
-                    <MessageCircle className="h-4 w-4 text-white" />
-                  </div>
-                  WhatsApp Updates
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {notifications && Array.isArray(notifications) && notifications.length > 0 ? (
-                    notifications.slice(0, 3).map((notification: any, index: number) => (
-                      <div key={notification.id} className="flex items-start space-x-3 p-3 whatsapp-notification rounded-lg">
-                        <div className="w-2 h-2 whatsapp-dot rounded-full mt-2"></div>
-                        <div>
-                          <p className="text-sm text-gray-900 font-medium" data-testid={`text-notification-${index}`}>
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            {new Date(notification.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="w-12 h-12 whatsapp-icon rounded-2xl flex items-center justify-center mx-auto mb-3">
-                        <MessageCircle className="h-6 w-6 text-white" />
-                      </div>
-                      <p className="text-sm whatsapp-empty">No recent notifications</p>
-                      <p className="text-xs whatsapp-empty-subtitle mt-1">WhatsApp updates will appear here</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <WhatsAppNotifications />
 
             {/* Performance Insights */}
             <Card className="dashboard-card">

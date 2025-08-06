@@ -34,42 +34,7 @@ export default function RecentOrders() {
     );
   }
 
-  const mockOrders = [
-    {
-      id: "ORD-001",
-      customer: "Tech Retailer Co",
-      items: 5,
-      total: 2449.95,
-      status: "pending",
-      date: "2024-01-15T10:30:00Z"
-    },
-    {
-      id: "ORD-002", 
-      customer: "Office Supply Plus",
-      items: 12,
-      total: 1299.50,
-      status: "confirmed",
-      date: "2024-01-15T09:15:00Z"
-    },
-    {
-      id: "ORD-003",
-      customer: "Modern Furniture Ltd",
-      items: 3,
-      total: 899.99,
-      status: "shipped",
-      date: "2024-01-14T16:45:00Z"
-    },
-    {
-      id: "ORD-004",
-      customer: "Fashion Forward",
-      items: 8,
-      total: 679.92,
-      status: "delivered",
-      date: "2024-01-14T14:20:00Z"
-    }
-  ];
-
-  const recentOrders = Array.isArray(orders) ? orders.slice(0, 5) : mockOrders;
+  const recentOrders = Array.isArray(orders) ? orders.slice(0, 5) : [];
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -118,19 +83,19 @@ export default function RecentOrders() {
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium text-gray-900" data-testid={`order-id-${order.id}`}>
-                      {order.id}
+                      {order.order_number}
                     </h4>
                     <Badge className={getStatusColor(order.status)} data-testid={`order-status-${order.id}`}>
                       {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                     </Badge>
                   </div>
                   <p className="text-sm text-gray-600 mb-1" data-testid={`order-customer-${order.id}`}>
-                    {order.customer}
+                    {order.customer_name || 'Customer'}
                   </p>
                   <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{order.items} items</span>
-                    <span className="font-medium">${order.total.toLocaleString()}</span>
-                    <span>{formatDate(order.date)}</span>
+                    <span>{order.items?.length || 0} items</span>
+                    <span className="font-medium">₹{order.total_amount?.toLocaleString() || 0}</span>
+                    <span>{formatDate(order.created_at)}</span>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm" className="ml-4" data-testid={`button-view-order-${order.id}`}>

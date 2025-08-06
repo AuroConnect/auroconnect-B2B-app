@@ -397,3 +397,203 @@
     @apply text-green-600;
   }
 }
+
+/* Enhanced Dialog Styles */
+.dialog-overlay {
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.dialog-content {
+  background: white !important;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+}
+
+.dialog-content:focus {
+  outline: none;
+}
+
+/* Ensure dialog backdrop is solid */
+[data-radix-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* Ensure dialog content is solid white */
+[data-radix-dialog-content] {
+  background: white !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Additional dialog styling to prevent transparency */
+[role="dialog"] {
+  background: white !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+}
+
+/* Ensure all dialog elements are opaque */
+.dialog-content * {
+  background: inherit !important;
+}
+
+/* Fix all dropdown transparency issues */
+[data-radix-select-content],
+[data-radix-select-viewport],
+[data-radix-select-item],
+[data-radix-select-separator] {
+  background: white !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Ensure dropdown items are opaque */
+[data-radix-select-item] {
+  background: white !important;
+  color: #374151 !important;
+}
+
+[data-radix-select-item]:hover {
+  background: #f9fafb !important;
+}
+
+[data-radix-select-item][data-highlighted] {
+  background: #f3f4f6 !important;
+}
+
+/* Fix popover transparency */
+[data-radix-popover-content] {
+  background: white !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Fix tooltip transparency */
+[data-radix-tooltip-content] {
+  background: #1f2937 !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  color: white !important;
+}
+
+/* Fix menu transparency */
+[data-radix-menu-content] {
+  background: white !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Enhanced Form Styles */
+.form-field {
+  transition: all 0.2s ease-in-out;
+}
+
+.form-field:focus-within {
+  transform: translateY(-1px);
+}
+
+/* Enhanced Button Styles */
+.action-button-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.action-button-primary:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.action-button-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Enhanced Input Styles */
+.enhanced-input {
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+  background: white !important;
+  opacity: 1 !important;
+}
+
+.enhanced-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  outline: none;
+}
+
+.enhanced-input:hover {
+  border-color: #d1d5db;
+}
+
+/* Enhanced Select Styles */
+.enhanced-select {
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+  background: white !important;
+  opacity: 1 !important;
+}
+
+.enhanced-select:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.enhanced-select:hover {
+  border-color: #d1d5db;
+}
+
+/* Enhanced Textarea Styles */
+.enhanced-textarea {
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+  background: white !important;
+  opacity: 1 !important;
+  resize: none;
+}
+
+.enhanced-textarea:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  outline: none;
+}
+
+.enhanced-textarea:hover {
+  border-color: #d1d5db;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

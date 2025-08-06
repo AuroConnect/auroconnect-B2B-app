@@ -10,12 +10,21 @@ partners_bp = Blueprint('partners', __name__)
 @partners_bp.route('/distributors', methods=['GET'])
 @jwt_required()
 def get_distributors():
-    """Get all distributors"""
+    """Get all distributors (for retailers and manufacturers)"""
     try:
         current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
         search = request.args.get('search', '')
         
+        # Only retailers and manufacturers can see distributors
+        if current_user.role not in ['retailer', 'manufacturer']:
+            return jsonify([]), 200
+        
         query = User.query.filter_by(role='distributor', is_active=True)
+        
+        # If current user is a distributor, exclude themselves from the list
+        if current_user and current_user.role == 'distributor':
+            query = query.filter(User.id != current_user_id)
         
         if search:
             query = query.filter(
@@ -32,6 +41,32 @@ def get_distributors():
         
     except Exception as e:
         return jsonify({'message': 'Failed to fetch distributors', 'error': str(e)}), 500
+
+@partners_bp.route('/retailers', methods=['GET'])
+@jwt_required()
+@role_required('distributor')
+def get_retailers():
+    """Get all retailers (distributors only)"""
+    try:
+        search = request.args.get('search', '')
+        
+        query = User.query.filter_by(role='retailer', is_active=True)
+        
+        if search:
+            query = query.filter(
+                or_(
+                    User.business_name.ilike(f'%{search}%'),
+                    User.email.ilike(f'%{search}%'),
+                    User.first_name.ilike(f'%{search}%'),
+                    User.last_name.ilike(f'%{search}%')
+                )
+            )
+        
+        retailers = query.all()
+        return jsonify([ret.to_public_dict() for ret in retailers]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch retailers', 'error': str(e)}), 500
 
 @partners_bp.route('/manufacturers', methods=['GET'])
 @jwt_required()
