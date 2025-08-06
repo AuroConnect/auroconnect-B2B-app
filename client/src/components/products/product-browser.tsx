@@ -163,12 +163,34 @@ export default function ProductBrowser({ partner, isOpen, onClose }: ProductBrow
       return;
     }
 
+    // Validate quantities
+    const hasInvalidQuantity = orderItems.some(item => item.quantity <= 0 || item.unitPrice <= 0);
+    if (hasInvalidQuantity) {
+      toast({
+        title: "Invalid Order",
+        description: "All items must have valid quantities and prices.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const orderData = {
-      distributorId: partner.role === 'distributor' ? partner.id : user.id,
-      retailerId: user.role === 'retailer' ? user.id : partner.id,
+      distributorId: partner.role === 'distributor' ? partner.id : undefined,
+      manufacturerId: partner.role === 'manufacturer' ? partner.id : undefined,
       items: orderItems,
-      notes: `Order placed by ${user.role} for ${partner.role}`
+      notes: `Order placed via product browser by ${user.firstName} ${user.lastName}`,
+      deliveryMode: 'delivery'
     };
+
+    // Ensure we have the correct target partner ID
+    if (!orderData.distributorId && !orderData.manufacturerId) {
+      toast({
+        title: "Invalid Partner",
+        description: "Cannot place order with this partner type.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     placeOrderMutation.mutate(orderData);
   };
@@ -179,8 +201,17 @@ export default function ProductBrowser({ partner, isOpen, onClose }: ProductBrow
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       case 'pending':
         return <Clock className="h-4 w-4 text-yellow-600" />;
+      case 'confirmed':
+      case 'accepted':
+        return <CheckCircle className="h-4 w-4 text-blue-600" />;
+      case 'packed':
+        return <Package className="h-4 w-4 text-purple-600" />;
       case 'dispatched':
-        return <Truck className="h-4 w-4 text-blue-600" />;
+      case 'out_for_delivery':
+        return <Truck className="h-4 w-4 text-orange-600" />;
+      case 'cancelled':
+      case 'rejected':
+        return <X className="h-4 w-4 text-red-600" />;
       default:
         return <Clock className="h-4 w-4 text-gray-600" />;
     }
@@ -188,16 +219,24 @@ export default function ProductBrowser({ partner, isOpen, onClose }: ProductBrow
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'accepted': 'bg-blue-100 text-blue-800',
-      'dispatched': 'bg-purple-100 text-purple-800',
-      'delivered': 'bg-green-100 text-green-800',
-      'cancelled': 'bg-red-100 text-red-800'
+      'pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'confirmed': 'bg-blue-100 text-blue-800 border-blue-200',
+      'accepted': 'bg-blue-100 text-blue-800 border-blue-200',
+      'packed': 'bg-purple-100 text-purple-800 border-purple-200',
+      'dispatched': 'bg-orange-100 text-orange-800 border-orange-200',
+      'out_for_delivery': 'bg-orange-100 text-orange-800 border-orange-200',
+      'delivered': 'bg-green-100 text-green-800 border-green-200',
+      'cancelled': 'bg-red-100 text-red-800 border-red-200',
+      'rejected': 'bg-red-100 text-red-800 border-red-200'
+    };
+    
+    const formatStatusDisplay = (status: string) => {
+      return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     };
     
     return (
-      <Badge className={statusColors[status.toLowerCase() as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
-        {status}
+      <Badge className={`border ${statusColors[status.toLowerCase() as keyof typeof statusColors] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
+        {formatStatusDisplay(status)}
       </Badge>
     );
   };
