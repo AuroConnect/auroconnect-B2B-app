@@ -1,15 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ShoppingCart, Package, FileText, Users } from "lucide-react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 interface QuickActionsProps {
   userRole: string;
 }
 
 export default function QuickActions({ userRole }: QuickActionsProps) {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   
+  const navigate = (path: string) => {
+    setLocation(path);
+  };
+
   const getActionsForRole = () => {
     switch (userRole) {
       case 'retailer':
