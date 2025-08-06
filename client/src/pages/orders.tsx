@@ -6,7 +6,7 @@ import OrderStatus from "@/components/orders/order-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, Download, MessageCircle } from "lucide-react";
+import { Package, Download, MessageCircle, Eye } from "lucide-react";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,14 +23,14 @@ export default function Orders() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
+        window.location.href = "/";
       }, 500);
       return;
     }
   }, [user, isLoading, toast]);
 
   const { data: orders, isLoading: ordersLoading } = useQuery({
-    queryKey: ["/api/orders"],
+    queryKey: ["api", "orders"],
     enabled: !!user,
   });
 
@@ -96,96 +96,61 @@ export default function Orders() {
               </Card>
             ))}
           </div>
-        ) : orders && orders.length > 0 ? (
+        ) : orders && Array.isArray(orders) && (orders as any[]).length > 0 ? (
           <div className="space-y-6">
-            {orders.map((order: any) => (
-              <Card key={order.id} className="hover:shadow-lg transition-shadow">
+            {(orders as any[]).map((order: any) => (
+              <Card key={order.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex justify-between items-start">
                     <div>
-                      <CardTitle className="flex items-center gap-2" data-testid={`text-order-number-${order.id}`}>
-                        <Package className="h-5 w-5" />
-                        {order.orderNumber}
-                      </CardTitle>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {new Date(order.createdAt).toLocaleDateString('en-IN', {
-                          year: 'numeric',
-                          month: 'long', 
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                      <h3 className="text-lg font-semibold">{order.orderNumber || order.id}</h3>
+                      <p className="text-sm text-gray-600">
+                        {new Date(order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <Badge className={getStatusBadgeClass(order.status)} data-testid={`badge-order-status-${order.id}`}>
-                      {order.status.replace('_', ' ').toUpperCase()}
+                    <Badge className={getStatusBadgeClass(order.status)}>
+                      {order.status}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Order Details</h4>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <p><strong>Total Amount:</strong> ₹{order.totalAmount}</p>
-                        <p><strong>Delivery Mode:</strong> {order.deliveryMode === 'pickup' ? 'Self Pickup' : 'Home Delivery'}</p>
-                        {order.notes && <p><strong>Notes:</strong> {order.notes}</p>}
-                      </div>
+                  <div className="space-y-4">
+                    <div className="flex justify-between text-sm">
+                      <span>Total Amount:</span>
+                      <span className="font-semibold">₹{order.totalAmount || 0}</span>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Order Status</h4>
-                      <OrderStatus status={order.status} />
+                    <div className="flex justify-between text-sm">
+                      <span>Items:</span>
+                      <span>{order.items?.length || 0} items</span>
                     </div>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2 mt-6">
-                    <Button variant="outline" size="sm" data-testid={`button-view-details-${order.id}`}>
-                      View Details
-                    </Button>
-                    <Button variant="outline" size="sm" data-testid={`button-download-invoice-${order.id}`}>
-                      <Download className="h-4 w-4 mr-1" />
-                      Invoice
-                    </Button>
-                    <Button variant="outline" size="sm" className="whatsapp-green text-white hover:bg-green-600" data-testid={`button-whatsapp-${order.id}`}>
-                      <MessageCircle className="h-4 w-4 mr-1" />
-                      WhatsApp
-                    </Button>
-                    {user.role === 'distributor' && order.status === 'pending' && (
-                      <>
-                        <Button size="sm" className="action-button-secondary" data-testid={`button-approve-${order.id}`}>
-                          Approve
-                        </Button>
-                        <Button size="sm" variant="destructive" data-testid={`button-reject-${order.id}`}>
-                          Reject
-                        </Button>
-                      </>
-                    )}
+                    <div className="flex gap-2 pt-2">
+                      <Button size="sm" variant="outline">
+                        <Eye className="h-4 w-4 mr-1" />
+                        View Details
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <Download className="h-4 w-4 mr-1" />
+                        Download Invoice
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <MessageCircle className="h-4 w-4 mr-1" />
+                        Contact
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Orders Found</h3>
-              <p className="text-gray-600 mb-6">
-                {user.role === 'retailer' 
-                  ? "You haven't placed any orders yet. Browse products to get started."
-                  : "No orders to process at the moment."
-                }
-              </p>
-              {user.role === 'retailer' && (
-                <Button className="action-button-primary" data-testid="button-browse-products">
-                  Browse Products
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+          <div className="text-center py-12">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Found</h3>
+            <p className="text-gray-600">You haven't placed any orders yet.</p>
+          </div>
         )}
       </div>
-
+      
       <MobileNav />
     </div>
   );

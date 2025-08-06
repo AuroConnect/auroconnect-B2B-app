@@ -11,15 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Plus, Search, CheckCircle, XCircle, Clock, Building2 } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  companyName: string;
-}
+import type { User } from "@/hooks/useAuth";
 
 interface Partnership {
   id: string;
@@ -43,35 +35,34 @@ export default function Partnerships() {
 
   // Fetch current partnerships
   const { data: partnerships = [], isLoading: partnershipsLoading } = useQuery<Partnership[]>({
-    queryKey: ["/api/partnerships"],
+    queryKey: ["api", "partnerships"],
     enabled: isAuthenticated,
   });
 
   // Fetch available partners to connect with
   const { data: availablePartners = [], isLoading: partnersLoading } = useQuery<User[]>({
-    queryKey: ["/api/partners/available"],
+    queryKey: ["api", "partners", "available"],
     enabled: isAuthenticated,
   });
 
   // Global product search
   const { data: globalSearchResults = [], isLoading: globalSearchLoading } = useQuery<User[]>({
-    queryKey: ["/api/partners/search", { product: productSearchTerm }],
-    queryFn: () => apiRequest(`/api/partners/search?product=${encodeURIComponent(productSearchTerm)}`, "GET"),
+    queryKey: ["api", "partners", "search", productSearchTerm],
     enabled: isAuthenticated && productSearchTerm.length > 2,
   });
 
   // Send partnership request mutation
   const sendRequestMutation = useMutation({
     mutationFn: async ({ partnerId, partnershipType }: { partnerId: string; partnershipType: string }) => {
-      await apiRequest("/api/partnerships/request", "POST", { partnerId, partnershipType });
+      await apiRequest("POST", "/api/partnerships/request", { partnerId, partnershipType });
     },
     onSuccess: () => {
       toast({
         title: "Partnership Request Sent",
         description: "Your partnership request has been sent successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/partnerships"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/partners/available"] });
+      queryClient.invalidateQueries({ queryKey: ["api", "partnerships"] });
+      queryClient.invalidateQueries({ queryKey: ["api", "partners", "available"] });
       setIsAddPartnerOpen(false);
       setSelectedPartnershipType("");
     },
@@ -83,7 +74,7 @@ export default function Partnerships() {
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/";
         }, 500);
         return;
       }
@@ -104,6 +95,7 @@ export default function Partnerships() {
       });
       return;
     }
+
     sendRequestMutation.mutate({ partnerId, partnershipType: selectedPartnershipType });
   };
 
@@ -146,7 +138,6 @@ export default function Partnerships() {
   };
 
   const filteredPartners = availablePartners.filter((partner) => 
-    partner.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     partner.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     partner.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     `${partner.firstName} ${partner.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -168,16 +159,16 @@ export default function Partnerships() {
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-          {/* Current Partnerships - My Favorites */}
-          <Card data-testid="card-current-partnerships" className="lg:col-span-2 xl:col-span-1">
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Current Partnerships */}
+          <Card data-testid="card-current-partnerships">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                My Favorites ({partnerships.length})
+                Current Partnerships ({partnerships.length})
               </CardTitle>
               <CardDescription>
-                Your trusted business partners and connections
+                Your active business partnerships and connection requests
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -190,26 +181,26 @@ export default function Partnerships() {
               ) : partnerships.length === 0 ? (
                 <div className="text-center py-8">
                   <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400">No favorite partners yet</p>
+                  <p className="text-gray-500 dark:text-gray-400">No partnerships yet</p>
                   <p className="text-sm text-gray-400 dark:text-gray-500">
-                    Add trusted partners to your favorites for quick access
+                    Start building your network by adding business partners
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
+                <div className="space-y-4">
                   {partnerships.map((partnership) => (
                     <div
                       key={partnership.id}
-                      className="flex items-center justify-between p-4 border rounded-lg bg-white dark:bg-gray-800 border-green-200 dark:border-green-800"
+                      className="flex items-center justify-between p-4 border rounded-lg bg-white dark:bg-gray-800"
                       data-testid={`card-partnership-${partnership.id}`}
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-medium text-gray-900 dark:text-white">
-                            {partnership.partner.businessName || partnership.partner.companyName || 
+                            {partnership.partner.companyName || 
                              `${partnership.partner.firstName} ${partnership.partner.lastName}`}
                           </h3>
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          {getStatusIcon(partnership.status)}
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-300">
                           {getRoleDescription(partnership.partner.role)}
@@ -219,9 +210,7 @@ export default function Partnerships() {
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Badge variant="default" className="bg-green-600">
-                          Favorite
-                        </Badge>
+                        {getStatusBadge(partnership.status)}
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                           {partnership.partnershipType}
                         </span>
@@ -233,21 +222,15 @@ export default function Partnerships() {
             </CardContent>
           </Card>
 
-          {/* Browse Partners by Role */}
-          <Card data-testid="card-browse-partners" className="lg:col-span-2 xl:col-span-1">
+          {/* Add New Partnership */}
+          <Card data-testid="card-add-partnership">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Browse {user?.role === 'retailer' ? 'Distributors' : 
-                       user?.role === 'distributor' ? 'Partners' : 'Distributors'}
+                <Plus className="h-5 w-5" />
+                Find New Partners
               </CardTitle>
               <CardDescription>
-                {user?.role === 'retailer' 
-                  ? 'Find distributors to connect with (Note: You cannot connect directly with manufacturers)'
-                  : user?.role === 'distributor'
-                  ? 'Connect with retailers and manufacturers'
-                  : 'Find distributors for your products'
-                }
+                Discover and connect with potential business partners
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -255,7 +238,7 @@ export default function Partnerships() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Search by company name, business name, or email..."
+                    placeholder="Search partners by company or name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -289,7 +272,7 @@ export default function Partnerships() {
                       >
                         <div className="flex-1">
                           <h3 className="font-medium text-gray-900 dark:text-white mb-1">
-                            {partner.businessName || partner.companyName || `${partner.firstName} ${partner.lastName}`}
+                            {partner.companyName || `${partner.firstName} ${partner.lastName}`}
                           </h3>
                           <p className="text-sm text-gray-600 dark:text-gray-300">
                             {getRoleDescription(partner.role)}
@@ -297,11 +280,6 @@ export default function Partnerships() {
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             {partner.email}
                           </p>
-                          {partner.address && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              📍 {partner.address}
-                            </p>
-                          )}
                         </div>
                         <Dialog open={isAddPartnerOpen} onOpenChange={setIsAddPartnerOpen}>
                           <DialogTrigger asChild>
@@ -310,14 +288,14 @@ export default function Partnerships() {
                               onClick={() => setIsAddPartnerOpen(true)}
                               data-testid={`button-connect-${partner.id}`}
                             >
-                              Add to Favorites
+                              Connect
                             </Button>
                           </DialogTrigger>
                           <DialogContent>
                             <DialogHeader>
-                              <DialogTitle>Add to Favorites</DialogTitle>
+                              <DialogTitle>Send Partnership Request</DialogTitle>
                               <DialogDescription>
-                                Add {partner.businessName || partner.companyName || `${partner.firstName} ${partner.lastName}`} to your favorite partners
+                                Send a partnership request to {partner.companyName || `${partner.firstName} ${partner.lastName}`}
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
@@ -331,18 +309,9 @@ export default function Partnerships() {
                                     <SelectValue placeholder="Select partnership type" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {user?.role === 'retailer' && (
-                                      <SelectItem value="supplier">Supplier Partnership</SelectItem>
-                                    )}
-                                    {user?.role === 'distributor' && (
-                                      <>
-                                        <SelectItem value="supplier">Supplier Partnership</SelectItem>
-                                        <SelectItem value="retailer">Retail Partnership</SelectItem>
-                                      </>
-                                    )}
-                                    {user?.role === 'manufacturer' && (
-                                      <SelectItem value="distributor">Distribution Partnership</SelectItem>
-                                    )}
+                                    <SelectItem value="supplier">Supplier Partnership</SelectItem>
+                                    <SelectItem value="distributor">Distribution Partnership</SelectItem>
+                                    <SelectItem value="retailer">Retail Partnership</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -359,7 +328,7 @@ export default function Partnerships() {
                                   disabled={sendRequestMutation.isPending}
                                   data-testid="button-send-request"
                                 >
-                                  {sendRequestMutation.isPending ? "Adding..." : "Add to Favorites"}
+                                  {sendRequestMutation.isPending ? "Sending..." : "Send Request"}
                                 </Button>
                               </div>
                             </div>
@@ -373,15 +342,15 @@ export default function Partnerships() {
             </CardContent>
           </Card>
 
-          {/* Global Search - When Favorites Don't Have What You Need */}
-          <Card data-testid="card-global-search" className="lg:col-span-2 xl:col-span-1">
+          {/* Global Product Search */}
+          <Card data-testid="card-global-search">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5" />
-                Global Search
+                Global Product Search
               </CardTitle>
               <CardDescription>
-                Can't find what you need from your favorites? Search globally by product name
+                Search for products across all partners when your favorites don't have what you need
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -389,7 +358,7 @@ export default function Partnerships() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
-                    placeholder="Search for products (e.g., pencil box, notebook, mobile phones)..."
+                    placeholder="Search for products (e.g., pencil box, notebook)..."
                     value={productSearchTerm}
                     onChange={(e) => setProductSearchTerm(e.target.value)}
                     className="pl-10"
@@ -399,14 +368,9 @@ export default function Partnerships() {
 
                 {productSearchTerm.length > 2 && (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Global search for "{productSearchTerm}"
-                      </p>
-                      <Badge variant="outline" className="text-blue-600 border-blue-600">
-                        Worldwide
-                      </Badge>
-                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Searching for "{productSearchTerm}"...
+                    </p>
                     
                     {globalSearchLoading ? (
                       <div className="space-y-4">
@@ -417,27 +381,20 @@ export default function Partnerships() {
                     ) : globalSearchResults.length === 0 ? (
                       <div className="text-center py-8">
                         <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500 dark:text-gray-400">No partners found with "{productSearchTerm}"</p>
+                        <p className="text-gray-500 dark:text-gray-400">No partners found with this product</p>
                         <p className="text-sm text-gray-400 dark:text-gray-500">
-                          Try different keywords or check spelling
+                          Try searching for a different product or check spelling
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-4 max-h-96 overflow-y-auto">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Found {globalSearchResults.length} {user?.role === 'retailer' ? 'distributors' : 
-                                   user?.role === 'distributor' ? 'manufacturers' : 'partners'} with "{productSearchTerm}"
-                          </p>
-                          <Badge variant="secondary">
-                            {user?.role === 'retailer' ? 'Distributors Only' : 
-                             user?.role === 'distributor' ? 'Manufacturers Only' : 'Global'}
-                          </Badge>
-                        </div>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Found {globalSearchResults.length} partners with "{productSearchTerm}"
+                        </p>
                         {globalSearchResults.map((partner) => (
                           <div
                             key={partner.id}
-                            className="flex items-center justify-between p-4 border rounded-lg bg-white dark:bg-gray-800 border-blue-200 dark:border-blue-800"
+                            className="flex items-center justify-between p-4 border rounded-lg bg-white dark:bg-gray-800 border-green-200 dark:border-green-800"
                             data-testid={`card-global-search-${partner.id}`}
                           >
                             <div className="flex-1">
@@ -445,8 +402,8 @@ export default function Partnerships() {
                                 <h3 className="font-medium text-gray-900 dark:text-white">
                                   {partner.businessName || `${partner.firstName} ${partner.lastName}`}
                                 </h3>
-                                <Badge variant="outline" className="text-blue-600 border-blue-600">
-                                  Has "{productSearchTerm}"
+                                <Badge variant="outline" className="text-green-600 border-green-600">
+                                  Has Product
                                 </Badge>
                               </div>
                               <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -455,81 +412,26 @@ export default function Partnerships() {
                               <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {partner.email}
                               </p>
-                              {partner.address && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  📍 {partner.address}
-                                </p>
-                              )}
                             </div>
                             <div className="flex flex-col gap-2">
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                                className="text-green-600 border-green-600 hover:bg-green-50"
                                 data-testid={`button-contact-${partner.id}`}
                               >
                                 Contact
                               </Button>
-                              <Dialog open={isGlobalSearchOpen} onOpenChange={setIsGlobalSearchOpen}>
-                                <DialogTrigger asChild>
-                                  <Button 
-                                    size="sm"
-                                    onClick={() => setIsGlobalSearchOpen(true)}
-                                    data-testid={`button-connect-global-${partner.id}`}
-                                  >
-                                    Add to Favorites
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Add Global Partner to Favorites</DialogTitle>
-                                    <DialogDescription>
-                                      Add {partner.businessName || `${partner.firstName} ${partner.lastName}`} to your favorites. 
-                                      They have the product "{productSearchTerm}" you were looking for.
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <div className="space-y-4">
-                                    <div>
-                                      <label className="text-sm font-medium">Partnership Type</label>
-                                      <Select 
-                                        value={selectedPartnershipType} 
-                                        onValueChange={setSelectedPartnershipType}
-                                      >
-                                        <SelectTrigger data-testid="select-global-partnership-type">
-                                          <SelectValue placeholder="Select partnership type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {user?.role === 'retailer' && (
-                                            <SelectItem value="supplier">Supplier Partnership</SelectItem>
-                                          )}
-                                          {user?.role === 'distributor' && (
-                                            <SelectItem value="supplier">Supplier Partnership</SelectItem>
-                                          )}
-                                          {user?.role === 'manufacturer' && (
-                                            <SelectItem value="distributor">Distribution Partnership</SelectItem>
-                                          )}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div className="flex justify-end gap-2">
-                                      <Button 
-                                        variant="outline" 
-                                        onClick={() => setIsGlobalSearchOpen(false)}
-                                        data-testid="button-cancel-global-request"
-                                      >
-                                        Cancel
-                                      </Button>
-                                      <Button 
-                                        onClick={() => handleSendRequest(partner.id)}
-                                        disabled={sendRequestMutation.isPending}
-                                        data-testid="button-send-global-request"
-                                      >
-                                        {sendRequestMutation.isPending ? "Adding..." : "Add to Favorites"}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
+                              <Button 
+                                size="sm"
+                                onClick={() => {
+                                  // Add to available partners and open connection dialog
+                                  setIsAddPartnerOpen(true);
+                                }}
+                                data-testid={`button-connect-global-${partner.id}`}
+                              >
+                                Connect
+                              </Button>
                             </div>
                           </div>
                         ))}
@@ -539,21 +441,9 @@ export default function Partnerships() {
                 )}
 
                 {productSearchTerm.length > 0 && productSearchTerm.length <= 2 && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Type at least 3 characters to search globally...
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Type at least 3 characters to search for products
                   </p>
-                )}
-
-                {productSearchTerm.length === 0 && (
-                  <div className="text-center py-6">
-                    <div className="text-gray-400 mb-2">💡</div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      When your favorite partners don't have what you need,<br />
-                      search here to find {user?.role === 'retailer' ? 'distributors worldwide' : 
-                                          user?.role === 'distributor' ? 'manufacturers worldwide' : 'partners worldwide'}
-                    </p>
-                  </div>
                 )}
               </div>
             </CardContent>

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Link } from "wouter";
-import { Building2, User, Package, Factory } from "lucide-react";
+import { Building2, User, Package, Factory, ArrowLeft } from "lucide-react";
 
 export default function Register() {
   const { toast } = useToast();
@@ -33,15 +33,17 @@ export default function Register() {
       }
       
       const { confirmPassword, ...registrationData } = data;
-      await apiRequest("/api/auth/register", "POST", registrationData);
+      await apiRequest("POST", "/api/auth/register", registrationData);
     },
     onSuccess: () => {
       toast({
         title: "Registration Successful",
-        description: "Your account has been created. You can now log in.",
+        description: "Your account has been created successfully! Redirecting to login...",
       });
-      // Redirect to login
-      window.location.href = "/api/login";
+      // Redirect to login after a short delay
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 2000);
     },
     onError: (error: Error) => {
       toast({
@@ -106,219 +108,241 @@ export default function Register() {
   const getRoleDescription = (role: string) => {
     switch (role) {
       case "retailer":
-        return "Browse products and place orders from distributors";
+        return "Perfect for shops, stores, and businesses that buy products to sell to customers.";
       case "distributor":
-        return "Manage inventory and fulfill orders from retailers";
+        return "Ideal for wholesalers and distributors who supply products to retailers.";
       case "manufacturer":
-        return "Create products and supply to distributors";
+        return "Best for companies that produce and supply products to the market.";
       default:
-        return "Select your business type";
+        return "Select your business type to get started.";
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl" data-testid="card-register">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">
-            Join AuroMart
-          </CardTitle>
-          <CardDescription>
-            Create your business account to start connecting with partners
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Personal Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Personal Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange("firstName", e.target.value)}
-                    placeholder="Enter your first name"
-                    data-testid="input-firstName"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange("lastName", e.target.value)}
-                    placeholder="Enter your last name"
-                    data-testid="input-lastName"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  placeholder="Enter your email address"
-                  data-testid="input-email"
-                  required
-                />
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl">
+        {/* Back Button */}
+        <div className="mb-6">
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Login
+            </Button>
+          </Link>
+        </div>
 
-            {/* Password Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Security</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password *</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
-                    placeholder="Enter password (min 6 characters)"
-                    data-testid="input-password"
-                    required
-                  />
+        <Card className="login-card">
+          <CardHeader className="text-center">
+            <div className="login-icon">
+              <Building2 className="h-8 w-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-gray-900">Create Your Account</CardTitle>
+            <CardDescription className="text-gray-600">
+              Join AuroMart to streamline your B2B operations
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Personal Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Personal Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name *</Label>
+                    <Input
+                      id="firstName"
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange("firstName", e.target.value)}
+                      placeholder="Enter your first name"
+                      data-testid="input-firstName"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Input
+                      id="lastName"
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange("lastName", e.target.value)}
+                      placeholder="Enter your last name"
+                      data-testid="input-lastName"
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                  <Label htmlFor="email">Email Address *</Label>
                   <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                    placeholder="Confirm your password"
-                    data-testid="input-confirmPassword"
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    placeholder="Enter your email address"
+                    data-testid="input-email"
                     required
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Business Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Business Information</h3>
-              <div className="space-y-2">
-                <Label htmlFor="role">Business Type *</Label>
-                <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
-                  <SelectTrigger data-testid="select-role">
-                    <SelectValue placeholder="Select your business type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="retailer">
-                      <div className="flex items-center gap-2">
-                        {getRoleIcon("retailer")}
-                        <div>
-                          <div className="font-medium">Retailer</div>
-                          <div className="text-sm text-gray-500">Buy products to sell to customers</div>
+              {/* Password Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Security</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password *</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      placeholder="Enter password (min 6 characters)"
+                      data-testid="input-password"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                      placeholder="Confirm your password"
+                      data-testid="input-confirmPassword"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Business Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Business Information</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Business Type *</Label>
+                  <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
+                    <SelectTrigger data-testid="select-role" className="bg-white border-2 border-gray-300 focus:border-primary">
+                      <SelectValue placeholder="Select your business type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-2 border-gray-200 shadow-lg">
+                      <SelectItem value="retailer" className="hover:bg-gray-50">
+                        <div className="flex items-center gap-3 p-2">
+                          {getRoleIcon("retailer")}
+                          <div>
+                            <div className="font-semibold text-gray-900">Retailer</div>
+                            <div className="text-sm text-gray-600">Buy products to sell to customers</div>
+                          </div>
                         </div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="distributor">
-                      <div className="flex items-center gap-2">
-                        {getRoleIcon("distributor")}
-                        <div>
-                          <div className="font-medium">Distributor</div>
-                          <div className="text-sm text-gray-500">Supply products to retailers</div>
+                      </SelectItem>
+                      <SelectItem value="distributor" className="hover:bg-gray-50">
+                        <div className="flex items-center gap-3 p-2">
+                          {getRoleIcon("distributor")}
+                          <div>
+                            <div className="font-semibold text-gray-900">Distributor</div>
+                            <div className="text-sm text-gray-600">Supply products to retailers</div>
+                          </div>
                         </div>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="manufacturer">
-                      <div className="flex items-center gap-2">
-                        {getRoleIcon("manufacturer")}
-                        <div>
-                          <div className="font-medium">Manufacturer</div>
-                          <div className="text-sm text-gray-500">Produce and supply products</div>
+                      </SelectItem>
+                      <SelectItem value="manufacturer" className="hover:bg-gray-50">
+                        <div className="flex items-center gap-3 p-2">
+                          {getRoleIcon("manufacturer")}
+                          <div>
+                            <div className="font-semibold text-gray-900">Manufacturer</div>
+                            <div className="text-sm text-gray-600">Produce and supply products</div>
+                          </div>
                         </div>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                {formData.role && (
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.role && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800 font-medium">
+                        {getRoleDescription(formData.role)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="businessName">Business Name</Label>
+                  <Input
+                    id="businessName"
+                    value={formData.businessName}
+                    onChange={(e) => handleInputChange("businessName", e.target.value)}
+                    placeholder="Enter your business/company name"
+                    data-testid="input-businessName"
+                  />
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Contact Information</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Business Address</Label>
+                  <Textarea
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => handleInputChange("address", e.target.value)}
+                    placeholder="Enter your business address"
+                    data-testid="input-address"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Phone Number</Label>
+                    <Input
+                      id="phoneNumber"
+                      value={formData.phoneNumber}
+                      onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                      placeholder="Enter your phone number"
+                      data-testid="input-phoneNumber"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
+                    <Input
+                      id="whatsappNumber"
+                      value={formData.whatsappNumber}
+                      onChange={(e) => handleInputChange("whatsappNumber", e.target.value)}
+                      placeholder="Enter your WhatsApp number"
+                      data-testid="input-whatsappNumber"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="space-y-4">
+                <Button
+                  type="submit"
+                  className="w-full action-button-primary text-lg py-4 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                  disabled={registerMutation.isPending}
+                  data-testid="button-register"
+                >
+                  {registerMutation.isPending ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Creating Account...
+                    </>
+                  ) : (
+                    "Create Account"
+                  )}
+                </Button>
+                
+                <div className="text-center">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {getRoleDescription(formData.role)}
+                    Already have an account?{" "}
+                    <Link href="/" className="text-primary hover:underline font-medium">
+                      Sign in here
+                    </Link>
                   </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="businessName">Business Name</Label>
-                <Input
-                  id="businessName"
-                  value={formData.businessName}
-                  onChange={(e) => handleInputChange("businessName", e.target.value)}
-                  placeholder="Enter your business/company name"
-                  data-testid="input-businessName"
-                />
-              </div>
-            </div>
-
-            {/* Contact Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Contact Information</h3>
-              <div className="space-y-2">
-                <Label htmlFor="address">Business Address</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
-                  placeholder="Enter your business address"
-                  data-testid="input-address"
-                  rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    value={formData.phoneNumber}
-                    onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
-                    placeholder="Enter your phone number"
-                    data-testid="input-phoneNumber"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="whatsappNumber">WhatsApp Number</Label>
-                  <Input
-                    id="whatsappNumber"
-                    value={formData.whatsappNumber}
-                    onChange={(e) => handleInputChange("whatsappNumber", e.target.value)}
-                    placeholder="Enter your WhatsApp number"
-                    data-testid="input-whatsappNumber"
-                  />
                 </div>
               </div>
-            </div>
-
-            {/* Submit Button */}
-            <div className="space-y-4">
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={registerMutation.isPending}
-                data-testid="button-register"
-              >
-                {registerMutation.isPending ? "Creating Account..." : "Create Account"}
-              </Button>
-              
-              <div className="text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Already have an account?{" "}
-                  <Link href="/api/login" className="text-primary hover:underline">
-                    Sign in here
-                  </Link>
-                </p>
-              </div>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

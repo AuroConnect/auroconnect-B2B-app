@@ -10,6 +10,7 @@ import {
   decimal,
   boolean,
   pgEnum,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -32,7 +33,7 @@ export const deliveryModeEnum = pgEnum("delivery_mode", ["pickup", "delivery"]);
 
 // User table
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
@@ -49,7 +50,7 @@ export const users = pgTable("users", {
 
 // Categories table
 export const categories = pgTable("categories", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -57,12 +58,12 @@ export const categories = pgTable("categories", {
 
 // Products table
 export const products = pgTable("products", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
   description: text("description"),
   sku: varchar("sku").notNull().unique(),
-  categoryId: varchar("category_id").references(() => categories.id),
-  manufacturerId: varchar("manufacturer_id").references(() => users.id),
+  categoryId: uuid("category_id").references(() => categories.id),
+  manufacturerId: uuid("manufacturer_id").references(() => users.id),
   imageUrl: text("image_url"),
   basePrice: decimal("base_price", { precision: 10, scale: 2 }),
   isActive: boolean("is_active").default(true),
@@ -72,9 +73,9 @@ export const products = pgTable("products", {
 
 // Distributor inventory
 export const inventory = pgTable("inventory", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  distributorId: varchar("distributor_id").references(() => users.id),
-  productId: varchar("product_id").references(() => products.id),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  distributorId: uuid("distributor_id").references(() => users.id),
+  productId: uuid("product_id").references(() => products.id),
   quantity: integer("quantity").notNull().default(0),
   sellingPrice: decimal("selling_price", { precision: 10, scale: 2 }),
   isAvailable: boolean("is_available").default(true),
@@ -84,10 +85,10 @@ export const inventory = pgTable("inventory", {
 
 // Orders table
 export const orders = pgTable("orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   orderNumber: varchar("order_number").notNull().unique(),
-  retailerId: varchar("retailer_id").references(() => users.id),
-  distributorId: varchar("distributor_id").references(() => users.id),
+  retailerId: uuid("retailer_id").references(() => users.id),
+  distributorId: uuid("distributor_id").references(() => users.id),
   status: orderStatusEnum("status").default("pending"),
   deliveryMode: deliveryModeEnum("delivery_mode").default("delivery"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
@@ -98,9 +99,9 @@ export const orders = pgTable("orders", {
 
 // Order items table
 export const orderItems = pgTable("order_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderId: varchar("order_id").references(() => orders.id),
-  productId: varchar("product_id").references(() => products.id),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: uuid("order_id").references(() => orders.id),
+  productId: uuid("product_id").references(() => products.id),
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }),
@@ -108,9 +109,9 @@ export const orderItems = pgTable("order_items", {
 
 // Invoices table
 export const invoices = pgTable("invoices", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   invoiceNumber: varchar("invoice_number").notNull().unique(),
-  orderId: varchar("order_id").references(() => orders.id),
+  orderId: uuid("order_id").references(() => orders.id),
   pdfUrl: text("pdf_url"),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -118,8 +119,8 @@ export const invoices = pgTable("invoices", {
 
 // WhatsApp notifications table
 export const whatsappNotifications = pgTable("whatsapp_notifications", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id),
   message: text("message").notNull(),
   type: varchar("type").notNull(), // order_update, invoice_sent, etc.
   sentAt: timestamp("sent_at"),
@@ -240,13 +241,32 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
 
 // Business partnerships/connections table
 export const partnerships = pgTable("partnerships", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  requesterId: varchar("requester_id").notNull().references(() => users.id),
-  partnerId: varchar("partner_id").notNull().references(() => users.id),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  requesterId: uuid("requester_id").notNull().references(() => users.id),
+  partnerId: uuid("partner_id").notNull().references(() => users.id),
   status: varchar("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
   partnershipType: varchar("partnership_type", { enum: ["supplier", "distributor", "retailer"] }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Favorites table for users to save their preferred partners
+export const favorites = pgTable("favorites", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  favoriteUserId: uuid("favorite_user_id").notNull().references(() => users.id),
+  favoriteType: varchar("favorite_type", { enum: ["manufacturer", "distributor", "retailer"] }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Product search history for better recommendations
+export const searchHistory = pgTable("search_history", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  searchTerm: varchar("search_term").notNull(),
+  searchType: varchar("search_type", { enum: ["product", "manufacturer", "distributor"] }).notNull(),
+  resultCount: integer("result_count").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({
@@ -258,6 +278,16 @@ export const insertPartnershipSchema = createInsertSchema(partnerships).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertFavoriteSchema = createInsertSchema(favorites).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSearchHistorySchema = createInsertSchema(searchHistory).omit({
+  id: true,
+  createdAt: true,
 });
 
 // Types
@@ -277,6 +307,26 @@ export const partnershipsRelations = relations(partnerships, ({ one }) => ({
   }),
 }));
 
+export const favoritesRelations = relations(favorites, ({ one }) => ({
+  user: one(users, {
+    fields: [favorites.userId],
+    references: [users.id],
+    relationName: "favoriteUser",
+  }),
+  favoriteUser: one(users, {
+    fields: [favorites.favoriteUserId],
+    references: [users.id],
+    relationName: "favoritedUser",
+  }),
+}));
+
+export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [searchHistory.userId],
+    references: [users.id],
+  }),
+}));
+
 export const usersRelations = relations(users, ({ many }) => ({
   sentPartnershipRequests: many(partnerships, { relationName: "partnershipRequester" }),
   receivedPartnershipRequests: many(partnerships, { relationName: "partnershipPartner" }),
@@ -284,10 +334,17 @@ export const usersRelations = relations(users, ({ many }) => ({
   distributorInventory: many(inventory),
   customerOrders: many(orders, { relationName: "customerOrders" }),
   supplierOrders: many(orders, { relationName: "supplierOrders" }),
+  favorites: many(favorites, { relationName: "favoriteUser" }),
+  favoritedBy: many(favorites, { relationName: "favoritedUser" }),
+  searchHistory: many(searchHistory),
 }));
 
 export type Partnership = typeof partnerships.$inferSelect;
 export type InsertPartnership = typeof partnerships.$inferInsert;
+export type Favorite = typeof favorites.$inferSelect;
+export type InsertFavorite = typeof favorites.$inferInsert;
+export type SearchHistory = typeof searchHistory.$inferSelect;
+export type InsertSearchHistory = typeof searchHistory.$inferInsert;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Category = typeof categories.$inferSelect;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;

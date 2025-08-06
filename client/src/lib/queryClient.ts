@@ -1,5 +1,23 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// API Base URL - change this to your Flask backend URL
+const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:5001';
+
+// Get JWT token from localStorage
+function getAuthToken(): string | null {
+  return localStorage.getItem('authToken');
+}
+
+// Set JWT token in localStorage
+export function setAuthToken(token: string): void {
+  localStorage.setItem('authToken', token);
+}
+
+// Remove JWT token from localStorage
+export function removeAuthToken(): void {
+  localStorage.removeItem('authToken');
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -12,11 +30,21 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {};
+  
+  if (data) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE_URL}${url}`, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -29,8 +57,23 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
+    const token = getAuthToken();
+    const headers: Record<string, string> = {};
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Construct URL properly with trailing slash for endpoints that need it
+    const path = queryKey.join("/");
+    const url = path.startsWith('/') ? path : `/${path}`;
+    
+    // Add trailing slash for specific endpoints that need it
+    const endpointsNeedingTrailingSlash = ['api/orders', 'api/products', 'api/favorites', 'api/partnerships', 'api/notifications'];
+    const finalUrl = endpointsNeedingTrailingSlash.some(endpoint => url.includes(endpoint)) ? `${url}/` : url;
+
+    const res = await fetch(`${API_BASE_URL}${finalUrl}`, {
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

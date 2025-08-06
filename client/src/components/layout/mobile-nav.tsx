@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Package, ShoppingCart, BarChart3 } from "lucide-react";
+import { Home, Package, ShoppingCart, BarChart3, Users } from "lucide-react";
 
 export default function MobileNav() {
   const [location] = useLocation();
@@ -7,6 +7,7 @@ export default function MobileNav() {
   const navItems = [
     { href: "/", icon: Home, label: "Dashboard" },
     { href: "/products", icon: Package, label: "Products" },
+    { href: "/partners", icon: Users, label: "Partners" },
     { href: "/orders", icon: ShoppingCart, label: "Orders" },
     { href: "/reports", icon: BarChart3, label: "Reports" },
   ];
