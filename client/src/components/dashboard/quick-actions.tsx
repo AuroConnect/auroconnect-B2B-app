@@ -1,12 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ShoppingCart, Package, FileText, Users } from "lucide-react";
+import { useNavigate } from "wouter";
 
 interface QuickActionsProps {
   userRole: string;
 }
 
 export default function QuickActions({ userRole }: QuickActionsProps) {
+  const navigate = useNavigate();
+  
   const getActionsForRole = () => {
     switch (userRole) {
       case 'retailer':
@@ -63,7 +66,7 @@ export default function QuickActions({ userRole }: QuickActionsProps) {
             icon: Plus,
             label: "Add Product",
             description: "Create new product",
-            href: "/products/new",
+            href: "/products",
             testId: "action-add-product"
           },
           {
@@ -126,8 +129,7 @@ export default function QuickActions({ userRole }: QuickActionsProps) {
                 className="w-full justify-start h-auto p-4"
                 data-testid={action.testId}
                 onClick={() => {
-                  // For now, just show an alert - in a real app this would navigate
-                  alert(`Navigate to ${action.href}`);
+                  navigate(action.href);
                 }}
               >
                 <div className="flex items-center space-x-3 text-left">
