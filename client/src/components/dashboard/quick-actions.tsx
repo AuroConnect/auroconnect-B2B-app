@@ -10,6 +10,10 @@ interface QuickActionsProps {
 export default function QuickActions({ userRole }: QuickActionsProps) {
   const [, setLocation] = useLocation();
   
+  const navigate = (path: string) => {
+    setLocation(path);
+  };
+
   const getActionsForRole = () => {
     switch (userRole) {
       case 'retailer':

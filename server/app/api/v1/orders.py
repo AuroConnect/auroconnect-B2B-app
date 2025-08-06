@@ -8,6 +8,9 @@ from app.utils.decorators import role_required, validate_json
 
 orders_bp = Blueprint('orders', __name__)
 
+# Valid order statuses
+VALID_ORDER_STATUSES = ['pending', 'confirmed', 'accepted', 'packed', 'dispatched', 'out_for_delivery', 'delivered', 'cancelled', 'rejected']
+
 @orders_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_orders():
@@ -30,7 +33,7 @@ def get_orders():
             # This would require joining through products and order items
             orders = Order.query.join(OrderItem).join(Product).filter(
                 Product.manufacturer_id == current_user_id
-            ).order_by(Order.created_at.desc()).all()
+            ).order_by(Order.created_at.desc()).distinct().all()
         else:
             return jsonify({'message': 'Invalid user role'}), 400
         
@@ -47,6 +50,9 @@ def get_order(order_id):
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
         order = Order.query.get(order_id)
         if not order:
             return jsonify({'message': 'Order not found'}), 404
@@ -57,6 +63,15 @@ def get_order(order_id):
         
         if user.role == 'distributor' and order.distributor_id != current_user_id:
             return jsonify({'message': 'Access denied'}), 403
+        
+        if user.role == 'manufacturer':
+            # Check if this order contains products from this manufacturer
+            manufacturer_products = db.session.query(OrderItem).join(Product).filter(
+                OrderItem.order_id == order_id,
+                Product.manufacturer_id == current_user_id
+            ).first()
+            if not manufacturer_products:
+                return jsonify({'message': 'Access denied'}), 403
         
         return jsonify(order.to_dict()), 200
         
@@ -75,21 +90,28 @@ def create_order():
         
         distributor_id = data.get('distributorId')
         items = data.get('items', [])
-        notes = data.get('notes')
+        notes = data.get('notes', '')
         delivery_mode = data.get('deliveryMode', 'delivery')
         
-        if not distributor_id or not items:
-            return jsonify({'message': 'Distributor ID and items are required'}), 400
+        if not distributor_id:
+            return jsonify({'message': 'Distributor ID is required'}), 400
+            
+        if not items or len(items) == 0:
+            return jsonify({'message': 'At least one item is required'}), 400
         
-        # Verify distributor exists
+        # Verify distributor exists and is active
         distributor = User.query.get(distributor_id)
         if not distributor or distributor.role != 'distributor':
             return jsonify({'message': 'Invalid distributor'}), 400
         
+        # Validate delivery mode
+        if delivery_mode not in ['delivery', 'pickup']:
+            return jsonify({'message': 'Invalid delivery mode. Must be "delivery" or "pickup"'}), 400
+        
         # Generate order number
         order_number = f"ORD-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
         
-        # Calculate total amount
+        # Calculate total amount and validate items
         total_amount = 0
         order_items = []
         
@@ -98,10 +120,16 @@ def create_order():
             quantity = item_data.get('quantity', 0)
             unit_price = item_data.get('unitPrice', 0)
             
-            if not product_id or quantity <= 0 or unit_price <= 0:
-                return jsonify({'message': 'Invalid item data'}), 400
+            if not product_id:
+                return jsonify({'message': 'Product ID is required for all items'}), 400
+                
+            if not isinstance(quantity, (int, float)) or quantity <= 0:
+                return jsonify({'message': 'Quantity must be a positive number'}), 400
+                
+            if not isinstance(unit_price, (int, float)) or unit_price <= 0:
+                return jsonify({'message': 'Unit price must be a positive number'}), 400
             
-            # Verify product exists
+            # Verify product exists and is active
             product = Product.query.get(product_id)
             if not product:
                 return jsonify({'message': f'Product {product_id} not found'}), 404
@@ -187,6 +215,9 @@ def update_order_status(order_id):
         if not new_status:
             return jsonify({'message': 'Status is required'}), 400
         
+        if new_status not in VALID_ORDER_STATUSES:
+            return jsonify({'message': f'Invalid status. Must be one of: {", ".join(VALID_ORDER_STATUSES)}'}), 400
+        
         order = Order.query.get(order_id)
         if not order:
             return jsonify({'message': 'Order not found'}), 404
@@ -195,11 +226,28 @@ def update_order_status(order_id):
         if order.distributor_id != current_user_id:
             return jsonify({'message': 'Access denied'}), 403
         
+        # Validate status transition
+        current_status = order.status
+        valid_transitions = {
+            'pending': ['confirmed', 'accepted', 'rejected', 'cancelled'],
+            'confirmed': ['packed', 'cancelled'],
+            'accepted': ['packed', 'cancelled'],
+            'packed': ['dispatched', 'cancelled'],
+            'dispatched': ['out_for_delivery', 'delivered'],
+            'out_for_delivery': ['delivered'],
+            'delivered': [],  # Final status
+            'cancelled': [],  # Final status
+            'rejected': []    # Final status
+        }
+        
+        if current_status in valid_transitions and new_status not in valid_transitions[current_status]:
+            return jsonify({'message': f'Invalid status transition from {current_status} to {new_status}'}), 400
+        
         # Update status
         old_status = order.status
         order.status = new_status
         
-        if delivery_mode:
+        if delivery_mode and delivery_mode in ['delivery', 'pickup']:
             order.delivery_mode = delivery_mode
         
         order.updated_at = datetime.utcnow()
@@ -208,28 +256,33 @@ def update_order_status(order_id):
         # Send WhatsApp notification to retailer
         retailer = User.query.get(order.retailer_id)
         status_emojis = {
+            'confirmed': '✅',
             'accepted': '✅',
             'packed': '📦',
             'dispatched': '🚚',
+            'out_for_delivery': '🚛',
             'delivered': '🎉',
-            'rejected': '❌'
+            'rejected': '❌',
+            'cancelled': '🚫'
         }
         
         emoji = status_emojis.get(new_status, '📋')
         message = f"{emoji} Order Status Update\n"
         message += f"Order: {order.order_number}\n"
-        message += f"Status: {new_status.title()}\n"
+        message += f"Status: {new_status.replace('_', ' ').title()}\n"
         
         if new_status == 'delivered':
-            message += "\nYour order has been delivered! 🎉"
-        elif new_status == 'dispatched':
+            message += "\nYour order has been delivered! 🎉\nThank you for your business!"
+        elif new_status in ['dispatched', 'out_for_delivery']:
             message += "\nYour order is on the way! 🚚"
         elif new_status == 'packed':
             message += "\nYour order is packed and ready! 📦"
-        elif new_status == 'accepted':
+        elif new_status in ['confirmed', 'accepted']:
             message += "\nYour order has been accepted! ✅"
         elif new_status == 'rejected':
-            message += "\nYour order has been rejected. Please contact us."
+            message += "\nYour order has been rejected. Please contact us for details."
+        elif new_status == 'cancelled':
+            message += "\nYour order has been cancelled."
         
         notification = WhatsAppNotification(
             user_id=order.retailer_id,
