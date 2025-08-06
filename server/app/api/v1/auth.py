@@ -10,21 +10,40 @@ import uuid
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/register', methods=['POST'])
-@validate_json
 def register():
     """Register a new user"""
     try:
-        # Validate input data
-        schema = UserSchema()
-        data = schema.load(request.get_json())
+        data = request.get_json()
+        if not data:
+            return jsonify({'message': 'No data provided'}), 400
+        
+        # Validate required fields
+        required_fields = ['email', 'firstName', 'lastName', 'password', 'role']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'message': f'{field} is required'}), 400
+        
+        # Validate role
+        valid_roles = ['retailer', 'distributor', 'manufacturer']
+        if data['role'] not in valid_roles:
+            return jsonify({'message': f'Role must be one of: {", ".join(valid_roles)}'}), 400
+        
+        # Validate email format
+        if '@' not in data['email']:
+            return jsonify({'message': 'Invalid email format'}), 400
+        
+        # Validate password length
+        if len(data['password']) < 6:
+            return jsonify({'message': 'Password must be at least 6 characters long'}), 400
         
         # Check if user already exists
         existing_user = User.query.filter_by(email=data['email']).first()
         if existing_user:
             return jsonify({'message': 'User with this email already exists'}), 409
         
-        # Create new user without password first
+        # Create new user
         new_user = User(
+            id=str(uuid.uuid4()),
             email=data['email'],
             first_name=data['firstName'],
             last_name=data['lastName'],
@@ -36,7 +55,7 @@ def register():
             is_active=True
         )
         
-        # Manually set the password
+        # Set password
         new_user.set_password(data['password'])
         
         db.session.add(new_user)
@@ -47,14 +66,11 @@ def register():
             'user': new_user.to_dict()
         }), 201
         
-    except ValidationError as e:
-        return jsonify({'message': 'Validation error', 'errors': e.messages}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': 'Registration failed', 'error': str(e)}), 500
 
 @auth_bp.route('/login', methods=['POST'])
-@validate_json
 def login():
     """Login user and return JWT token"""
     try:
