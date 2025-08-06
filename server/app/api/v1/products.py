@@ -78,6 +78,80 @@ def create_product():
         db.session.rollback()
         return jsonify({'message': 'Failed to create product', 'error': str(e)}), 500
 
+@products_bp.route('/<product_id>', methods=['PUT'])
+@jwt_required()
+@role_required(['manufacturer', 'distributor'])
+def update_product(product_id):
+    """Update product (manufacturers and distributors)"""
+    try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({'message': 'Product not found'}), 404
+        
+        # Check if user owns this product
+        if product.manufacturer_id != current_user_id:
+            return jsonify({'message': 'Access denied - you can only edit your own products'}), 403
+        
+        # Update fields if provided
+        if 'name' in data:
+            product.name = data['name']
+        if 'description' in data:
+            product.description = data['description']
+        if 'sku' in data:
+            # Check if new SKU already exists (excluding current product)
+            existing_product = Product.query.filter(
+                Product.sku == data['sku'],
+                Product.id != product_id
+            ).first()
+            if existing_product:
+                return jsonify({'message': 'Product with this SKU already exists'}), 409
+            product.sku = data['sku']
+        if 'categoryId' in data:
+            product.category_id = data['categoryId']
+        if 'basePrice' in data:
+            product.base_price = data['basePrice']
+        if 'imageUrl' in data:
+            product.image_url = data['imageUrl']
+        if 'isActive' in data:
+            product.is_active = data['isActive']
+        
+        db.session.commit()
+        
+        return jsonify(product.to_dict()), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': 'Failed to update product', 'error': str(e)}), 500
+
+@products_bp.route('/<product_id>', methods=['DELETE'])
+@jwt_required()
+@role_required(['manufacturer', 'distributor'])
+def delete_product(product_id):
+    """Delete product (manufacturers and distributors)"""
+    try:
+        current_user_id = get_jwt_identity()
+        
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({'message': 'Product not found'}), 404
+        
+        # Check if user owns this product
+        if product.manufacturer_id != current_user_id:
+            return jsonify({'message': 'Access denied - you can only delete your own products'}), 403
+        
+        # Soft delete by setting is_active to False
+        product.is_active = False
+        db.session.commit()
+        
+        return jsonify({'message': 'Product deleted successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': 'Failed to delete product', 'error': str(e)}), 500
+
 @products_bp.route('/partner/<partner_id>', methods=['GET'])
 @jwt_required()
 def get_partner_products(partner_id):

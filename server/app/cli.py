@@ -26,6 +26,9 @@ def register_commands(app):
         WhatsAppNotification.query.delete()
         OrderItem.query.delete()
         Order.query.delete()
+        # Clear inventory first due to foreign key constraints
+        from app.models import Inventory
+        Inventory.query.delete()
         Product.query.delete()
         Category.query.delete()
         Partnership.query.delete()
@@ -143,14 +146,27 @@ def register_commands(app):
         manufacturers = [
             User(
                 id=str(uuid.uuid4()),
+                email="hrushikesh@auromart.com",
+                first_name="Hrushikesh",
+                last_name="Waghmare",
+                role="manufacturer",
+                business_name="AuroMart Manufacturing",
+                phone_number="+91-9876543230",
+                whatsapp_number="+91-9876543230",
+                address="147 Manufacturing Hub, Pune, Maharashtra",
+                is_active=True,
+                password="password123"
+            ),
+            User(
+                id=str(uuid.uuid4()),
                 email="manufacturer1@test.com",
                 first_name="Arun",
                 last_name="Gupta",
                 role="manufacturer",
                 business_name="TechPro Manufacturing",
-                phone_number="+91-9876543230",
-                whatsapp_number="+91-9876543230",
-                address="147 Manufacturing Hub, Pune, Maharashtra",
+                phone_number="+91-9876543231",
+                whatsapp_number="+91-9876543231",
+                address="258 Manufacturing Hub, Pune, Maharashtra",
                 is_active=True,
                 password="password123"
             ),
@@ -161,9 +177,9 @@ def register_commands(app):
                 last_name="Iyer",
                 role="manufacturer",
                 business_name="Fashion Factory Ltd",
-                phone_number="+91-9876543231",
-                whatsapp_number="+91-9876543231",
-                address="258 Textile Zone, Surat, Gujarat",
+                phone_number="+91-9876543232",
+                whatsapp_number="+91-9876543232",
+                address="369 Textile Zone, Surat, Gujarat",
                 is_active=True,
                 password="password123"
             ),
@@ -174,9 +190,9 @@ def register_commands(app):
                 last_name="Kumar",
                 role="manufacturer",
                 business_name="Furniture Craft Industries",
-                phone_number="+91-9876543232",
-                whatsapp_number="+91-9876543232",
-                address="369 Wood Industrial Area, Jodhpur, Rajasthan",
+                phone_number="+91-9876543233",
+                whatsapp_number="+91-9876543233",
+                address="456 Wood Industrial Area, Jodhpur, Rajasthan",
                 is_active=True,
                 password="password123"
             )
@@ -192,7 +208,66 @@ def register_commands(app):
         click.echo('Creating products...')
         products = []
         
-        # Electronics products (manufactured by manufacturer1)
+        # Electronics products (manufactured by Hrushikesh - AuroMart Manufacturing)
+        auromart_products = [
+            Product(
+                id=str(uuid.uuid4()),
+                name="AuroMart Smart LED TV 55\"",
+                description="4K Ultra HD Smart LED Television with Android OS - AuroMart Premium Series",
+                sku="AM-TV-55-4K-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[0].id,
+                image_url="https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400",
+                base_price=52000.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="AuroMart Wireless Bluetooth Headphones",
+                description="Premium noise-cancelling wireless headphones with 30-hour battery life",
+                sku="AM-HP-BT-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[0].id,
+                image_url="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
+                base_price=3200.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="AuroMart Gaming Laptop Pro",
+                description="High-performance gaming laptop with RTX 4070 graphics and 32GB RAM",
+                sku="AM-LAP-GAM-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[0].id,
+                image_url="https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400",
+                base_price=95000.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="AuroMart Smartphone X1",
+                description="5G smartphone with 108MP camera and 5000mAh battery",
+                sku="AM-PHONE-X1-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[0].id,
+                image_url="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400",
+                base_price=28000.00,
+                is_active=True
+            ),
+            Product(
+                id=str(uuid.uuid4()),
+                name="AuroMart Smart Watch",
+                description="Fitness tracking smartwatch with heart rate monitor and GPS",
+                sku="AM-WATCH-001",
+                category_id=categories[0].id,  # Electronics
+                manufacturer_id=manufacturers[0].id,
+                image_url="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400",
+                base_price=8500.00,
+                is_active=True
+            )
+        ]
+        
+        # Electronics products (manufactured by other manufacturers)
         electronics_products = [
             Product(
                 id=str(uuid.uuid4()),
@@ -200,7 +275,7 @@ def register_commands(app):
                 description="4K Ultra HD Smart LED Television with Android OS",
                 sku="TV-55-4K-001",
                 category_id=categories[0].id,  # Electronics
-                manufacturer_id=manufacturers[0].id,
+                manufacturer_id=manufacturers[1].id,
                 image_url="https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400",
                 base_price=45000.00,
                 is_active=True
@@ -211,7 +286,7 @@ def register_commands(app):
                 description="Premium noise-cancelling wireless headphones",
                 sku="HP-BT-001",
                 category_id=categories[0].id,  # Electronics
-                manufacturer_id=manufacturers[0].id,
+                manufacturer_id=manufacturers[1].id,
                 image_url="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
                 base_price=2500.00,
                 is_active=True
@@ -222,7 +297,7 @@ def register_commands(app):
                 description="High-performance gaming laptop with RTX graphics",
                 sku="LAP-GAM-001",
                 category_id=categories[0].id,  # Electronics
-                manufacturer_id=manufacturers[0].id,
+                manufacturer_id=manufacturers[1].id,
                 image_url="https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400",
                 base_price=85000.00,
                 is_active=True
@@ -303,7 +378,7 @@ def register_commands(app):
             )
         ]
         
-        products = electronics_products + clothing_products + furniture_products
+        products = auromart_products + electronics_products + clothing_products + furniture_products
         
         for product in products:
             db.session.add(product)
@@ -315,21 +390,47 @@ def register_commands(app):
         
         # Orders from retailers to distributors
         order_data = [
+            # AuroMart product orders (Hrushikesh's products)
             {
                 'retailer': retailers[0],
                 'distributor': distributors[0],
-                'products': [electronics_products[0], electronics_products[1]],
-                'quantities': [2, 5],
+                'products': [auromart_products[0], auromart_products[1]],  # AuroMart TV and Headphones
+                'quantities': [3, 8],
                 'status': 'delivered',
                 'date': datetime.utcnow() - timedelta(days=5)
             },
             {
                 'retailer': retailers[1],
                 'distributor': distributors[1],
+                'products': [auromart_products[2], auromart_products[3]],  # AuroMart Laptop and Smartphone
+                'quantities': [2, 5],
+                'status': 'shipped',
+                'date': datetime.utcnow() - timedelta(days=3)
+            },
+            {
+                'retailer': retailers[2],
+                'distributor': distributors[2],
+                'products': [auromart_products[4]],  # AuroMart Smart Watch
+                'quantities': [12],
+                'status': 'pending',
+                'date': datetime.utcnow() - timedelta(days=1)
+            },
+            {
+                'retailer': retailers[0],
+                'distributor': distributors[1],
+                'products': [auromart_products[0], auromart_products[3]],  # AuroMart TV and Smartphone
+                'quantities': [1, 3],
+                'status': 'confirmed',
+                'date': datetime.utcnow() - timedelta(hours=6)
+            },
+            # Other manufacturer orders
+            {
+                'retailer': retailers[1],
+                'distributor': distributors[1],
                 'products': [clothing_products[0], clothing_products[1]],
                 'quantities': [10, 8],
                 'status': 'shipped',
-                'date': datetime.utcnow() - timedelta(days=3)
+                'date': datetime.utcnow() - timedelta(days=2)
             },
             {
                 'retailer': retailers[2],
@@ -337,15 +438,7 @@ def register_commands(app):
                 'products': [furniture_products[0], furniture_products[1]],
                 'quantities': [3, 2],
                 'status': 'pending',
-                'date': datetime.utcnow() - timedelta(days=1)
-            },
-            {
-                'retailer': retailers[0],
-                'distributor': distributors[1],
-                'products': [electronics_products[2]],
-                'quantities': [1],
-                'status': 'confirmed',
-                'date': datetime.utcnow() - timedelta(hours=6)
+                'date': datetime.utcnow() - timedelta(hours=12)
             }
         ]
         
@@ -383,6 +476,32 @@ def register_commands(app):
         # Create sample partnerships
         click.echo('Creating partnerships...')
         partnerships = [
+            # AuroMart partnerships (Hrushikesh's company)
+            Partnership(
+                id=str(uuid.uuid4()),
+                requester_id=distributors[0].id,
+                partner_id=manufacturers[0].id,  # Hrushikesh's AuroMart Manufacturing
+                status='accepted',
+                partnership_type='distributor_manufacturer',
+                created_at=datetime.utcnow() - timedelta(days=30)
+            ),
+            Partnership(
+                id=str(uuid.uuid4()),
+                requester_id=distributors[1].id,
+                partner_id=manufacturers[0].id,  # Hrushikesh's AuroMart Manufacturing
+                status='accepted',
+                partnership_type='distributor_manufacturer',
+                created_at=datetime.utcnow() - timedelta(days=25)
+            ),
+            Partnership(
+                id=str(uuid.uuid4()),
+                requester_id=distributors[2].id,
+                partner_id=manufacturers[0].id,  # Hrushikesh's AuroMart Manufacturing
+                status='accepted',
+                partnership_type='distributor_manufacturer',
+                created_at=datetime.utcnow() - timedelta(days=20)
+            ),
+            # Other partnerships
             Partnership(
                 id=str(uuid.uuid4()),
                 requester_id=retailers[0].id,
@@ -402,18 +521,18 @@ def register_commands(app):
             Partnership(
                 id=str(uuid.uuid4()),
                 requester_id=distributors[0].id,
-                partner_id=manufacturers[0].id,
-                status='accepted',
-                partnership_type='distributor_manufacturer',
-                created_at=datetime.utcnow() - timedelta(days=20)
-            ),
-            Partnership(
-                id=str(uuid.uuid4()),
-                requester_id=distributors[1].id,
                 partner_id=manufacturers[1].id,
                 status='accepted',
                 partnership_type='distributor_manufacturer',
                 created_at=datetime.utcnow() - timedelta(days=15)
+            ),
+            Partnership(
+                id=str(uuid.uuid4()),
+                requester_id=distributors[1].id,
+                partner_id=manufacturers[2].id,
+                status='accepted',
+                partnership_type='distributor_manufacturer',
+                created_at=datetime.utcnow() - timedelta(days=10)
             )
         ]
         

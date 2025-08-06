@@ -1,14 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ShoppingCart, Package, FileText, Users } from "lucide-react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 interface QuickActionsProps {
   userRole: string;
 }
 
 export default function QuickActions({ userRole }: QuickActionsProps) {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   
   const getActionsForRole = () => {
     switch (userRole) {
@@ -129,7 +129,7 @@ export default function QuickActions({ userRole }: QuickActionsProps) {
                 className="w-full justify-start h-auto p-4"
                 data-testid={action.testId}
                 onClick={() => {
-                  navigate(action.href);
+                  setLocation(action.href);
                 }}
               >
                 <div className="flex items-center space-x-3 text-left">

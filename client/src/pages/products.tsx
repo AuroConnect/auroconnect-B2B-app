@@ -610,7 +610,12 @@ export default function Products() {
 
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-4">
-            <ProductGrid products={filteredProducts} isLoading={productsLoading} userRole={user?.role || 'retailer'} />
+            <ProductGrid 
+              products={filteredProducts} 
+              isLoading={productsLoading} 
+              userRole={user?.role || 'retailer'} 
+              categories={categories || []}
+            />
           </TabsContent>
 
           {/* Partners Tab */}
