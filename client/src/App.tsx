@@ -15,6 +15,12 @@ import Partners from "@/pages/partners";
 import Register from "@/pages/register";
 import Profile from "@/pages/profile";
 import Settings from "@/pages/settings";
+import Invoices from "@/pages/invoices";
+import Suppliers from "@/pages/suppliers";
+import Inventory from "@/pages/inventory";
+import Retailers from "@/pages/retailers";
+import Production from "@/pages/production";
+import Distributors from "@/pages/distributors";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -36,6 +42,12 @@ function Router() {
           <Route path="/partners" component={Partners} />
           <Route path="/profile" component={Profile} />
           <Route path="/settings" component={Settings} />
+          <Route path="/invoices" component={Invoices} />
+          <Route path="/suppliers" component={Suppliers} />
+          <Route path="/inventory" component={Inventory} />
+          <Route path="/retailers" component={Retailers} />
+          <Route path="/production" component={Production} />
+          <Route path="/distributors" component={Distributors} />
         </>
       )}
       <Route component={NotFound} />
