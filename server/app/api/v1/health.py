@@ -16,7 +16,8 @@ def health_check():
             'status': 'healthy',
             'database': 'connected',
             'timestamp': datetime.utcnow().isoformat(),
-            'version': '1.0.0'
+            'version': '1.0.0',
+            'message': 'AuroMart API is running successfully'
         }), 200
         
     except Exception as e:
@@ -25,4 +26,19 @@ def health_check():
             'database': 'disconnected',
             'error': str(e),
             'timestamp': datetime.utcnow().isoformat()
-        }), 500 
+        }), 500
+
+@health_bp.route('/', methods=['GET'])
+def root():
+    """Root endpoint"""
+    return jsonify({
+        'message': 'AuroMart B2B Platform API',
+        'version': '1.0.0',
+        'status': 'running',
+        'endpoints': {
+            'health': '/api/health',
+            'auth': '/api/auth',
+            'products': '/api/products',
+            'orders': '/api/orders'
+        }
+    }), 200 

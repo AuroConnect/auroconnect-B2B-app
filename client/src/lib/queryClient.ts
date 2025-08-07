@@ -67,17 +67,20 @@ export async function apiRequest(
   const urlWithTrailingSlash = needsTrailingSlash && !finalUrl.endsWith('/') ? `${finalUrl}/` : finalUrl;
 
   try {
+    console.log(`Making API request to: ${urlWithTrailingSlash}`);
     const res = await fetch(urlWithTrailingSlash, {
       method,
       headers,
       body: data ? JSON.stringify(data) : undefined,
     });
 
+    console.log(`Response status: ${res.status}`);
     await throwIfResNotOk(res);
     return res;
   } catch (error) {
+    console.error('API request failed:', error);
     if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Network error: Unable to connect to server. Please check your internet connection.');
+      throw new Error('Network error: Unable to connect to server. Please check your internet connection and ensure the backend is running.');
     }
     throw error;
   }
