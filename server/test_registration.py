@@ -7,7 +7,7 @@ import json
 
 def test_registration():
     """Test the registration endpoint"""
-    url = "http://localhost:5000/api/auth/register"
+    url = "http://localhost:5001/api/auth/register"
     
     # Test data
     test_user = {
