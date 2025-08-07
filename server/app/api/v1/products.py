@@ -1,37 +1,142 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models import Product, Category, Inventory, User
+from app.models import Product, Category, Inventory, User, Partnership
 from app.utils.decorators import role_required, roles_required
 from sqlalchemy import or_
 
 products_bp = Blueprint('products', __name__)
 
 @products_bp.route('/', methods=['GET'])
+@jwt_required()
 def get_products():
-    """Get all products"""
+    """Get products based on user role and partnerships"""
     try:
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'User not found'}), 404
+        
         category_id = request.args.get('categoryId')
         
-        query = Product.query.filter_by(is_active=True)
+        # Role-based product visibility
+        if current_user.role == 'manufacturer':
+            # Manufacturers see only their own products
+            query = Product.query.filter_by(
+                manufacturer_id=current_user_id,
+                is_active=True
+            )
+            
+        elif current_user.role == 'distributor':
+            # Distributors see products from their connected manufacturer
+            manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+            if not manufacturer_partnership:
+                return jsonify({'message': 'No manufacturer connected'}), 404
+            
+            query = Product.query.filter_by(
+                manufacturer_id=manufacturer_partnership.manufacturer_id,
+                is_active=True
+            )
+            
+        elif current_user.role == 'retailer':
+            # Retailers see products from their connected distributor's inventory
+            distributor_partnership = Partnership.get_retailer_distributor(current_user_id)
+            if not distributor_partnership:
+                return jsonify({'message': 'No distributor connected'}), 404
+            
+            # Get products from distributor's inventory
+            inventory_items = Inventory.query.filter_by(
+                distributor_id=distributor_partnership.distributor_id,
+                is_available=True
+            ).all()
+            
+            product_ids = [item.product_id for item in inventory_items]
+            if not product_ids:
+                return jsonify([]), 200
+            
+            query = Product.query.filter(
+                Product.id.in_(product_ids),
+                Product.is_active == True
+            )
+            
+        else:
+            return jsonify({'message': 'Invalid user role'}), 400
         
+        # Apply category filter
         if category_id:
             query = query.filter_by(category_id=category_id)
         
         products = query.all()
+        
+        # For retailers, add inventory information
+        if current_user.role == 'retailer':
+            products_with_inventory = []
+            for product in products:
+                product_dict = product.to_dict()
+                # Find inventory item for this product
+                inventory_item = next(
+                    (item for item in inventory_items if item.product_id == product.id),
+                    None
+                )
+                if inventory_item:
+                    product_dict['inventoryId'] = str(inventory_item.id)
+                    product_dict['quantity'] = inventory_item.quantity
+                    product_dict['sellingPrice'] = float(inventory_item.selling_price) if inventory_item.selling_price else None
+                products_with_inventory.append(product_dict)
+            return jsonify(products_with_inventory), 200
+        
         return jsonify([prod.to_dict() for prod in products]), 200
         
     except Exception as e:
         return jsonify({'message': 'Failed to fetch products', 'error': str(e)}), 500
 
 @products_bp.route('/<product_id>', methods=['GET'])
+@jwt_required()
 def get_product(product_id):
-    """Get specific product"""
+    """Get specific product with role-based access control"""
     try:
-        product = Product.query.get(product_id)
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
         
+        if not current_user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        product = Product.query.get(product_id)
         if not product:
             return jsonify({'message': 'Product not found'}), 404
+        
+        # Role-based access control
+        if current_user.role == 'manufacturer':
+            if product.manufacturer_id != current_user_id:
+                return jsonify({'message': 'Access denied'}), 403
+                
+        elif current_user.role == 'distributor':
+            manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+            if not manufacturer_partnership or product.manufacturer_id != manufacturer_partnership.manufacturer_id:
+                return jsonify({'message': 'Access denied'}), 403
+                
+        elif current_user.role == 'retailer':
+            distributor_partnership = Partnership.get_retailer_distributor(current_user_id)
+            if not distributor_partnership:
+                return jsonify({'message': 'Access denied'}), 403
+            
+            # Check if product is in distributor's inventory
+            inventory_item = Inventory.query.filter_by(
+                distributor_id=distributor_partnership.distributor_id,
+                product_id=product_id,
+                is_available=True
+            ).first()
+            
+            if not inventory_item:
+                return jsonify({'message': 'Product not available'}), 404
+            
+            # Add inventory information
+            product_dict = product.to_dict()
+            product_dict['inventoryId'] = str(inventory_item.id)
+            product_dict['quantity'] = inventory_item.quantity
+            product_dict['sellingPrice'] = float(inventory_item.selling_price) if inventory_item.selling_price else None
+            return jsonify(product_dict), 200
         
         return jsonify(product.to_dict()), 200
         
@@ -45,6 +150,7 @@ def create_product():
     """Create new product (manufacturers and distributors)"""
     try:
         current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
         data = request.get_json()
         
         # Validate required fields
@@ -58,12 +164,22 @@ def create_product():
         if existing_product:
             return jsonify({'message': 'Product with this SKU already exists'}), 409
         
+        # Determine manufacturer_id based on user role
+        manufacturer_id = current_user_id if current_user.role == 'manufacturer' else None
+        
+        # If distributor is creating product, get their manufacturer
+        if current_user.role == 'distributor':
+            manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+            if not manufacturer_partnership:
+                return jsonify({'message': 'No manufacturer connected'}), 400
+            manufacturer_id = manufacturer_partnership.manufacturer_id
+        
         new_product = Product(
             name=data['name'],
             description=data.get('description'),
             sku=data['sku'],
             category_id=data.get('categoryId'),
-            manufacturer_id=current_user_id,
+            manufacturer_id=manufacturer_id,
             image_url=data.get('imageUrl'),
             base_price=data.get('basePrice'),
             is_active=True
@@ -85,15 +201,21 @@ def update_product(product_id):
     """Update product (manufacturers and distributors)"""
     try:
         current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
         data = request.get_json()
         
         product = Product.query.get(product_id)
         if not product:
             return jsonify({'message': 'Product not found'}), 404
         
-        # Check if user owns this product
-        if product.manufacturer_id != current_user_id:
-            return jsonify({'message': 'Access denied - you can only edit your own products'}), 403
+        # Check if user owns this product or has access
+        if current_user.role == 'manufacturer':
+            if product.manufacturer_id != current_user_id:
+                return jsonify({'message': 'Access denied - you can only edit your own products'}), 403
+        elif current_user.role == 'distributor':
+            manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+            if not manufacturer_partnership or product.manufacturer_id != manufacturer_partnership.manufacturer_id:
+                return jsonify({'message': 'Access denied'}), 403
         
         # Update fields if provided
         if 'name' in data:
@@ -133,14 +255,20 @@ def delete_product(product_id):
     """Delete product (manufacturers and distributors)"""
     try:
         current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
         
         product = Product.query.get(product_id)
         if not product:
             return jsonify({'message': 'Product not found'}), 404
         
-        # Check if user owns this product
-        if product.manufacturer_id != current_user_id:
-            return jsonify({'message': 'Access denied - you can only delete your own products'}), 403
+        # Check if user owns this product or has access
+        if current_user.role == 'manufacturer':
+            if product.manufacturer_id != current_user_id:
+                return jsonify({'message': 'Access denied - you can only delete your own products'}), 403
+        elif current_user.role == 'distributor':
+            manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+            if not manufacturer_partnership or product.manufacturer_id != manufacturer_partnership.manufacturer_id:
+                return jsonify({'message': 'Access denied'}), 403
         
         # Soft delete by setting is_active to False
         product.is_active = False
@@ -151,68 +279,6 @@ def delete_product(product_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': 'Failed to delete product', 'error': str(e)}), 500
-
-@products_bp.route('/partner/<partner_id>', methods=['GET'])
-@jwt_required()
-def get_partner_products(partner_id):
-    """Get products from a specific partner"""
-    try:
-        current_user_id = get_jwt_identity()
-        current_user = User.query.get(current_user_id)
-        partner = User.query.get(partner_id)
-        
-        if not partner:
-            return jsonify({'message': 'Partner not found'}), 404
-        
-        # Check if user can view partner's products
-        can_view = False
-        if current_user.role == 'retailer' and partner.role == 'distributor':
-            can_view = True
-        elif current_user.role == 'retailer' and partner.role == 'retailer':
-            can_view = True  # Retailers can view other retailers' products
-        elif current_user.role == 'distributor' and partner.role == 'manufacturer':
-            can_view = True
-        elif current_user.role == 'distributor' and partner.role == 'retailer':
-            can_view = True  # Distributors can view retailers' products
-        elif current_user.role == 'manufacturer' and partner.role == 'distributor':
-            can_view = True  # Manufacturers can view distributors' products
-        
-        if not can_view:
-            return jsonify({'message': 'Access denied'}), 403
-        
-        # Get products from partner based on their role
-        if partner.role == 'distributor':
-            # For distributors, get products from their inventory
-            inventory_items = Inventory.query.filter_by(
-                distributor_id=partner_id,
-                is_available=True
-            ).all()
-            
-            products = []
-            for item in inventory_items:
-                product = Product.query.get(item.product_id)
-                if product and product.is_active:
-                    product_dict = product.to_dict()
-                    # Add inventory information
-                    product_dict['inventoryId'] = str(item.id)
-                    product_dict['quantity'] = item.quantity
-                    product_dict['sellingPrice'] = float(item.selling_price) if item.selling_price else None
-                    products.append(product_dict)
-        elif partner.role == 'retailer':
-            # Retailers don't have products to sell - they only buy
-            products = []
-        else:
-            # For manufacturers, get products directly
-            products = Product.query.filter_by(
-                manufacturer_id=partner_id,
-                is_active=True
-            ).all()
-            products = [prod.to_dict() for prod in products]
-        
-        return jsonify(products), 200
-        
-    except Exception as e:
-        return jsonify({'message': 'Failed to fetch partner products', 'error': str(e)}), 500
 
 @products_bp.route('/categories', methods=['GET'])
 def get_categories():
@@ -225,14 +291,56 @@ def get_categories():
         return jsonify({'message': 'Failed to fetch categories', 'error': str(e)}), 500
 
 @products_bp.route('/search', methods=['GET'])
+@jwt_required()
 def search_products():
-    """Search products"""
+    """Search products with role-based visibility"""
     try:
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'User not found'}), 404
+        
         search_term = request.args.get('q', '')
         category_id = request.args.get('categoryId')
         
-        query = Product.query.filter_by(is_active=True)
+        # Use the same role-based query logic as get_products
+        if current_user.role == 'manufacturer':
+            query = Product.query.filter_by(
+                manufacturer_id=current_user_id,
+                is_active=True
+            )
+        elif current_user.role == 'distributor':
+            manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+            if not manufacturer_partnership:
+                return jsonify({'message': 'No manufacturer connected'}), 404
+            
+            query = Product.query.filter_by(
+                manufacturer_id=manufacturer_partnership.manufacturer_id,
+                is_active=True
+            )
+        elif current_user.role == 'retailer':
+            distributor_partnership = Partnership.get_retailer_distributor(current_user_id)
+            if not distributor_partnership:
+                return jsonify({'message': 'No distributor connected'}), 404
+            
+            inventory_items = Inventory.query.filter_by(
+                distributor_id=distributor_partnership.distributor_id,
+                is_available=True
+            ).all()
+            
+            product_ids = [item.product_id for item in inventory_items]
+            if not product_ids:
+                return jsonify([]), 200
+            
+            query = Product.query.filter(
+                Product.id.in_(product_ids),
+                Product.is_active == True
+            )
+        else:
+            return jsonify({'message': 'Invalid user role'}), 400
         
+        # Apply search filter
         if search_term:
             query = query.filter(
                 or_(
@@ -242,10 +350,28 @@ def search_products():
                 )
             )
         
+        # Apply category filter
         if category_id:
             query = query.filter_by(category_id=category_id)
         
         products = query.all()
+        
+        # For retailers, add inventory information
+        if current_user.role == 'retailer':
+            products_with_inventory = []
+            for product in products:
+                product_dict = product.to_dict()
+                inventory_item = next(
+                    (item for item in inventory_items if item.product_id == product.id),
+                    None
+                )
+                if inventory_item:
+                    product_dict['inventoryId'] = str(inventory_item.id)
+                    product_dict['quantity'] = inventory_item.quantity
+                    product_dict['sellingPrice'] = float(inventory_item.selling_price) if inventory_item.selling_price else None
+                products_with_inventory.append(product_dict)
+            return jsonify(products_with_inventory), 200
+        
         return jsonify([prod.to_dict() for prod in products]), 200
         
     except Exception as e:

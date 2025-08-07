@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Order, OrderItem, Product
+from app.models import User, Order, OrderItem, Product, Partnership, Inventory
 from app import db
 from datetime import datetime, timedelta
 from sqlalchemy import and_
@@ -10,7 +10,7 @@ orders_bp = Blueprint('orders', __name__)
 @orders_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_orders():
-    """Get orders for the current user"""
+    """Get orders based on user role and partnerships"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
@@ -20,99 +20,40 @@ def get_orders():
         
         # Get query parameters
         status_filter = request.args.get('status')
-        date_from = request.args.get('date_from')
-        date_to = request.args.get('date_to')
+        order_type = request.args.get('order_type')  # 'manufacturer_distributor' or 'distributor_retailer'
         
-        # Build query based on user role
-        if user.role == 'retailer':
-            query = Order.query.filter(Order.retailer_id == current_user_id)
+        # Role-based order visibility
+        if user.role == 'manufacturer':
+            # Manufacturers see orders from their distributors
+            orders = Order.get_manufacturer_orders(current_user_id)
+            
         elif user.role == 'distributor':
-            query = Order.query.filter(Order.distributor_id == current_user_id)
-        elif user.role == 'manufacturer':
-            # Manufacturers see orders for their products
-            query = Order.query.join(OrderItem).join(Product).filter(
-                Product.manufacturer_id == current_user_id
-            ).distinct()
+            # Distributors see both orders from manufacturer and to retailers
+            orders = Order.get_distributor_orders(current_user_id)
+            
+        elif user.role == 'retailer':
+            # Retailers see their orders to distributors
+            orders = Order.get_retailer_orders(current_user_id)
+            
         else:
             return jsonify({'message': 'Invalid user role'}), 400
         
         # Apply filters
-        if status_filter:
-            query = query.filter(Order.status == status_filter)
+        if status_filter and status_filter != 'all':
+            orders = [order for order in orders if order.status == status_filter]
         
-        if date_from:
-            try:
-                date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
-                query = query.filter(Order.created_at >= date_from_obj)
-            except ValueError:
-                pass
+        if order_type:
+            orders = [order for order in orders if order.order_type == order_type]
         
-        if date_to:
-            try:
-                date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
-                query = query.filter(Order.created_at < date_to_obj)
-            except ValueError:
-                pass
-        
-        # Order by creation date
-        query = query.order_by(Order.created_at.desc())
-        
-        orders = query.all()
-        
-        # Format orders with details
-        formatted_orders = []
-        for order in orders:
-            # Get order items with product details
-            order_items = OrderItem.query.filter(OrderItem.order_id == order.id).all()
-            items_with_products = []
-            
-            for item in order_items:
-                product = Product.query.get(item.product_id)
-                items_with_products.append({
-                    'id': item.id,
-                    'productId': item.product_id,
-                    'productName': product.name if product else 'Unknown Product',
-                    'productSku': product.sku if product else '',
-                    'quantity': item.quantity,
-                    'unitPrice': float(item.unit_price),
-                    'totalPrice': float(item.total_price),
-                    'productImage': product.image_url if product else None
-                })
-            
-            # Get retailer and distributor details
-            retailer = User.query.get(order.retailer_id)
-            distributor = User.query.get(order.distributor_id)
-            
-            formatted_orders.append({
-                'id': order.id,
-                'orderNumber': order.order_number,
-                'status': order.status,
-                'totalAmount': float(order.total_amount),
-                'notes': order.notes,
-                'createdAt': order.created_at.isoformat(),
-                'updatedAt': order.updated_at.isoformat(),
-                'retailer': {
-                    'id': retailer.id,
-                    'name': retailer.business_name or f"{retailer.first_name} {retailer.last_name}",
-                    'email': retailer.email
-                } if retailer else None,
-                'distributor': {
-                    'id': distributor.id,
-                    'name': distributor.business_name or f"{distributor.first_name} {distributor.last_name}",
-                    'email': distributor.email
-                } if distributor else None,
-                'items': items_with_products
-            })
-        
-        return jsonify(formatted_orders)
+        return jsonify([order.to_dict() for order in orders]), 200
         
     except Exception as e:
-        return jsonify({'message': str(e)}), 500
+        return jsonify({'message': 'Failed to fetch orders', 'error': str(e)}), 500
 
 @orders_bp.route('/<order_id>', methods=['GET'])
 @jwt_required()
 def get_order_details(order_id):
-    """Get detailed order information"""
+    """Get detailed order information with role-based access control"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
@@ -124,75 +65,151 @@ def get_order_details(order_id):
         if not order:
             return jsonify({'message': 'Order not found'}), 404
         
-        # Check if user has access to this order
-        if user.role == 'retailer' and order.retailer_id != current_user_id:
-            return jsonify({'message': 'Access denied'}), 403
-        elif user.role == 'distributor' and order.distributor_id != current_user_id:
-            return jsonify({'message': 'Access denied'}), 403
-        elif user.role == 'manufacturer':
-            # Check if any products in the order belong to this manufacturer
-            order_items = OrderItem.query.filter(OrderItem.order_id == order_id).all()
-            product_ids = [item.product_id for item in order_items]
-            manufacturer_products = Product.query.filter(
-                and_(Product.id.in_(product_ids), Product.manufacturer_id == current_user_id)
-            ).count()
-            if manufacturer_products == 0:
+        # Role-based access control
+        if user.role == 'manufacturer':
+            if order.manufacturer_id != current_user_id:
+                return jsonify({'message': 'Access denied'}), 403
+                
+        elif user.role == 'distributor':
+            if order.distributor_id != current_user_id:
+                return jsonify({'message': 'Access denied'}), 403
+                
+        elif user.role == 'retailer':
+            if order.retailer_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
         
-        # Get order items with product details
-        order_items = OrderItem.query.filter(OrderItem.order_id == order_id).all()
-        items_with_products = []
-        
-        for item in order_items:
-            product = Product.query.get(item.product_id)
-            items_with_products.append({
-                'id': item.id,
-                'productId': item.product_id,
-                'productName': product.name if product else 'Unknown Product',
-                'productSku': product.sku if product else '',
-                'quantity': item.quantity,
-                'unitPrice': float(item.unit_price),
-                'totalPrice': float(item.total_price),
-                'productImage': product.image_url if product else None,
-                'productDescription': product.description if product else ''
-            })
-        
-        # Get retailer and distributor details
-        retailer = User.query.get(order.retailer_id)
-        distributor = User.query.get(order.distributor_id)
-        
-        order_details = {
-            'id': order.id,
-            'orderNumber': order.order_number,
-            'status': order.status,
-            'totalAmount': float(order.total_amount),
-            'notes': order.notes,
-            'createdAt': order.created_at.isoformat(),
-            'updatedAt': order.updated_at.isoformat(),
-            'retailer': {
-                'id': retailer.id,
-                'name': retailer.business_name or f"{retailer.first_name} {retailer.last_name}",
-                'email': retailer.email,
-                'phone': retailer.phone_number
-            } if retailer else None,
-            'distributor': {
-                'id': distributor.id,
-                'name': distributor.business_name or f"{distributor.first_name} {distributor.last_name}",
-                'email': distributor.email,
-                'phone': distributor.phone_number
-            } if distributor else None,
-            'items': items_with_products
-        }
-        
-        return jsonify(order_details)
+        return jsonify(order.to_dict()), 200
         
     except Exception as e:
-        return jsonify({'message': str(e)}), 500
+        return jsonify({'message': 'Failed to fetch order details', 'error': str(e)}), 500
+
+@orders_bp.route('/', methods=['POST'])
+@jwt_required()
+def create_order():
+    """Create new order based on user role"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        data = request.get_json()
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        # Validate required fields
+        required_fields = ['items', 'delivery_address']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'message': f'Missing required field: {field}'}), 400
+        
+        items = data.get('items', [])
+        if not items:
+            return jsonify({'message': 'Order must contain at least one item'}), 400
+        
+        # Role-based order creation
+        if user.role == 'distributor':
+            # Distributor ordering from manufacturer
+            manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+            if not manufacturer_partnership:
+                return jsonify({'message': 'No manufacturer connected'}), 400
+            
+            order = Order(
+                order_type='manufacturer_distributor',
+                manufacturer_id=manufacturer_partnership.manufacturer_id,
+                distributor_id=current_user_id,
+                order_number=Order.generate_order_number(),
+                delivery_address=data['delivery_address'],
+                delivery_method=data.get('delivery_method', 'delivery'),
+                notes=data.get('notes'),
+                status='pending'
+            )
+            
+        elif user.role == 'retailer':
+            # Retailer ordering from distributor
+            distributor_partnership = Partnership.get_retailer_distributor(current_user_id)
+            if not distributor_partnership:
+                return jsonify({'message': 'No distributor connected'}), 400
+            
+            order = Order(
+                order_type='distributor_retailer',
+                distributor_id=distributor_partnership.distributor_id,
+                retailer_id=current_user_id,
+                order_number=Order.generate_order_number(),
+                delivery_address=data['delivery_address'],
+                delivery_method=data.get('delivery_method', 'delivery'),
+                notes=data.get('notes'),
+                status='pending'
+            )
+            
+        else:
+            return jsonify({'message': 'Manufacturers cannot create orders'}), 400
+        
+        # Calculate totals
+        subtotal = 0
+        order_items = []
+        
+        for item_data in items:
+            product_id = item_data.get('product_id')
+            quantity = item_data.get('quantity', 0)
+            
+            if not product_id or quantity <= 0:
+                continue
+            
+            product = Product.query.get(product_id)
+            if not product:
+                continue
+            
+            # Get unit price based on user role
+            unit_price = product.base_price
+            if user.role == 'retailer':
+                # For retailers, get price from distributor's inventory
+                inventory_item = Inventory.query.filter_by(
+                    distributor_id=distributor_partnership.distributor_id,
+                    product_id=product_id
+                ).first()
+                if inventory_item and inventory_item.selling_price:
+                    unit_price = inventory_item.selling_price
+            
+            total_price = unit_price * quantity
+            subtotal += total_price
+            
+            order_item = OrderItem(
+                order_id=order.id,
+                product_id=product_id,
+                quantity=quantity,
+                unit_price=unit_price,
+                total_price=total_price,
+                product_name=product.name,
+                product_sku=product.sku
+            )
+            order_items.append(order_item)
+        
+        if not order_items:
+            return jsonify({'message': 'No valid items in order'}), 400
+        
+        # Set order totals
+        tax_amount = data.get('tax_amount', 0)
+        shipping_amount = data.get('shipping_amount', 0)
+        order.total_amount = subtotal + tax_amount + shipping_amount
+        order.tax_amount = tax_amount
+        order.shipping_amount = shipping_amount
+        
+        # Save order and items
+        db.session.add(order)
+        for item in order_items:
+            db.session.add(item)
+        
+        db.session.commit()
+        
+        return jsonify(order.to_dict()), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': 'Failed to create order', 'error': str(e)}), 500
 
 @orders_bp.route('/<order_id>/status', methods=['PUT'])
 @jwt_required()
 def update_order_status(order_id):
-    """Update order status (for distributors and manufacturers)"""
+    """Update order status (manufacturers and distributors)"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
@@ -200,16 +217,17 @@ def update_order_status(order_id):
         if not user:
             return jsonify({'message': 'User not found'}), 404
         
-        if user.role not in ['distributor', 'manufacturer']:
-            return jsonify({'message': 'Only distributors and manufacturers can update order status'}), 403
+        if user.role not in ['manufacturer', 'distributor']:
+            return jsonify({'message': 'Only manufacturers and distributors can update order status'}), 403
         
         data = request.get_json()
         new_status = data.get('status')
+        notes = data.get('notes')
         
         if not new_status:
             return jsonify({'message': 'Status is required'}), 400
         
-        valid_statuses = ['pending', 'accepted', 'rejected', 'processing', 'shipped', 'delivered', 'cancelled']
+        valid_statuses = ['pending', 'accepted', 'processing', 'shipped', 'delivered', 'cancelled']
         if new_status not in valid_statuses:
             return jsonify({'message': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'}), 400
         
@@ -218,41 +236,34 @@ def update_order_status(order_id):
             return jsonify({'message': 'Order not found'}), 404
         
         # Check if user has access to this order
-        if user.role == 'distributor' and order.distributor_id != current_user_id:
-            return jsonify({'message': 'Access denied'}), 403
-        elif user.role == 'manufacturer':
-            # Check if any products in the order belong to this manufacturer
-            order_items = OrderItem.query.filter(OrderItem.order_id == order_id).all()
-            product_ids = [item.product_id for item in order_items]
-            manufacturer_products = Product.query.filter(
-                and_(Product.id.in_(product_ids), Product.manufacturer_id == current_user_id)
-            ).count()
-            if manufacturer_products == 0:
+        if user.role == 'manufacturer':
+            if order.manufacturer_id != current_user_id:
+                return jsonify({'message': 'Access denied'}), 403
+        elif user.role == 'distributor':
+            if order.distributor_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
         
         # Update order status
         order.status = new_status
-        order.updated_at = datetime.utcnow()
+        if notes:
+            order.notes = notes
         
-        # Add notes if provided
-        if data.get('notes'):
-            order.notes = f"{order.notes or ''}\n{datetime.utcnow().strftime('%Y-%m-%d %H:%M')}: {data['notes']}"
+        # Set delivery date if status is delivered
+        if new_status == 'delivered':
+            order.actual_delivery_date = datetime.utcnow()
         
         db.session.commit()
         
-        return jsonify({
-            'message': 'Order status updated successfully',
-            'orderId': order.id,
-            'newStatus': new_status
-        })
+        return jsonify(order.to_dict()), 200
         
     except Exception as e:
-        return jsonify({'message': str(e)}), 500
+        db.session.rollback()
+        return jsonify({'message': 'Failed to update order status', 'error': str(e)}), 500
 
-@orders_bp.route('/stats', methods=['GET'])
+@orders_bp.route('/<order_id>/tracking', methods=['PUT'])
 @jwt_required()
-def get_order_stats():
-    """Get order statistics for the current user"""
+def update_tracking_info(order_id):
+    """Update tracking information for shipped orders"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
@@ -260,51 +271,39 @@ def get_order_stats():
         if not user:
             return jsonify({'message': 'User not found'}), 404
         
-        # Build query based on user role
-        if user.role == 'retailer':
-            base_query = Order.query.filter(Order.retailer_id == current_user_id)
+        if user.role not in ['manufacturer', 'distributor']:
+            return jsonify({'message': 'Only manufacturers and distributors can update tracking'}), 403
+        
+        data = request.get_json()
+        tracking_number = data.get('tracking_number')
+        expected_delivery_date = data.get('expected_delivery_date')
+        
+        order = Order.query.get(order_id)
+        if not order:
+            return jsonify({'message': 'Order not found'}), 404
+        
+        # Check if user has access to this order
+        if user.role == 'manufacturer':
+            if order.manufacturer_id != current_user_id:
+                return jsonify({'message': 'Access denied'}), 403
         elif user.role == 'distributor':
-            base_query = Order.query.filter(Order.distributor_id == current_user_id)
-        elif user.role == 'manufacturer':
-            base_query = Order.query.join(OrderItem).join(Product).filter(
-                Product.manufacturer_id == current_user_id
-            ).distinct()
-        else:
-            return jsonify({'message': 'Invalid user role'}), 400
+            if order.distributor_id != current_user_id:
+                return jsonify({'message': 'Access denied'}), 403
         
-        # Get total orders
-        total_orders = base_query.count()
+        # Update tracking information
+        if tracking_number:
+            order.tracking_number = tracking_number
         
-        # Get orders by status
-        status_counts = {}
-        for status in ['pending', 'accepted', 'rejected', 'processing', 'shipped', 'delivered', 'cancelled']:
-            count = base_query.filter(Order.status == status).count()
-            status_counts[status] = count
+        if expected_delivery_date:
+            try:
+                order.expected_delivery_date = datetime.fromisoformat(expected_delivery_date.replace('Z', '+00:00'))
+            except ValueError:
+                return jsonify({'message': 'Invalid date format'}), 400
         
-        # Get total revenue
-        total_revenue = base_query.filter(Order.status.in_(['delivered', 'shipped'])).with_entities(
-            db.func.sum(Order.total_amount)
-        ).scalar() or 0
+        db.session.commit()
         
-        # Get recent orders (last 30 days)
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        recent_orders = base_query.filter(Order.created_at >= thirty_days_ago).count()
-        
-        # Get monthly revenue
-        current_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        monthly_revenue = base_query.filter(
-            and_(Order.status.in_(['delivered', 'shipped']), Order.created_at >= current_month_start)
-        ).with_entities(db.func.sum(Order.total_amount)).scalar() or 0
-        
-        stats = {
-            'totalOrders': total_orders,
-            'totalRevenue': float(total_revenue),
-            'monthlyRevenue': float(monthly_revenue),
-            'recentOrders': recent_orders,
-            'statusBreakdown': status_counts
-        }
-        
-        return jsonify(stats)
+        return jsonify(order.to_dict()), 200
         
     except Exception as e:
-        return jsonify({'message': str(e)}), 500 
+        db.session.rollback()
+        return jsonify({'message': 'Failed to update tracking information', 'error': str(e)}), 500 
