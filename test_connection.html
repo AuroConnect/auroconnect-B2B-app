@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 AuroMart Connection Test</h1>
+    
+    <button onclick="testConnection()">Test API Connection</button>
+    <button onclick="testRegistration()">Test Registration</button>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001';
+        
+        async function testConnection() {
+            try {
+                console.log('Testing connection to:', API_BASE);
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result success">
+                            ✅ Connection Successful!<br>
+                            Status: ${data.status}<br>
+                            Database: ${data.database}<br>
+                            Message: ${data.message}
+                        </div>`;
+                } else {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result error">
+                            ❌ API Error: ${response.status} - ${data.message || response.statusText}
+                        </div>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = 
+                    `<div class="result error">
+                        ❌ Connection Failed: ${error.message}<br>
+                        Make sure the backend is running on ${API_BASE}
+                    </div>`;
+            }
+        }
+        
+        async function testRegistration() {
+            const testData = {
+                firstName: "Test",
+                lastName: "User", 
+                email: "test@example.com",
+                password: "password123",
+                role: "retailer",
+                businessName: "Test Business"
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result success">
+                            ✅ Registration Test Successful!<br>
+                            User ID: ${data.user.id}<br>
+                            Email: ${data.user.email}
+                        </div>`;
+                } else {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result error">
+                            ❌ Registration Test Failed: ${response.status} - ${data.message}
+                        </div>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = 
+                    `<div class="result error">
+                        ❌ Registration Error: ${error.message}
+                    </div>`;
+            }
+        }
+        
+        // Auto-test on load
+        window.onload = testConnection;
+    </script>
+</body>
+</html>

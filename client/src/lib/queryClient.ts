@@ -79,8 +79,10 @@ export async function apiRequest(
     return res;
   } catch (error) {
     console.error('API request failed:', error);
+    console.error('Attempted URL:', urlWithTrailingSlash);
+    console.error('API Base URL:', API_BASE_URL);
     if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Network error: Unable to connect to server. Please check your internet connection and ensure the backend is running.');
+      throw new Error(`Network error: Unable to connect to server at ${API_BASE_URL}. Please check your internet connection and ensure the backend is running.`);
     }
     throw error;
   }

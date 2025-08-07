@@ -45,7 +45,7 @@ def test_registration():
 
 def test_login():
     """Test the login endpoint"""
-    url = "http://localhost:5000/api/auth/login"
+    url = "http://localhost:5001/api/auth/login"
     
     # Test data
     login_data = {
