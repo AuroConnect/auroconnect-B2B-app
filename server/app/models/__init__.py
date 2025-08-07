@@ -1,24 +1,25 @@
 from .user import User
 from .product import Product
 from .category import Category
-from .inventory import Inventory
 from .order import Order, OrderItem
 from .partnership import Partnership
+from .invoice import Invoice, InvoiceItem
+from .inventory import Inventory
 from .favorite import Favorite
 from .search_history import SearchHistory
-from .whatsapp import WhatsAppNotification
-from .invoice import Invoice
+from .whatsapp import WhatsAppMessage
 
 __all__ = [
     'User',
     'Product', 
     'Category',
-    'Inventory',
     'Order',
     'OrderItem',
     'Partnership',
+    'Invoice',
+    'InvoiceItem',
+    'Inventory',
     'Favorite',
     'SearchHistory',
-    'WhatsAppNotification',
-    'Invoice'
+    'WhatsAppMessage'
 ] 
