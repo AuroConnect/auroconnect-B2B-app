@@ -1,273 +1,441 @@
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { 
-  ArrowRight, 
-  Building2, 
-  Users, 
-  Package, 
-  Factory, 
-  TrendingUp, 
-  Shield, 
-  Zap,
-  CheckCircle,
-  Star,
-  Play
-} from "lucide-react";
+import { Building2, ShoppingCart, Factory, Shield, MessageCircle, FileText, BarChart3, Users, Sparkles, Zap, TrendingUp, Bell, Truck, Info } from "lucide-react";
+import LoginForm from "@/components/auth/login-form";
+import { Play } from "lucide-react";
 
 export default function Landing() {
-  const { toast } = useToast();
+  const [showLogin, setShowLogin] = useState(false);
+  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
 
   const features = [
     {
-      icon: <Building2 className="h-6 w-6" />,
-      title: "Business Management",
-      description: "Streamline your B2B operations with comprehensive business tools"
+      icon: ShoppingCart,
+      title: "Smart Ordering",
+      description: "Place orders instantly from nearby distributors with real-time inventory",
+      gradient: "from-purple-500 to-pink-500"
     },
     {
-      icon: <Users className="h-6 w-6" />,
-      title: "Partner Network",
-      description: "Connect with verified retailers, distributors, and manufacturers"
+      icon: MessageCircle,
+      title: "WhatsApp Integration",
+      description: "Get instant notifications and invoices directly on WhatsApp",
+      gradient: "from-green-500 to-emerald-500"
     },
     {
-      icon: <Package className="h-6 w-6" />,
-      title: "Inventory Control",
-      description: "Manage your product catalog and track inventory levels"
+      icon: FileText,
+      title: "Auto Invoicing",
+      description: "PDF invoices generated and delivered automatically",
+      gradient: "from-blue-500 to-cyan-500"
     },
     {
-      icon: <Factory className="h-6 w-6" />,
-      title: "Manufacturing Hub",
-      description: "Optimize production and supply chain management"
+      icon: BarChart3,
+      title: "Analytics & Reports",
+      description: "Comprehensive reporting for all user roles",
+      gradient: "from-orange-500 to-red-500"
     },
     {
-      icon: <TrendingUp className="h-6 w-6" />,
-      title: "Analytics & Insights",
-      description: "Get real-time data and actionable business insights"
+      icon: Users,
+      title: "Multi-Role Platform",
+      description: "Designed for retailers, distributors, manufacturers, and admins",
+      gradient: "from-indigo-500 to-purple-500"
     },
     {
-      icon: <Shield className="h-6 w-6" />,
-      title: "Secure Platform",
-      description: "Enterprise-grade security for your business data"
+      icon: Shield,
+      title: "Secure & Reliable",
+      description: "Built with security and reliability at its core",
+      gradient: "from-teal-500 to-green-500"
     }
   ];
 
-  const testimonials = [
+  const roles = [
     {
-      name: "Rajesh Kumar",
-      role: "Retailer",
-      company: "Kumar Stores",
-      content: "AuroMart has transformed how we source products. The platform is intuitive and the partner network is excellent.",
-      rating: 5
+      icon: Building2,
+      title: "Retailers",
+      description: "Browse products, place orders, track deliveries, and download reports",
+      examples: ["Mattress stores", "Clothing shops", "Electronics retailers", "Grocery stores"],
+      gradient: "from-purple-500 to-pink-500"
     },
     {
-      name: "Priya Sharma",
-      role: "Distributor", 
-      company: "Sharma Distributors",
-      content: "Managing our distribution network has never been easier. The analytics help us make better business decisions.",
-      rating: 5
+      icon: Factory,
+      title: "Distributors",
+      description: "Manage inventory, process orders, and connect with retailers",
+      examples: ["Wholesale suppliers", "Regional distributors", "Local stockists"],
+      gradient: "from-green-500 to-emerald-500"
     },
     {
-      name: "Amit Patel",
-      role: "Manufacturer",
-      company: "Patel Industries",
-      content: "The manufacturing tools are top-notch. We've increased our production efficiency by 40% since using AuroMart.",
-      rating: 5
+      icon: Shield,
+      title: "Manufacturers",
+      description: "Upload products, track distribution, and analyze market performance",
+      examples: ["Brand owners", "Factory owners", "Product manufacturers"],
+      gradient: "from-blue-500 to-cyan-500"
     }
   ];
+
+  const demoAccounts = [
+    {
+      role: "Manufacturer",
+      email: "hrushikesh@auromart.com",
+      password: "password123",
+      description: "AuroMart Manufacturing - Hrushikesh Waghmare"
+    },
+    {
+      role: "Manufacturer", 
+      email: "manufacturer1@test.com",
+      password: "password123",
+      description: "TechPro Manufacturing - Arun Gupta"
+    },
+    {
+      role: "Distributor",
+      email: "distributor1@test.com", 
+      password: "password123",
+      description: "Metro Distributors - Priya Sharma"
+    },
+    {
+      role: "Retailer",
+      email: "retailer1@test.com",
+      password: "password123", 
+      description: "City Mart - Amit Patel"
+    }
+  ];
+
+  if (showLogin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-green-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <LoginForm />
+          <div className="text-center mt-6">
+            <Button 
+              variant="link" 
+              onClick={() => setShowLogin(false)}
+              className="text-gray-700 hover:text-gray-900 font-medium"
+            >
+              ← Back to Home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-green-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
+      <header className="glass-card sticky top-0 z-50 border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-2">
-              <Building2 className="h-8 w-8 text-primary" />
-              <span className="text-2xl font-bold text-gray-900">AuroMart</span>
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <div className="w-8 h-8 auromart-gradient-primary rounded-lg flex items-center justify-center mr-3">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">AuroMart</span>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex gap-3">
               <Button 
-                variant="ghost" 
-                onClick={() => window.location.href = '/register'}
-                className="text-gray-600 hover:text-gray-900"
+                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
+                className="glass-button text-gray-700 border-gray-300 hover:bg-white/80"
               >
-                Sign Up
+                <Info className="h-4 w-4 mr-2" />
+                Demo Accounts
               </Button>
               <Button 
-                onClick={() => window.location.href = '/'}
-                className="auromart-gradient-primary"
+                onClick={() => setShowLogin(true)}
+                className="glass-button text-gray-700 border-gray-300 hover:bg-white/80"
+                data-testid="button-login"
               >
                 Sign In
+              </Button>
+              <Button 
+                onClick={() => window.location.href = '/register'}
+                className="auromart-gradient-primary text-white hover:scale-105 transition-transform"
+                data-testid="button-register"
+              >
+                Sign Up
               </Button>
             </div>
           </div>
         </div>
       </header>
 
+      {/* Demo Accounts Modal */}
+      {showDemoAccounts && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Demo Accounts for Testing
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-600 mb-4">
+                Use these accounts to test the different user roles and features:
+              </p>
+              {demoAccounts.map((account, index) => (
+                <div key={index} className="p-4 border rounded-lg bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-gray-900">{account.role}</h4>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{account.role}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{account.description}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="font-medium">Email:</span> {account.email}
+                    </div>
+                    <div>
+                      <span className="font-medium">Password:</span> {account.password}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-end gap-2 pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowDemoAccounts(false)}
+                >
+                  Close
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowDemoAccounts(false);
+                    setShowLogin(true);
+                  }}
+                >
+                  Try Login
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Streamline Your
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-600"> B2B Operations</span>
+          <div className="float-animation mb-8">
+            <div className="w-20 h-20 auromart-gradient-primary rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <Zap className="h-10 w-10 text-white" />
+            </div>
+          </div>
+          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+            Smart B2B Ordering &<br />
+            <span className="bg-gradient-to-r from-purple-600 to-green-600 bg-clip-text text-transparent">
+              Billing Platform
+            </span>
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Connect with verified partners, manage inventory, and grow your business with AuroMart's comprehensive B2B platform.
+          <p className="text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
+            Connect retailers, distributors, and manufacturers with WhatsApp integration, 
+            auto invoicing, and complete workflow management built for India's market.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               size="lg" 
               onClick={() => window.location.href = '/register'}
-              className="auromart-gradient-primary text-lg px-8 py-4"
+              className="auromart-gradient-primary text-white text-lg px-8 py-4 hover:scale-105 transition-transform"
+              data-testid="button-get-started"
             >
-              Get Started Free
-              <ArrowRight className="ml-2 h-5 w-5" />
+              <Sparkles className="h-5 w-5 mr-2" />
+              Get Started
+            </Button>
+            <Button 
+              size="lg" 
+              className="glass-button text-gray-700 text-lg px-8 py-4 border-gray-300 hover:bg-white/80"
+              onClick={() => setShowLogin(true)}
+              data-testid="button-demo"
+            >
+              Try Demo
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Roles Section - Professional Design */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Users className="h-8 w-8 text-white" />
+            </div>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Built for Every Role in Your Supply Chain
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Whether you're a retailer, distributor, or manufacturer, AuroMart has tools designed for your needs
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {roles.map((role, index) => (
+              <div key={index} className="group relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur-xl opacity-20 group-hover:opacity-30 transition-opacity"></div>
+                <Card className="relative bg-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+                  <CardHeader className="text-center pb-6">
+                    <div className={`w-20 h-20 bg-gradient-to-r ${role.gradient} rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-lg`}>
+                      <role.icon className="h-10 w-10 text-white" />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-gray-900 mb-2" data-testid={`text-role-title-${index}`}>
+                      {role.title}
+                    </CardTitle>
+                    <p className="text-gray-600 text-lg leading-relaxed" data-testid={`text-role-description-${index}`}>
+                      {role.description}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-gray-800 uppercase tracking-wide">Perfect for:</p>
+                      <ul className="space-y-2">
+                        {role.examples.map((example, exampleIndex) => (
+                          <li key={exampleIndex} className="flex items-center text-gray-700">
+                            <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mr-3"></div>
+                            <span className="font-medium">{example}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section - Professional Design */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Sparkles className="h-8 w-8 text-white" />
+            </div>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Everything You Need for B2B Commerce
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              From order placement to invoice delivery, AuroMart handles your complete B2B workflow
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <div key={index} className="group relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur-lg opacity-10 group-hover:opacity-20 transition-opacity"></div>
+                <Card className="relative bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <CardHeader className="text-center pb-4">
+                    <div className={`w-16 h-16 bg-gradient-to-r ${feature.gradient} rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-md`}>
+                      <feature.icon className="h-8 w-8 text-white" />
+                    </div>
+                    <CardTitle className="text-xl font-bold text-gray-900" data-testid={`text-feature-title-${index}`}>
+                      {feature.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-600 text-center leading-relaxed" data-testid={`text-feature-description-${index}`}>
+                      {feature.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* WhatsApp Integration Highlight - Professional Design */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 to-indigo-50">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="float-animation mb-8">
+            <div className="w-20 h-20 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+              <MessageCircle className="h-10 w-10 text-white" />
+            </div>
+          </div>
+          <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            WhatsApp-First Experience
+          </h2>
+          <p className="text-xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
+            Get order confirmations, delivery updates, and invoices directly on WhatsApp.
+            Built for how Indian businesses actually communicate.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-4xl mx-auto">
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <Bell className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Instant Alerts</h3>
+              <p className="text-sm text-gray-600">Real-time order notifications</p>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <FileText className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">PDF Invoices</h3>
+              <p className="text-sm text-gray-600">Digital invoice delivery</p>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <Truck className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Live Tracking</h3>
+              <p className="text-sm text-gray-600">Real-time delivery updates</p>
+            </div>
+            <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Monthly Reports</h3>
+              <p className="text-sm text-gray-600">Performance summaries</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Call to Action - Professional Design */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-900 to-slate-800">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="float-animation mb-8">
+            <div className="w-20 h-20 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl">
+              <TrendingUp className="h-10 w-10 text-white" />
+            </div>
+          </div>
+          <h2 className="text-4xl font-bold text-white mb-6">
+            Ready to Transform Your B2B Operations?
+          </h2>
+          <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto leading-relaxed">
+            Join thousands of businesses already using AuroMart to streamline their ordering and billing processes.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Button 
+              size="lg" 
+              className="action-button-primary text-lg px-8 py-4 h-auto"
+              onClick={() => window.location.href = '/register'}
+            >
+              <Sparkles className="h-5 w-5 mr-2" />
+              Get Started Today
             </Button>
             <Button 
               variant="outline" 
-              size="lg"
-              className="text-lg px-8 py-4"
+              size="lg" 
+              className="text-lg px-8 py-4 h-auto border-white/20 text-white hover:bg-white/10"
+              onClick={() => window.location.href = '/'}
             >
-              <Play className="mr-2 h-5 w-5" />
+              <Play className="h-5 w-5 mr-2" />
               Watch Demo
             </Button>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Everything You Need for B2B Success
-            </h2>
-            <p className="text-xl text-gray-600">
-              Powerful tools designed for retailers, distributors, and manufacturers
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                      {feature.icon}
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      {feature.title}
-                    </h3>
-                  </div>
-                  <p className="text-gray-600">
-                    {feature.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Trusted by Businesses Nationwide
-            </h2>
-            <p className="text-xl text-gray-600">
-              See what our partners say about AuroMart
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                    ))}
-                  </div>
-                  <p className="text-gray-600 mb-4">
-                    "{testimonial.content}"
-                  </p>
-                  <div>
-                    <p className="font-semibold text-gray-900">{testimonial.name}</p>
-                    <p className="text-sm text-gray-500">{testimonial.role} at {testimonial.company}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-primary to-purple-600">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold text-white mb-4">
-            Ready to Transform Your B2B Operations?
-          </h2>
-          <p className="text-xl text-white/90 mb-8">
-            Join thousands of businesses already using AuroMart to grow their operations.
-          </p>
-          <Button 
-            size="lg" 
-            variant="secondary"
-            onClick={() => window.location.href = '/register'}
-            className="text-lg px-8 py-4"
-          >
-            Start Your Free Trial
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-        </div>
-      </section>
-
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Building2 className="h-8 w-8 text-primary" />
-                <span className="text-2xl font-bold">AuroMart</span>
-              </div>
-              <p className="text-gray-400">
-                Empowering B2B businesses with innovative solutions for growth and success.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Platform</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">Features</a></li>
-                <li><a href="#" className="hover:text-white">Pricing</a></li>
-                <li><a href="#" className="hover:text-white">Security</a></li>
-                <li><a href="#" className="hover:text-white">API</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Support</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">Help Center</a></li>
-                <li><a href="#" className="hover:text-white">Contact Us</a></li>
-                <li><a href="#" className="hover:text-white">Status</a></li>
-                <li><a href="#" className="hover:text-white">Documentation</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Company</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">About</a></li>
-                <li><a href="#" className="hover:text-white">Blog</a></li>
-                <li><a href="#" className="hover:text-white">Careers</a></li>
-                <li><a href="#" className="hover:text-white">Privacy</a></li>
-              </ul>
-            </div>
+      <footer className="glass-card border-t border-gray-200/50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="w-16 h-16 auromart-gradient-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="h-8 w-8 text-white" />
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 AuroMart. All rights reserved.</p>
+          <h3 className="text-2xl font-bold text-gray-900 mb-4">AuroMart</h3>
+          <p className="text-gray-700 mb-8">
+            Smart B2B ordering and billing platform built for India's hyper-local market
+          </p>
+          <div className="text-sm text-gray-600">
+            © 2024 AuroMart. All rights reserved.
           </div>
         </div>
       </footer>
