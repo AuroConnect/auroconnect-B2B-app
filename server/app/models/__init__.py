@@ -7,7 +7,7 @@ from .invoice import Invoice, InvoiceItem
 from .inventory import Inventory
 from .favorite import Favorite
 from .search_history import SearchHistory
-from .whatsapp import WhatsAppMessage
+from .whatsapp import WhatsAppNotification
 
 __all__ = [
     'User',
@@ -21,5 +21,5 @@ __all__ = [
     'Inventory',
     'Favorite',
     'SearchHistory',
-    'WhatsAppMessage'
+    'WhatsAppNotification'
 ] 

@@ -36,11 +36,11 @@ def test_registration():
     user_data = {
         'email': 'test@auromart.com',
         'password': 'password123',
-        'first_name': 'Test',
-        'last_name': 'User',
-        'business_name': 'Test Business',
+        'firstName': 'Test',
+        'lastName': 'User',
+        'businessName': 'Test Business',
         'role': 'manufacturer',
-        'phone_number': '+1234567890',
+        'phoneNumber': '+1234567890',
         'address': '123 Test St'
     }
     

@@ -68,31 +68,31 @@ def test_user_registration():
         'manufacturer': {
             'email': 'manufacturer@auromart.com',
             'password': 'password123',
-            'first_name': 'John',
-            'last_name': 'Manufacturer',
-            'business_name': 'AuroMart Manufacturing',
+            'firstName': 'John',
+            'lastName': 'Manufacturer',
+            'businessName': 'AuroMart Manufacturing',
             'role': 'manufacturer',
-            'phone_number': '+1234567890',
+            'phoneNumber': '+1234567890',
             'address': '123 Factory St, Industrial City'
         },
         'distributor': {
             'email': 'distributor@auromart.com',
             'password': 'password123',
-            'first_name': 'Jane',
-            'last_name': 'Distributor',
-            'business_name': 'AuroMart Distribution',
+            'firstName': 'Jane',
+            'lastName': 'Distributor',
+            'businessName': 'AuroMart Distribution',
             'role': 'distributor',
-            'phone_number': '+1234567891',
+            'phoneNumber': '+1234567891',
             'address': '456 Warehouse Ave, Distribution City'
         },
         'retailer': {
             'email': 'retailer@auromart.com',
             'password': 'password123',
-            'first_name': 'Bob',
-            'last_name': 'Retailer',
-            'business_name': 'AuroMart Retail Store',
+            'firstName': 'Bob',
+            'lastName': 'Retailer',
+            'businessName': 'AuroMart Retail Store',
             'role': 'retailer',
-            'phone_number': '+1234567892',
+            'phoneNumber': '+1234567892',
             'address': '789 Shop St, Retail City'
         }
     }

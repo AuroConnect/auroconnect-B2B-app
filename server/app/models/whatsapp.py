@@ -1,13 +1,12 @@
 from app import db
 from datetime import datetime
 import uuid
-from sqlalchemy.dialects.postgresql import UUID
 
 class WhatsAppNotification(db.Model):
     __tablename__ = 'whatsapp_notifications'
     
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     message = db.Column(db.Text, nullable=False)
     type = db.Column(db.String(50), nullable=False)  # order_update, invoice_sent, etc.
     sent_at = db.Column(db.DateTime, nullable=True)
@@ -20,13 +19,13 @@ class WhatsAppNotification(db.Model):
     def to_dict(self):
         """Convert to dictionary"""
         return {
-            'id': str(self.id),
-            'userId': str(self.user_id),
+            'id': self.id,
+            'user_id': self.user_id,
             'message': self.message,
             'type': self.type,
-            'sentAt': self.sent_at.isoformat() if self.sent_at else None,
-            'isDelivered': self.is_delivered,
-            'createdAt': self.created_at.isoformat() if self.created_at else None
+            'sent_at': self.sent_at.isoformat() if self.sent_at else None,
+            'is_delivered': self.is_delivered,
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
     
     def __repr__(self):
