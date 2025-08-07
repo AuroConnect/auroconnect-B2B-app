@@ -1,14 +1,13 @@
 from app import db
 from datetime import datetime
 import uuid
-from sqlalchemy.dialects.postgresql import UUID
 
 class Inventory(db.Model):
     __tablename__ = 'inventory'
     
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    distributor_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
-    product_id = db.Column(UUID(as_uuid=True), db.ForeignKey('products.id'), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    distributor_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    product_id = db.Column(db.String(36), db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     selling_price = db.Column(db.Numeric(10, 2), nullable=True)
     is_available = db.Column(db.Boolean, default=True)
@@ -21,9 +20,9 @@ class Inventory(db.Model):
     def to_dict(self):
         """Convert to dictionary"""
         return {
-            'id': str(self.id),
-            'distributorId': str(self.distributor_id),
-            'productId': str(self.product_id),
+            'id': self.id,
+            'distributorId': self.distributor_id,
+            'productId': self.product_id,
             'quantity': self.quantity,
             'sellingPrice': float(self.selling_price) if self.selling_price else None,
             'isAvailable': self.is_available,

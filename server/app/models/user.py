@@ -2,7 +2,6 @@ from app import db
 from datetime import datetime
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy.dialects.postgresql import UUID
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -41,7 +40,7 @@ class User(db.Model):
     def to_dict(self):
         """Convert to dictionary"""
         return {
-            'id': str(self.id),
+            'id': self.id,
             'email': self.email,
             'firstName': self.first_name,
             'lastName': self.last_name,
@@ -58,7 +57,7 @@ class User(db.Model):
     def to_public_dict(self):
         """Convert to public dictionary (without sensitive info)"""
         return {
-            'id': str(self.id),
+            'id': self.id,
             'firstName': self.first_name,
             'lastName': self.last_name,
             'role': self.role,

@@ -66,7 +66,7 @@ def test_user_registration():
     
     users = {
         'manufacturer': {
-            'email': 'manufacturer@auromart.com',
+            'email': 'manufacturer2@auromart.com',
             'password': 'password123',
             'firstName': 'John',
             'lastName': 'Manufacturer',
@@ -76,7 +76,7 @@ def test_user_registration():
             'address': '123 Factory St, Industrial City'
         },
         'distributor': {
-            'email': 'distributor@auromart.com',
+            'email': 'distributor2@auromart.com',
             'password': 'password123',
             'firstName': 'Jane',
             'lastName': 'Distributor',
@@ -86,7 +86,7 @@ def test_user_registration():
             'address': '456 Warehouse Ave, Distribution City'
         },
         'retailer': {
-            'email': 'retailer@auromart.com',
+            'email': 'retailer2@auromart.com',
             'password': 'password123',
             'firstName': 'Bob',
             'lastName': 'Retailer',
