@@ -228,7 +228,7 @@ def update_order_status(order_id):
                 and_(Product.id.in_(product_ids), Product.manufacturer_id == current_user_id)
             ).count()
             if manufacturer_products == 0:
-            return jsonify({'message': 'Access denied'}), 403
+                return jsonify({'message': 'Access denied'}), 403
         
         # Update order status
         order.status = new_status
