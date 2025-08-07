@@ -29,6 +29,15 @@ def init_database():
             print("📦 Creating database tables...")
             db.create_all()
             
+            # Test database connection
+            try:
+                with db.engine.connect() as connection:
+                    connection.execute(db.text("SELECT 1"))
+                print("✅ Database connection successful!")
+            except Exception as e:
+                print(f"❌ Database connection failed: {e}")
+                return False
+            
             # Check if we already have users
             existing_users = User.query.count()
             if existing_users > 0:
