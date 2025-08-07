@@ -78,15 +78,23 @@ export function useAuth() {
 
   const register = (data: RegisterData, callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }) => {
     registerMutation.mutate(data, {
-      onSuccess: callbacks?.onSuccess,
-      onError: callbacks?.onError,
+      onSuccess: (result) => {
+        callbacks?.onSuccess?.();
+      },
+      onError: (error: Error) => {
+        callbacks?.onError?.(error);
+      },
     });
   };
 
   const login = (data: LoginData, callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }) => {
     loginMutation.mutate(data, {
-      onSuccess: callbacks?.onSuccess,
-      onError: callbacks?.onError,
+      onSuccess: (result) => {
+        callbacks?.onSuccess?.();
+      },
+      onError: (error: Error) => {
+        callbacks?.onError?.(error);
+      },
     });
   };
 
@@ -102,8 +110,8 @@ export function useAuth() {
     isLoading,
     error,
     isAuthenticated: !!user,
-    login: loginMutation.mutate,
-    register: registerMutation.mutate,
+    login,
+    register,
     logout: logoutMutation.mutate,
     isLoginLoading: loginMutation.isPending,
     isRegisterLoading: registerMutation.isPending,
