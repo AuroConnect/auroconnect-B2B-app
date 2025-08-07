@@ -40,6 +40,10 @@ export function useAuth() {
     queryKey: ["api", "auth", "user"],
     retry: false,
     enabled: !!localStorage.getItem('authToken'),
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/auth/user');
+      return response.json();
+    },
   });
 
   const loginMutation = useMutation({
@@ -58,7 +62,10 @@ export function useAuth() {
       
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result.user) {
+        queryClient.setQueryData(["api", "auth", "user"], result.user);
+      }
       queryClient.invalidateQueries({ queryKey: ["api", "auth", "user"] });
     },
   });

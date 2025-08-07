@@ -71,71 +71,52 @@ export default function Register() {
       return;
     }
 
-    // Test API connectivity first
-    fetch('http://localhost:5000/api/health')
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Server is not responding properly');
-        }
-        return response.json();
-      })
-      .then(() => {
-        // API is working, proceed with registration
-        // Prepare registration data
-        const { confirmPassword, ...registrationData } = formData;
-        
-        // Ensure role is properly typed
-        const finalRegistrationData = {
-          ...registrationData,
-          role: registrationData.role as 'retailer' | 'distributor' | 'manufacturer'
-        };
-        
-        console.log('Attempting registration with data:', finalRegistrationData);
-        
-        // Register user
-        register(finalRegistrationData, {
-          onSuccess: () => {
-            console.log('Registration successful');
-            toast({
-              title: "Registration Successful",
-              description: "Your account has been created successfully! Redirecting to login...",
-            });
-            // Redirect to login after a short delay
-            setTimeout(() => {
-              window.location.href = "/";
-            }, 2000);
-          },
-          onError: (error: Error) => {
-            console.error('Registration error:', error);
-            let errorMessage = error.message;
-            
-            // Provide more specific error messages
-            if (error.message.includes('Failed to fetch')) {
-              errorMessage = "Unable to connect to server. Please check your internet connection and try again.";
-            } else if (error.message.includes('409')) {
-              errorMessage = "An account with this email already exists. Please use a different email or try logging in.";
-            } else if (error.message.includes('400')) {
-              errorMessage = "Please check your information and try again. Make sure all required fields are filled correctly.";
-            } else if (error.message.includes('500')) {
-              errorMessage = "Server error occurred. Please try again later.";
-            }
-            
-            toast({
-              title: "Registration Failed",
-              description: errorMessage,
-              variant: "destructive",
-            });
-          },
-        });
-      })
-      .catch(error => {
-        console.error('API connectivity test failed:', error);
+    // Prepare registration data
+    const { confirmPassword, ...registrationData } = formData;
+    
+    // Ensure role is properly typed
+    const finalRegistrationData = {
+      ...registrationData,
+      role: registrationData.role as 'retailer' | 'distributor' | 'manufacturer'
+    };
+    
+    console.log('Attempting registration with data:', finalRegistrationData);
+    
+    // Register user
+    register(finalRegistrationData, {
+      onSuccess: () => {
+        console.log('Registration successful');
         toast({
-          title: "Connection Error",
-          description: "Unable to connect to server. Please ensure the backend is running and try again.",
+          title: "Registration Successful",
+          description: "Your account has been created successfully! Redirecting to login...",
+        });
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      },
+      onError: (error: Error) => {
+        console.error('Registration error:', error);
+        let errorMessage = error.message;
+        
+        // Provide more specific error messages
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage = "Unable to connect to server. Please check your internet connection and try again.";
+        } else if (error.message.includes('409')) {
+          errorMessage = "An account with this email already exists. Please use a different email or try logging in.";
+        } else if (error.message.includes('400')) {
+          errorMessage = "Please check your information and try again. Make sure all required fields are filled correctly.";
+        } else if (error.message.includes('500')) {
+          errorMessage = "Server error occurred. Please try again later.";
+        }
+        
+        toast({
+          title: "Registration Failed",
+          description: errorMessage,
           variant: "destructive",
         });
-      });
+      },
+    });
   };
 
   const getRoleIcon = (role: string) => {

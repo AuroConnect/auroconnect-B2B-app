@@ -11,13 +11,13 @@ class Config:
     
     # Database
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'postgresql://auromart:auromart123@localhost:5432/auromart'
+        'sqlite:///auromart.db'
     
     # Redis
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379'
     
     # CORS
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001,http://localhost:80,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:8080').split(',')
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*').split(',') if os.environ.get('CORS_ORIGINS') else ['*']
     
     # Pagination
     ITEMS_PER_PAGE = 20

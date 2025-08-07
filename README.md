@@ -1,175 +1,177 @@
-# AuroMart - B2B Marketplace Platform
+# AuroMart B2B Platform
 
-A production-ready B2B marketplace platform built with Flask backend and React frontend, featuring role-based access control, partner management, and order processing.
+A comprehensive B2B platform for retailers, distributors, and manufacturers to streamline their operations.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Docker and Docker Compose installed
-- At least 4GB RAM available
+- Python 3.8+
+- Node.js 16+
+- PostgreSQL
+- npm or yarn
 
-### Running the Application
-
-1. **Clone and navigate to the project:**
-```bash
-cd AuroMart
+### Database Setup
+1. Install PostgreSQL
+2. Create a database user:
+```sql
+CREATE USER auromart WITH PASSWORD 'auromart123';
+CREATE DATABASE auromart OWNER auromart;
 ```
 
-2. **Start all services:**
-```bash
-docker-compose up -d --build
-```
-
-3. **Access the application:**
-- Frontend: http://localhost:80
-- Backend API: http://localhost:5000
-- Health Check: http://localhost:5000/api/health
-
-4. **View logs:**
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f backend
-docker-compose logs -f frontend
-```
-
-## 🏗️ Architecture
-
-### Services
-- **Frontend**: React + TypeScript + Vite (Nginx)
-- **Backend**: Flask + SQLAlchemy + JWT (Python)
-- **Database**: PostgreSQL
-- **Cache**: Redis (optional)
-
-### Features
-- ✅ **Multi-role Platform**: Retailers, Distributors, Manufacturers
-- ✅ **Partner Management**: Browse by distributor/manufacturer
-- ✅ **Favorites System**: Add partners to favorites
-- ✅ **Role-based Visibility**: Secure access control
-- ✅ **Global Search**: Search products and partners
-- ✅ **Order Management**: Complete order workflow
-- ✅ **JWT Authentication**: Secure API access
-- ✅ **Docker Containerization**: Production-ready deployment
-
-## 🔧 Development
-
-### Backend (Flask)
+### Backend Setup
 ```bash
 cd server
 pip install -r requirements.txt
-python run.py
+python reset_db.py  # Reset database to clean state
+python run.py       # Start backend server
 ```
 
-### Frontend (React)
+### Frontend Setup
 ```bash
 cd client
 npm install
 npm run dev
 ```
 
-## 📊 API Endpoints
+### Quick Development Start
+```bash
+python start_dev.py  # Starts both frontend and backend
+```
 
-### Authentication
+## 🔧 Fixed Issues
+
+### Authentication System
+- ✅ Fixed API URL configuration (port 5000)
+- ✅ Fixed database schema issues
+- ✅ Enhanced error handling and messages
+- ✅ Improved CORS configuration
+- ✅ Fixed user registration and login flows
+- ✅ Added proper JWT token handling
+
+### Backend Fixes
+- ✅ Fixed User model UUID handling
+- ✅ Enhanced auth endpoints with better error messages
+- ✅ Added comprehensive logging
+- ✅ Fixed database schema with password_hash column
+- ✅ Improved CORS configuration for development
+
+### Frontend Fixes
+- ✅ Fixed API request configuration
+- ✅ Enhanced error handling in forms
+- ✅ Improved user authentication flow
+- ✅ Fixed registration form validation
+- ✅ Added better network error handling
+
+## 🧪 Testing
+
+### API Testing
+```bash
+cd server
+python test_api.py
+```
+
+### Manual Testing
+1. Start the backend: `cd server && python run.py`
+2. Start the frontend: `cd client && npm run dev`
+3. Visit http://localhost:3000
+4. Test registration and login flows
+
+## 📁 Project Structure
+
+```
+auroconnect-B2B-app/
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── components/    # UI components
+│   │   ├── hooks/        # Custom hooks
+│   │   ├── pages/        # Page components
+│   │   └── lib/          # Utilities
+├── server/                # Flask backend
+│   ├── app/
+│   │   ├── api/          # API endpoints
+│   │   ├── models/       # Database models
+│   │   └── utils/        # Utilities
+├── shared/               # Shared schemas
+└── init.sql             # Database schema
+```
+
+## 🔐 Authentication Flow
+
+1. **Registration**: Users can register as retailer, distributor, or manufacturer
+2. **Login**: Email/password authentication with JWT tokens
+3. **Authorization**: Role-based access control
+4. **Session Management**: Automatic token refresh
+
+## 🌐 API Endpoints
+
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
-- `GET /api/auth/user` - Get current user
+- `GET /api/auth/user` - Get current user info
+- `GET /api/health` - Health check
 
-### Partners
-- `GET /api/partners/distributors` - Get distributors
-- `GET /api/partners/manufacturers` - Get manufacturers
-- `GET /api/partners/available` - Get available partners
+## 🛠️ Development
 
-### Favorites
-- `GET /api/favorites` - Get user favorites
-- `POST /api/favorites` - Add to favorites
-- `DELETE /api/favorites/<id>` - Remove from favorites
+### Environment Variables
+- `VITE_API_URL` - Frontend API URL (default: http://localhost:5000)
+- `DATABASE_URL` - Backend database URL
+- `SECRET_KEY` - Flask secret key
+- `JWT_SECRET_KEY` - JWT secret key
 
-### Products
-- `GET /api/products` - Get products
-- `GET /api/products/categories` - Get categories
-- `GET /api/products/search` - Search products
-
-### Orders
-- `GET /api/orders` - Get user orders
-- `POST /api/orders` - Create order
-- `PATCH /api/orders/<id>/status` - Update order status
-
-## 🐳 Docker Commands
-
+### Database Reset
 ```bash
-# Start all services
-docker-compose up -d
-
-# Rebuild and start
-docker-compose up -d --build
-
-# Stop all services
-docker-compose down
-
-# View logs
-docker-compose logs -f
-
-# Access database
-docker-compose exec postgres psql -U auromart -d auromart
-
-# Access backend shell
-docker-compose exec backend python
-
-# Access frontend container
-docker-compose exec frontend sh
+cd server
+python reset_db.py
 ```
 
-## 🔍 Troubleshooting
+## 🐛 Troubleshooting
 
 ### Common Issues
-
-1. **Port conflicts**: Make sure ports 80 and 5000 are available
-2. **Database connection**: Wait for PostgreSQL to be ready (health check)
-3. **Build failures**: Clear Docker cache: `docker system prune -a`
-
-### Health Checks
-- Backend: http://localhost:5000/api/health
-- Frontend: http://localhost:80/health
-- Database: `docker-compose exec postgres pg_isready -U auromart`
+1. **Database Connection**: Ensure PostgreSQL is running and credentials are correct
+2. **Port Conflicts**: Check if ports 3000 (frontend) and 5000 (backend) are available
+3. **CORS Issues**: Backend CORS is configured for development (*)
+4. **API Errors**: Check browser console and server logs for detailed error messages
 
 ### Logs
+- Backend logs: Check server console output
+- Frontend logs: Check browser developer tools console
+- Network errors: Check browser Network tab
+
+## 📝 Recent Fixes
+
+### Authentication Issues Fixed
+- Fixed API URL mismatch (5001 → 5000)
+- Enhanced error handling in registration/login
+- Fixed database schema issues
+- Improved CORS configuration
+- Added comprehensive logging
+- Fixed UUID handling in User model
+
+### UI/UX Improvements
+- Better error messages for users
+- Improved form validation
+- Enhanced network error handling
+- Fixed callback patterns in auth hooks
+
+## 🚀 Deployment
+
+### Backend Deployment
 ```bash
-# Backend logs
-docker-compose logs backend
-
-# Frontend logs
-docker-compose logs frontend
-
-# Database logs
-docker-compose logs postgres
+cd server
+pip install -r requirements.txt
+gunicorn -w 4 -b 0.0.0.0:5000 run:app
 ```
 
-## 📝 Environment Variables
-
-### Backend (.env)
-```env
-FLASK_ENV=docker
-DATABASE_URL=postgresql://auromart:auromart123@postgres:5432/auromart
-SECRET_KEY=your-secret-key-here
-JWT_SECRET_KEY=your-jwt-secret-key-here
+### Frontend Deployment
+```bash
+cd client
+npm run build
+# Serve dist/ directory
 ```
 
-### Frontend (.env)
-```env
-VITE_API_URL=http://localhost:5000
-```
+## 📞 Support
 
-## 🚀 Production Deployment
-
-For production deployment, consider:
-- Using environment-specific Docker Compose files
-- Setting up SSL/TLS certificates
-- Configuring proper logging and monitoring
-- Setting up database backups
-- Using a reverse proxy (Nginx/Traefik)
-
-## 📄 License
-
-This project is licensed under the MIT License. 
+For issues or questions:
+1. Check the troubleshooting section
+2. Review server logs for backend issues
+3. Check browser console for frontend issues
+4. Test API endpoints directly with curl/Postman 

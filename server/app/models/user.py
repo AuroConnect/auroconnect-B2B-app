@@ -7,10 +7,10 @@ from sqlalchemy.dialects.postgresql import UUID
 class User(db.Model):
     __tablename__ = 'users'
     
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = db.Column(db.String(255), unique=True, nullable=True)
-    first_name = db.Column(db.String(255), nullable=True)
-    last_name = db.Column(db.String(255), nullable=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    first_name = db.Column(db.String(255), nullable=False)
+    last_name = db.Column(db.String(255), nullable=False)
     profile_image_url = db.Column(db.String(500), nullable=True)
     role = db.Column(db.String(50), nullable=False, default='retailer')
     business_name = db.Column(db.Text, nullable=True)

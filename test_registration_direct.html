@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Registration Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Direct Registration Test</h1>
+    
+    <div>
+        <input type="text" id="firstName" placeholder="First Name" value="Test">
+        <input type="text" id="lastName" placeholder="Last Name" value="User">
+        <input type="email" id="email" placeholder="Email" value="test2@example.com">
+        <input type="password" id="password" placeholder="Password" value="password123">
+        <select id="role">
+            <option value="retailer">Retailer</option>
+            <option value="distributor">Distributor</option>
+            <option value="manufacturer">Manufacturer</option>
+        </select>
+        <input type="text" id="businessName" placeholder="Business Name" value="Test Business">
+    </div>
+    
+    <button onclick="testRegistration()">Test Registration</button>
+    <button onclick="testHealth()">Test Health</button>
+    
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001';
+        
+        async function testHealth() {
+            try {
+                console.log('Testing health endpoint...');
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result success">
+                            ✅ Health Check Successful!<br>
+                            Status: ${data.status}<br>
+                            Database: ${data.database}<br>
+                            Message: ${data.message}
+                        </div>`;
+                } else {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result error">
+                            ❌ Health Check Failed: ${response.status} - ${data.message || response.statusText}
+                        </div>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = 
+                    `<div class="result error">
+                        ❌ Health Check Error: ${error.message}<br>
+                        Make sure the backend is running on ${API_BASE}
+                    </div>`;
+            }
+        }
+        
+        async function testRegistration() {
+            const testData = {
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                role: document.getElementById('role').value,
+                businessName: document.getElementById('businessName').value
+            };
+            
+            try {
+                console.log('Testing registration with data:', testData);
+                const response = await fetch(`${API_BASE}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (response.ok) {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result success">
+                            ✅ Registration Successful!<br>
+                            User ID: ${data.user.id}<br>
+                            Email: ${data.user.email}<br>
+                            Role: ${data.user.role}<br>
+                            Message: ${data.message}
+                        </div>`;
+                } else {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="result error">
+                            ❌ Registration Failed: ${response.status} - ${data.message || data.error || response.statusText}
+                        </div>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = 
+                    `<div class="result error">
+                        ❌ Registration Error: ${error.message}<br>
+                        Check browser console for details
+                    </div>`;
+                console.error('Registration error:', error);
+            }
+        }
+        
+        // Auto-test health on load
+        window.onload = testHealth;
+    </script>
+</body>
+</html>

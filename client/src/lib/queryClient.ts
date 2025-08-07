@@ -1,7 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 // API Base URL - change this to your Flask backend URL
-const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:5000';
 
 // Get JWT token from localStorage
 function getAuthToken(): string | null {
@@ -27,6 +27,31 @@ async function throwIfResNotOk(res: Response) {
     } catch {
       // If JSON parsing fails, use status text
     }
+    
+    // Provide more specific error messages based on status code
+    switch (res.status) {
+      case 400:
+        errorMessage = "Bad request. Please check your input data.";
+        break;
+      case 401:
+        errorMessage = "Unauthorized. Please check your credentials.";
+        break;
+      case 403:
+        errorMessage = "Forbidden. You don't have permission to access this resource.";
+        break;
+      case 404:
+        errorMessage = "Resource not found.";
+        break;
+      case 409:
+        errorMessage = "Conflict. The resource already exists.";
+        break;
+      case 500:
+        errorMessage = "Internal server error. Please try again later.";
+        break;
+      default:
+        errorMessage = errorMessage || "An error occurred.";
+    }
+    
     throw new Error(`${res.status}: ${errorMessage}`);
   }
 }

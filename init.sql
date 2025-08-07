@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     address TEXT,
     phone_number VARCHAR(50),
     whatsapp_number VARCHAR(50),
+    password_hash VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

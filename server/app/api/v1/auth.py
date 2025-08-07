@@ -46,7 +46,6 @@ def register():
         
         # Create new user
         new_user = User(
-            id=str(uuid.uuid4()),
             email=data['email'],
             first_name=data['firstName'],
             last_name=data['lastName'],
@@ -60,6 +59,10 @@ def register():
         
         # Set password
         new_user.set_password(data['password'])
+        
+        # Ensure the user has an ID
+        if not new_user.id:
+            new_user.id = str(uuid.uuid4())
         
         db.session.add(new_user)
         db.session.commit()
