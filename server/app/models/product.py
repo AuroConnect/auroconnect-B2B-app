@@ -7,36 +7,47 @@ class Product(db.Model):
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(255), nullable=False)
+    sku = db.Column(db.String(100), unique=True, nullable=False)
+    category = db.Column(db.String(100), nullable=False)  # Mattress, Mobile, Clothing, etc.
     description = db.Column(db.Text, nullable=True)
-    sku = db.Column(db.String(255), unique=True, nullable=False)
-    category_id = db.Column(db.String(36), db.ForeignKey('categories.id'), nullable=True)
-    manufacturer_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
-    image_url = db.Column(db.Text, nullable=True)
-    base_price = db.Column(db.Numeric(10, 2), nullable=True)
+    price = db.Column(db.Numeric(10, 2), nullable=False)
+    unit = db.Column(db.String(50), nullable=False, default='piece')  # piece, kg, meter, etc.
+    stock = db.Column(db.Integer, nullable=False, default=0)
+    image_url = db.Column(db.String(500), nullable=True)
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    category = db.relationship('Category', backref='products')
-    manufacturer = db.relationship('User', backref='manufactured_products')
-    inventory_items = db.relationship('Inventory', backref='product', lazy='dynamic')
+    creator = db.relationship('User', backref='products')
     
     def to_dict(self):
         """Convert to dictionary"""
         return {
             'id': self.id,
             'name': self.name,
-            'description': self.description,
             'sku': self.sku,
-            'categoryId': self.category_id,
-            'manufacturerId': self.manufacturer_id,
+            'category': self.category,
+            'description': self.description,
+            'price': float(self.price) if self.price else 0.0,
+            'unit': self.unit,
+            'stock': self.stock,
             'imageUrl': self.image_url,
-            'basePrice': float(self.base_price) if self.base_price else None,
+            'createdBy': self.created_by,
             'isActive': self.is_active,
             'createdAt': self.created_at.isoformat() if self.created_at else None,
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None
         }
+    
+    @staticmethod
+    def generate_sku():
+        """Generate unique SKU"""
+        import random
+        import string
+        prefix = "SKU"
+        suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        return f"{prefix}-{suffix}"
     
     def __repr__(self):
         return f'<Product {self.name}>' 

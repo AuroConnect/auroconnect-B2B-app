@@ -2,21 +2,19 @@ from app import db
 from datetime import datetime
 import uuid
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     __tablename__ = 'users'
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
-    first_name = db.Column(db.String(255), nullable=False)
-    last_name = db.Column(db.String(255), nullable=False)
-    profile_image_url = db.Column(db.String(500), nullable=True)
-    role = db.Column(db.String(50), nullable=False, default='retailer')
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(50), nullable=False, default='retailer')  # manufacturer, distributor, retailer
     business_name = db.Column(db.Text, nullable=True)
     address = db.Column(db.Text, nullable=True)
     phone_number = db.Column(db.String(50), nullable=True)
-    whatsapp_number = db.Column(db.String(50), nullable=True)
-    password_hash = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -41,14 +39,12 @@ class User(db.Model):
         """Convert to dictionary"""
         return {
             'id': self.id,
+            'name': self.name,
             'email': self.email,
-            'firstName': self.first_name,
-            'lastName': self.last_name,
             'role': self.role,
             'businessName': self.business_name,
             'address': self.address,
             'phoneNumber': self.phone_number,
-            'whatsappNumber': self.whatsapp_number,
             'isActive': self.is_active,
             'createdAt': self.created_at.isoformat() if self.created_at else None,
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None
@@ -58,26 +54,22 @@ class User(db.Model):
         """Convert to public dictionary (without sensitive info)"""
         return {
             'id': self.id,
-            'firstName': self.first_name,
-            'lastName': self.last_name,
+            'name': self.name,
             'role': self.role,
             'businessName': self.business_name,
             'address': self.address,
-            'phoneNumber': self.phone_number,
-            'whatsappNumber': self.whatsapp_number
+            'phoneNumber': self.phone_number
         }
     
-    @property
-    def full_name(self):
-        """Get full name"""
-        if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name}"
-        elif self.first_name:
-            return self.first_name
-        elif self.business_name:
-            return self.business_name
-        else:
-            return self.email or "Unknown User"
+    def get_dashboard_url(self):
+        """Get dashboard URL based on role"""
+        if self.role == 'manufacturer':
+            return '/manufacturer/dashboard'
+        elif self.role == 'distributor':
+            return '/distributor/dashboard'
+        elif self.role == 'retailer':
+            return '/retailer/dashboard'
+        return '/dashboard'
     
     def __repr__(self):
         return f'<User {self.email}>' 

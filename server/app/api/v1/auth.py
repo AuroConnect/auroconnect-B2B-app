@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask import Blueprint, request, jsonify, redirect, url_for
+from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import User
 from app.utils.decorators import validate_json
@@ -21,13 +21,13 @@ def register():
         print(f"Registration attempt for email: {data.get('email', 'N/A')}")
         
         # Validate required fields
-        required_fields = ['email', 'firstName', 'lastName', 'password', 'role']
+        required_fields = ['name', 'email', 'password', 'role']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'message': f'{field} is required'}), 400
         
         # Validate role
-        valid_roles = ['retailer', 'distributor', 'manufacturer']
+        valid_roles = ['manufacturer', 'distributor', 'retailer']
         if data['role'] not in valid_roles:
             return jsonify({'message': f'Role must be one of: {", ".join(valid_roles)}'}), 400
         
@@ -46,14 +46,12 @@ def register():
         
         # Create new user
         new_user = User(
+            name=data['name'],
             email=data['email'],
-            first_name=data['firstName'],
-            last_name=data['lastName'],
             role=data['role'],
             business_name=data.get('businessName'),
             address=data.get('address'),
             phone_number=data.get('phoneNumber'),
-            whatsapp_number=data.get('whatsappNumber'),
             is_active=True
         )
         
@@ -81,7 +79,7 @@ def register():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    """Login user and return JWT token"""
+    """Login user and redirect to appropriate dashboard"""
     try:
         data = request.get_json()
         if not data:
@@ -106,51 +104,48 @@ def login():
             print(f"Login failed: Invalid password for email {email}")
             return jsonify({'message': 'Invalid email or password'}), 401
         
-        # Create access token
-        try:
-            access_token = create_access_token(identity=str(user.id))
-            print(f"Login successful for user: {user.email}")
-        except Exception as e:
-            print(f"Token creation failed: {str(e)}")
-            return jsonify({'message': 'Token creation failed', 'error': str(e)}), 500
+        # Login user with Flask-Login
+        login_user(user)
+        print(f"Login successful for user: {user.email}")
         
         return jsonify({
             'message': 'Login successful',
-            'access_token': access_token,
-            'user': user.to_dict()
+            'user': user.to_dict(),
+            'redirectUrl': user.get_dashboard_url()
         }), 200
         
     except Exception as e:
         print(f"Login error: {str(e)}")
         return jsonify({'message': 'Login failed', 'error': str(e)}), 500
 
+@auth_bp.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    """Logout user"""
+    try:
+        logout_user()
+        return jsonify({'message': 'Logout successful'}), 200
+    except Exception as e:
+        return jsonify({'message': 'Logout failed', 'error': str(e)}), 500
+
 @auth_bp.route('/user', methods=['GET'])
-@jwt_required()
+@login_required
 def get_user():
     """Get current user information"""
     try:
-        user_id = get_jwt_identity()
-        user = User.query.get(user_id)
-        
-        if not user:
-            return jsonify({'message': 'User not found'}), 404
-        
-        return jsonify(user.to_dict()), 200
-        
+        return jsonify(current_user.to_dict()), 200
     except Exception as e:
         return jsonify({'message': 'Failed to get user', 'error': str(e)}), 500
 
-@auth_bp.route('/refresh', methods=['POST'])
-@jwt_required()
-def refresh():
-    """Refresh JWT token"""
+@auth_bp.route('/dashboard', methods=['GET'])
+@login_required
+def dashboard():
+    """Redirect to appropriate dashboard based on user role"""
     try:
-        current_user_id = get_jwt_identity()
-        new_token = create_access_token(identity=current_user_id)
-        
+        dashboard_url = current_user.get_dashboard_url()
         return jsonify({
-            'access_token': new_token
+            'redirectUrl': dashboard_url,
+            'user': current_user.to_dict()
         }), 200
-        
     except Exception as e:
-        return jsonify({'message': 'Token refresh failed', 'error': str(e)}), 500 
+        return jsonify({'message': 'Failed to get dashboard', 'error': str(e)}), 500 

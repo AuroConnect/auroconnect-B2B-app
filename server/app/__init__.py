@@ -2,13 +2,18 @@ from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
+from flask_login import LoginManager
 from app.config import Config
 
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
-jwt = JWTManager()
+login_manager = LoginManager()
+
+@login_manager.user_loader
+def load_user(user_id):
+    from app.models import User
+    return User.query.get(user_id)
 
 def create_app(config_class=Config):
     """Application factory pattern"""
@@ -20,7 +25,8 @@ def create_app(config_class=Config):
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
-    jwt.init_app(app)
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
     
     # Setup CORS
     CORS(app, 
@@ -35,27 +41,21 @@ def create_app(config_class=Config):
     from app.api.v1.products import products_bp
     from app.api.v1.orders import orders_bp
     from app.api.v1.partners import partners_bp
-    from app.api.v1.partnerships import partnerships_bp
-    from app.api.v1.favorites import favorites_bp
-    from app.api.v1.search import search_bp
-    from app.api.v1.health import health_bp
-    from app.api.v1.analytics import analytics_bp
-    from app.api.v1.notifications import notifications_bp
-    from app.api.v1.whatsapp import whatsapp_bp
+    from app.api.v1.manufacturer import manufacturer_bp
+    from app.api.v1.distributor import distributor_bp
+    from app.api.v1.retailer import retailer_bp
     from app.api.v1.invoices import invoices_bp
+    from app.api.v1.health import health_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(products_bp, url_prefix='/api/products')
     app.register_blueprint(orders_bp, url_prefix='/api/orders')
     app.register_blueprint(partners_bp, url_prefix='/api/partners')
-    app.register_blueprint(partnerships_bp, url_prefix='/api/partnerships')
-    app.register_blueprint(favorites_bp, url_prefix='/api/favorites')
-    app.register_blueprint(search_bp, url_prefix='/api/search')
-    app.register_blueprint(health_bp, url_prefix='/api')
-    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
-    app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
-    app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')
+    app.register_blueprint(manufacturer_bp, url_prefix='/api/manufacturer')
+    app.register_blueprint(distributor_bp, url_prefix='/api/distributor')
+    app.register_blueprint(retailer_bp, url_prefix='/api/retailer')
     app.register_blueprint(invoices_bp, url_prefix='/api/invoices')
+    app.register_blueprint(health_bp, url_prefix='/api')
     
     # Error handlers
     from app.errors import register_error_handlers

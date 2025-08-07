@@ -1,223 +1,109 @@
-from flask import Blueprint, jsonify, request, send_file
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Order, Invoice, WhatsAppNotification
+from flask import Blueprint, request, jsonify, send_file
+from flask_login import login_required, current_user
 from app import db
-from app.utils.decorators import role_required
+from app.models import Order, Invoice
+import os
 from datetime import datetime
 import uuid
-import os
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
-import io
 
 invoices_bp = Blueprint('invoices', __name__)
 
-def generate_invoice_pdf(order):
-    """Generate PDF invoice for an order"""
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    story = []
-    
-    # Get styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=16,
-        spaceAfter=30,
-        alignment=1  # Center alignment
-    )
-    
-    # Header
-    story.append(Paragraph("AuroMart B2B Platform", title_style))
-    story.append(Paragraph("INVOICE", title_style))
-    story.append(Spacer(1, 20))
-    
-    # Invoice details
-    story.append(Paragraph(f"Invoice Number: {order.order_number.replace('ORD', 'INV')}", styles['Normal']))
-    story.append(Paragraph(f"Date: {order.created_at.strftime('%B %d, %Y')}", styles['Normal']))
-    story.append(Spacer(1, 20))
-    
-    # Customer and distributor info
-    retailer = User.query.get(order.retailer_id)
-    distributor = User.query.get(order.distributor_id)
-    
-    customer_data = [
-        ['Customer Information:', ''],
-        ['Name:', f"{retailer.firstName} {retailer.lastName}"],
-        ['Email:', retailer.email],
-        ['Phone:', retailer.phoneNumber or 'N/A'],
-        ['Business:', retailer.businessName or 'N/A'],
-    ]
-    
-    distributor_data = [
-        ['Distributor Information:', ''],
-        ['Name:', f"{distributor.firstName} {distributor.lastName}"],
-        ['Email:', distributor.email],
-        ['Phone:', distributor.phoneNumber or 'N/A'],
-        ['Business:', distributor.businessName or 'N/A'],
-    ]
-    
-    # Create two-column layout
-    info_data = []
-    for i in range(max(len(customer_data), len(distributor_data))):
-        row = []
-        if i < len(customer_data):
-            row.extend(customer_data[i])
-        else:
-            row.extend(['', ''])
-        
-        if i < len(distributor_data):
-            row.extend(distributor_data[i])
-        else:
-            row.extend(['', ''])
-        
-        info_data.append(row)
-    
-    info_table = Table(info_data, colWidths=[2*inch, 2*inch, 2*inch, 2*inch])
-    info_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-    ]))
-    
-    story.append(info_table)
-    story.append(Spacer(1, 20))
-    
-    # Items table
-    story.append(Paragraph("Order Items", styles['Heading2']))
-    story.append(Spacer(1, 10))
-    
-    items_data = [['Product', 'SKU', 'Quantity', 'Unit Price', 'Total']]
-    for item in order.items:
-        items_data.append([
-            item.product.name,
-            item.product.sku,
-            str(item.quantity),
-            f"₹{item.unit_price:.2f}",
-            f"₹{item.total_price:.2f}"
-        ])
-    
-    # Add totals
-    subtotal = sum(item.total_price for item in order.items)
-    tax = subtotal * 0.18  # 18% GST
-    total = subtotal + tax
-    
-    items_data.extend([
-        ['', '', '', 'Subtotal:', f"₹{subtotal:.2f}"],
-        ['', '', '', 'GST (18%):', f"₹{tax:.2f}"],
-        ['', '', '', 'Total:', f"₹{total:.2f}"]
-    ])
-    
-    items_table = Table(items_data, colWidths=[2*inch, 1.5*inch, 1*inch, 1.5*inch, 1.5*inch])
-    items_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (-2, -3), (-1, -1), 'RIGHT'),  # Align totals to right
-        ('FONTNAME', (-2, -3), (-1, -1), 'Helvetica-Bold'),
-    ]))
-    
-    story.append(items_table)
-    story.append(Spacer(1, 20))
-    
-    # Notes
-    if order.notes:
-        story.append(Paragraph("Notes:", styles['Heading3']))
-        story.append(Paragraph(order.notes, styles['Normal']))
-        story.append(Spacer(1, 20))
-    
-    # Footer
-    story.append(Paragraph("Thank you for your business!", styles['Normal']))
-    story.append(Paragraph("Generated by AuroMart B2B Platform", styles['Normal']))
-    
-    doc.build(story)
-    buffer.seek(0)
-    return buffer
-
 @invoices_bp.route('/generate/<order_id>', methods=['POST'])
-@jwt_required()
-@role_required('distributor')
+@login_required
 def generate_invoice(order_id):
-    """Generate invoice for an order"""
+    """Generate invoice PDF for an order"""
     try:
         order = Order.query.get(order_id)
         if not order:
             return jsonify({'message': 'Order not found'}), 404
         
+        # Check if user has access to this order
+        if current_user.role == 'manufacturer':
+            if order.seller_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        elif current_user.role == 'distributor':
+            if order.seller_id != current_user.id and order.buyer_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        elif current_user.role == 'retailer':
+            if order.buyer_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        
+        # Check if order is shipped or delivered
+        if order.status not in ['shipped', 'delivered']:
+            return jsonify({'message': 'Invoice can only be generated for shipped or delivered orders'}), 400
+        
         # Check if invoice already exists
         existing_invoice = Invoice.query.filter_by(order_id=order_id).first()
         if existing_invoice:
-            return jsonify({'message': 'Invoice already exists for this order'}), 409
+            return jsonify(existing_invoice.to_dict()), 200
         
-        # Generate invoice number
-        invoice_number = f"INV-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+        # Generate invoice
+        invoice_number = Invoice.generate_invoice_number()
+        total_amount = order.get_total_price()
+        tax_amount = total_amount * 0.1  # 10% tax
+        
+        # Create invoice directory if it doesn't exist
+        invoice_dir = os.path.join(os.getcwd(), 'invoices')
+        if not os.path.exists(invoice_dir):
+            os.makedirs(invoice_dir)
+        
+        # Generate PDF filename
+        pdf_filename = f"invoice_{invoice_number}_{order_id}.pdf"
+        pdf_path = os.path.join(invoice_dir, pdf_filename)
+        
+        # Generate PDF content (simplified for now)
+        pdf_content = generate_pdf_content(order, invoice_number, total_amount, tax_amount)
+        
+        # Save PDF (in a real implementation, you'd use a PDF library)
+        with open(pdf_path, 'w') as f:
+            f.write(pdf_content)
         
         # Create invoice record
-        invoice = Invoice(
-            invoice_number=invoice_number,
+        new_invoice = Invoice(
             order_id=order_id,
-            sent_at=datetime.utcnow()
+            pdf_url=pdf_path,
+            invoice_number=invoice_number,
+            total_amount=total_amount + tax_amount,
+            tax_amount=tax_amount
         )
         
-        db.session.add(invoice)
+        db.session.add(new_invoice)
         db.session.commit()
         
-        # Generate PDF
-        pdf_buffer = generate_invoice_pdf(order)
-        
-        # Save PDF to file (in a real app, you'd save to cloud storage)
-        pdf_filename = f"invoice_{invoice_number}.pdf"
-        pdf_path = os.path.join("/tmp", pdf_filename)
-        
-        with open(pdf_path, 'wb') as f:
-            f.write(pdf_buffer.getvalue())
-        
-        # Update invoice with PDF URL
-        invoice.pdf_url = f"/invoices/{pdf_filename}"
-        db.session.commit()
-        
-        # Send WhatsApp notification to retailer
-        retailer = User.query.get(order.retailer_id)
-        message = f"📄 Invoice Generated\n"
-        message += f"Order: {order.order_number}\n"
-        message += f"Invoice: {invoice_number}\n"
-        message += f"Amount: ₹{order.total_amount}\n\n"
-        message += "Your invoice is ready for download!"
-        
-        notification = WhatsAppNotification(
-            user_id=order.retailer_id,
-            message=message,
-            type='invoice_sent',
-            sent_at=datetime.utcnow(),
-            is_delivered=True
-        )
-        
-        db.session.add(notification)
-        db.session.commit()
-        
-        print(f"📱 Invoice Notification to Retailer {retailer.email}: {message}")
-        
-        return jsonify({
-            'message': 'Invoice generated successfully',
-            'invoice': invoice.to_dict()
-        }), 201
+        return jsonify(new_invoice.to_dict()), 201
         
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': 'Failed to generate invoice', 'error': str(e)}), 500
 
-@invoices_bp.route('/download/<invoice_id>', methods=['GET'])
-@jwt_required()
+@invoices_bp.route('/<invoice_id>', methods=['GET'])
+@login_required
+def get_invoice(invoice_id):
+    """Get invoice details"""
+    try:
+        invoice = Invoice.query.get(invoice_id)
+        if not invoice:
+            return jsonify({'message': 'Invoice not found'}), 404
+        
+        # Check if user has access to this invoice
+        order = invoice.order
+        if current_user.role == 'manufacturer':
+            if order.seller_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        elif current_user.role == 'distributor':
+            if order.seller_id != current_user.id and order.buyer_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        elif current_user.role == 'retailer':
+            if order.buyer_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        
+        return jsonify(invoice.to_dict()), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch invoice', 'error': str(e)}), 500
+
+@invoices_bp.route('/<invoice_id>/download', methods=['GET'])
+@login_required
 def download_invoice(invoice_id):
     """Download invoice PDF"""
     try:
@@ -226,38 +112,100 @@ def download_invoice(invoice_id):
             return jsonify({'message': 'Invoice not found'}), 404
         
         # Check if user has access to this invoice
-        current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        order = invoice.order
+        if current_user.role == 'manufacturer':
+            if order.seller_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        elif current_user.role == 'distributor':
+            if order.seller_id != current_user.id and order.buyer_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        elif current_user.role == 'retailer':
+            if order.buyer_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
         
-        if user.role == 'retailer' and invoice.order.retailer_id != current_user_id:
-            return jsonify({'message': 'Access denied'}), 403
-        
-        if user.role == 'distributor' and invoice.order.distributor_id != current_user_id:
-            return jsonify({'message': 'Access denied'}), 403
-        
-        # Generate PDF on-the-fly
-        pdf_buffer = generate_invoice_pdf(invoice.order)
+        # Check if PDF file exists
+        if not os.path.exists(invoice.pdf_url):
+            return jsonify({'message': 'PDF file not found'}), 404
         
         return send_file(
-            io.BytesIO(pdf_buffer.getvalue()),
-            mimetype='application/pdf',
+            invoice.pdf_url,
             as_attachment=True,
-            download_name=f"invoice_{invoice.invoice_number}.pdf"
+            download_name=f"invoice_{invoice.invoice_number}.pdf",
+            mimetype='application/pdf'
         )
         
     except Exception as e:
         return jsonify({'message': 'Failed to download invoice', 'error': str(e)}), 500
 
-@invoices_bp.route('/<order_id>', methods=['GET'])
-@jwt_required()
-def get_invoice_by_order(order_id):
-    """Get invoice for an order"""
+@invoices_bp.route('/order/<order_id>', methods=['GET'])
+@login_required
+def get_order_invoice(order_id):
+    """Get invoice for a specific order"""
     try:
+        order = Order.query.get(order_id)
+        if not order:
+            return jsonify({'message': 'Order not found'}), 404
+        
+        # Check if user has access to this order
+        if current_user.role == 'manufacturer':
+            if order.seller_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        elif current_user.role == 'distributor':
+            if order.seller_id != current_user.id and order.buyer_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        elif current_user.role == 'retailer':
+            if order.buyer_id != current_user.id:
+                return jsonify({'message': 'Access denied'}), 403
+        
         invoice = Invoice.query.filter_by(order_id=order_id).first()
         if not invoice:
-            return jsonify({'message': 'Invoice not found'}), 404
+            return jsonify({'message': 'Invoice not found for this order'}), 404
         
         return jsonify(invoice.to_dict()), 200
         
     except Exception as e:
-        return jsonify({'message': 'Failed to fetch invoice', 'error': str(e)}), 500 
+        return jsonify({'message': 'Failed to fetch invoice', 'error': str(e)}), 500
+
+def generate_pdf_content(order, invoice_number, total_amount, tax_amount):
+    """Generate PDF content (simplified)"""
+    # This is a simplified version. In a real implementation, you'd use a PDF library like WeasyPrint or pdfkit
+    
+    content = f"""
+INVOICE
+
+Invoice Number: {invoice_number}
+Date: {datetime.now().strftime('%Y-%m-%d')}
+Order ID: {order.id}
+
+SELLER INFORMATION:
+Name: {order.seller.name}
+Email: {order.seller.email}
+Phone: {order.seller.phone_number or 'N/A'}
+Address: {order.seller.address or 'N/A'}
+
+BUYER INFORMATION:
+Name: {order.buyer.name}
+Email: {order.buyer.email}
+Phone: {order.buyer.phone_number or 'N/A'}
+Address: {order.buyer.address or 'N/A'}
+
+PRODUCT DETAILS:
+Product: {order.product.name if order.product else 'N/A'}
+SKU: {order.product.sku if order.product else 'N/A'}
+Quantity: {order.quantity}
+Unit Price: ${order.product.price if order.product else 0:.2f}
+Subtotal: ${total_amount:.2f}
+Tax (10%): ${tax_amount:.2f}
+Total: ${total_amount + tax_amount:.2f}
+
+ORDER STATUS: {order.status.upper()}
+
+Delivery Method: {order.delivery_method or 'N/A'}
+Delivery Address: {order.delivery_address or 'N/A'}
+
+Notes: {order.notes or 'N/A'}
+
+Thank you for your business!
+    """
+    
+    return content 
