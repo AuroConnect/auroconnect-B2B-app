@@ -34,8 +34,20 @@ npm run dev
 ```
 
 ### Quick Development Start
+
+#### Option 1: Local Development
 ```bash
 python start_dev.py  # Starts both frontend and backend
+```
+
+#### Option 2: Docker Compose (Recommended)
+```bash
+python start_docker.py  # Starts everything with Docker
+```
+
+Or manually:
+```bash
+docker-compose up -d --build
 ```
 
 ## 🔧 Fixed Issues
@@ -118,9 +130,17 @@ auroconnect-B2B-app/
 - `JWT_SECRET_KEY` - JWT secret key
 
 ### Database Reset
+
+#### Local Development
 ```bash
 cd server
 python reset_db.py
+```
+
+#### Docker Development
+```bash
+docker-compose down -v  # Remove volumes
+docker-compose up -d --build  # Rebuild and start
 ```
 
 ## 🐛 Troubleshooting
@@ -154,14 +174,25 @@ python reset_db.py
 
 ## 🚀 Deployment
 
-### Backend Deployment
+### Docker Deployment (Recommended)
+```bash
+# Production build
+docker-compose -f docker-compose.prod.yml up -d --build
+
+# Or use the provided script
+python start_docker.py
+```
+
+### Manual Deployment
+
+#### Backend Deployment
 ```bash
 cd server
 pip install -r requirements.txt
 gunicorn -w 4 -b 0.0.0.0:5000 run:app
 ```
 
-### Frontend Deployment
+#### Frontend Deployment
 ```bash
 cd client
 npm run build

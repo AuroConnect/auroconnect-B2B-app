@@ -15,6 +15,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -25,13 +26,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   backend:
     build:
       context: ./server
       dockerfile: Dockerfile
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=production
       - DATABASE_URL=postgresql://auromart:auromart123@postgres:5432/auromart
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=auromart-secret-key-2024-super-secure
@@ -49,15 +51,17 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./client
       dockerfile: Dockerfile
     ports:
-      - "3000:80"
+      - "80:80"
     depends_on:
       - backend
+    restart: unless-stopped
 
 volumes:
-  postgres_data: 
+  postgres_data:
