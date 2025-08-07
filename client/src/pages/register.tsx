@@ -19,7 +19,7 @@ export default function Register() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "",
+    role: "" as 'retailer' | 'distributor' | 'manufacturer' | '',
     businessName: "",
     address: "",
     phoneNumber: "",
@@ -38,6 +38,16 @@ export default function Register() {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate role is a valid option
+    if (!['retailer', 'distributor', 'manufacturer'].includes(formData.role)) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a valid business type.",
         variant: "destructive",
       });
       return;
@@ -64,8 +74,14 @@ export default function Register() {
     // Prepare registration data
     const { confirmPassword, ...registrationData } = formData;
     
+    // Ensure role is properly typed
+    const finalRegistrationData = {
+      ...registrationData,
+      role: registrationData.role as 'retailer' | 'distributor' | 'manufacturer'
+    };
+    
     // Register user
-    register(registrationData, {
+    register(finalRegistrationData, {
       onSuccess: () => {
         toast({
           title: "Registration Successful",
