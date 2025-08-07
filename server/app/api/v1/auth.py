@@ -17,6 +17,9 @@ def register():
         if not data:
             return jsonify({'message': 'No data provided'}), 400
         
+        # Log the incoming data for debugging
+        print(f"Registration attempt for email: {data.get('email', 'N/A')}")
+        
         # Validate required fields
         required_fields = ['email', 'firstName', 'lastName', 'password', 'role']
         for field in required_fields:
@@ -61,6 +64,8 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         
+        print(f"User registered successfully: {new_user.email}")
+        
         return jsonify({
             'message': 'Registration successful',
             'user': new_user.to_dict()
@@ -68,6 +73,7 @@ def register():
         
     except Exception as e:
         db.session.rollback()
+        print(f"Registration error: {str(e)}")
         return jsonify({'message': 'Registration failed', 'error': str(e)}), 500
 
 @auth_bp.route('/login', methods=['POST'])
@@ -81,22 +87,28 @@ def login():
         email = data.get('email')
         password = data.get('password')
         
+        print(f"Login attempt for email: {email}")
+        
         if not email or not password:
             return jsonify({'message': 'Email and password are required'}), 400
         
         # Find user
         user = User.query.filter_by(email=email, is_active=True).first()
         if not user:
+            print(f"Login failed: User not found for email {email}")
             return jsonify({'message': 'Invalid email or password'}), 401
         
         # Check password
         if not user.check_password(password):
+            print(f"Login failed: Invalid password for email {email}")
             return jsonify({'message': 'Invalid email or password'}), 401
         
         # Create access token
         try:
             access_token = create_access_token(identity=str(user.id))
+            print(f"Login successful for user: {user.email}")
         except Exception as e:
+            print(f"Token creation failed: {str(e)}")
             return jsonify({'message': 'Token creation failed', 'error': str(e)}), 500
         
         return jsonify({
@@ -106,6 +118,7 @@ def login():
         }), 200
         
     except Exception as e:
+        print(f"Login error: {str(e)}")
         return jsonify({'message': 'Login failed', 'error': str(e)}), 500
 
 @auth_bp.route('/user', methods=['GET'])

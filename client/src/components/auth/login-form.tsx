@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,16 +13,6 @@ export default function LoginForm() {
   const { login, isLoginLoading, loginError, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  // Show success toast when authentication is successful
-  useEffect(() => {
-    if (isAuthenticated) {
-      toast({
-        title: "Login Successful",
-        description: "Welcome back!",
-      });
-    }
-  }, [isAuthenticated, toast]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -35,7 +25,25 @@ export default function LoginForm() {
       return;
     }
 
-    login({ email, password });
+    login({ email, password }, {
+      onSuccess: () => {
+        toast({
+          title: "Login Successful",
+          description: "Welcome back!",
+        });
+        // Redirect to dashboard
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 1000);
+      },
+      onError: (error: Error) => {
+        toast({
+          title: "Login Failed",
+          description: error.message || "Invalid email or password. Please try again.",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   return (

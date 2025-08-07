@@ -20,8 +20,14 @@ export function removeAuthToken(): void {
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let errorMessage = res.statusText;
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.message || errorData.error || res.statusText;
+    } catch {
+      // If JSON parsing fails, use status text
+    }
+    throw new Error(`${res.status}: ${errorMessage}`);
   }
 }
 
@@ -60,14 +66,21 @@ export async function apiRequest(
   );
   const urlWithTrailingSlash = needsTrailingSlash && !finalUrl.endsWith('/') ? `${finalUrl}/` : finalUrl;
 
-  const res = await fetch(urlWithTrailingSlash, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-  });
+  try {
+    const res = await fetch(urlWithTrailingSlash, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+    });
 
-  await throwIfResNotOk(res);
-  return res;
+    await throwIfResNotOk(res);
+    return res;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error: Unable to connect to server. Please check your internet connection.');
+    }
+    throw error;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

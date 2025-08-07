@@ -23,7 +23,11 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     
     # Setup CORS
-    CORS(app, origins=app.config['CORS_ORIGINS'])
+    CORS(app, 
+         origins=app.config['CORS_ORIGINS'],
+         supports_credentials=True,
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'])
     
     # Register blueprints
     from app.api.v1.auth import auth_bp

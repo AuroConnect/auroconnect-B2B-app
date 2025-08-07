@@ -66,9 +66,29 @@ export function useAuth() {
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterData) => {
       const response = await apiRequest('POST', '/api/auth/register', data);
-      return await response.json();
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || "Registration failed");
+      }
+      
+      return result;
     },
   });
+
+  const register = (data: RegisterData, callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }) => {
+    registerMutation.mutate(data, {
+      onSuccess: callbacks?.onSuccess,
+      onError: callbacks?.onError,
+    });
+  };
+
+  const login = (data: LoginData, callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }) => {
+    loginMutation.mutate(data, {
+      onSuccess: callbacks?.onSuccess,
+      onError: callbacks?.onError,
+    });
+  };
 
   const logoutMutation = useMutation({
     mutationFn: async () => {

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import { Link } from "wouter";
 import { Building2, User, Package, Factory, ArrowLeft } from "lucide-react";
 
 export default function Register() {
+  const { register, isRegisterLoading, registerError } = useAuth();
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     firstName: "",
@@ -24,41 +24,6 @@ export default function Register() {
     address: "",
     phoneNumber: "",
     whatsappNumber: "",
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      if (data.password !== data.confirmPassword) {
-        throw new Error("Passwords do not match");
-      }
-      
-      const { confirmPassword, ...registrationData } = data;
-      const response = await apiRequest("POST", "/api/auth/register", registrationData);
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.message || "Registration failed");
-      }
-      
-      return result;
-    },
-    onSuccess: () => {
-      toast({
-        title: "Registration Successful",
-        description: "Your account has been created successfully! Redirecting to login...",
-      });
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 2000);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Registration Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -96,7 +61,29 @@ export default function Register() {
       return;
     }
 
-    registerMutation.mutate(formData);
+    // Prepare registration data
+    const { confirmPassword, ...registrationData } = formData;
+    
+    // Register user
+    register(registrationData, {
+      onSuccess: () => {
+        toast({
+          title: "Registration Successful",
+          description: "Your account has been created successfully! Redirecting to login...",
+        });
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      },
+      onError: (error: Error) => {
+        toast({
+          title: "Registration Failed",
+          description: error.message || "Failed to create account. Please try again.",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   const getRoleIcon = (role: string) => {
@@ -324,10 +311,10 @@ export default function Register() {
                 <Button
                   type="submit"
                   className="w-full action-button-primary text-lg py-4 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
-                  disabled={registerMutation.isPending}
+                  disabled={isRegisterLoading}
                   data-testid="button-register"
                 >
-                  {registerMutation.isPending ? (
+                  {isRegisterLoading ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                       Creating Account...
