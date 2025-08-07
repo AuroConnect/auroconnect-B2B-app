@@ -318,3 +318,133 @@ def delete_partnership(partnership_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': 'Failed to delete partnership', 'error': str(e)}), 500 
+
+@partners_bp.route('/distributors', methods=['GET'])
+@jwt_required()
+def get_distributors():
+    """Get distributors for manufacturers and retailers"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        print(f"🔍 Fetching distributors for user {current_user_id} with role {user.role if user else 'unknown'}")
+        
+        if not user:
+            print("❌ User not found")
+            return jsonify({'message': 'User not found'}), 404
+        
+        search_term = request.args.get('search', '')
+        if search_term:
+            print(f"🔍 Searching for distributors with term: {search_term}")
+        
+        if user.role == 'manufacturer':
+            print("🏭 Manufacturer: showing connected distributors")
+            partnerships = Partnership.get_manufacturer_distributors(current_user_id)
+            distributors = [partnership.distributor for partnership in partnerships if partnership.distributor]
+            
+        elif user.role == 'retailer':
+            print("🏪 Retailer: showing connected distributor")
+            distributor_partnership = Partnership.get_retailer_distributor(current_user_id)
+            distributors = []
+            if distributor_partnership and distributor_partnership.distributor:
+                distributors.append(distributor_partnership.distributor)
+        else:
+            print(f"❌ Access denied for role: {user.role}")
+            return jsonify({'message': 'Access denied'}), 403
+        
+        # Apply search filter
+        if search_term:
+            distributors = [
+                d for d in distributors 
+                if search_term.lower() in (d.business_name or '').lower() or
+                   search_term.lower() in (d.first_name or '').lower() or
+                   search_term.lower() in (d.last_name or '').lower() or
+                   search_term.lower() in (d.email or '').lower()
+            ]
+        
+        print(f"✅ Found {len(distributors)} distributors")
+        return jsonify([d.to_public_dict() for d in distributors]), 200
+        
+    except Exception as e:
+        print(f"❌ Error fetching distributors: {e}")
+        return jsonify({'message': 'Failed to fetch distributors', 'error': str(e)}), 500
+
+@partners_bp.route('/retailers', methods=['GET'])
+@jwt_required()
+def get_retailers():
+    """Get retailers for distributors"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        print(f"🔍 Fetching retailers for user {current_user_id} with role {user.role if user else 'unknown'}")
+        
+        if not user or user.role != 'distributor':
+            print(f"❌ Access denied for role: {user.role if user else 'unknown'}")
+            return jsonify({'message': 'Access denied'}), 403
+        
+        search_term = request.args.get('search', '')
+        if search_term:
+            print(f"🔍 Searching for retailers with term: {search_term}")
+        
+        # Distributors see their retailers
+        partnerships = Partnership.get_distributor_retailers(current_user_id)
+        retailers = [partnership.retailer for partnership in partnerships if partnership.retailer]
+        
+        # Apply search filter
+        if search_term:
+            retailers = [
+                r for r in retailers 
+                if search_term.lower() in (r.business_name or '').lower() or
+                   search_term.lower() in (r.first_name or '').lower() or
+                   search_term.lower() in (r.last_name or '').lower() or
+                   search_term.lower() in (r.email or '').lower()
+            ]
+        
+        print(f"✅ Found {len(retailers)} retailers")
+        return jsonify([r.to_public_dict() for r in retailers]), 200
+        
+    except Exception as e:
+        print(f"❌ Error fetching retailers: {e}")
+        return jsonify({'message': 'Failed to fetch retailers', 'error': str(e)}), 500
+
+@partners_bp.route('/manufacturers', methods=['GET'])
+@jwt_required()
+def get_manufacturers():
+    """Get manufacturers for distributors"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        print(f"🔍 Fetching manufacturers for user {current_user_id} with role {user.role if user else 'unknown'}")
+        
+        if not user or user.role != 'distributor':
+            print(f"❌ Access denied for role: {user.role if user else 'unknown'}")
+            return jsonify({'message': 'Access denied'}), 403
+        
+        search_term = request.args.get('search', '')
+        if search_term:
+            print(f"🔍 Searching for manufacturers with term: {search_term}")
+        
+        # Distributors see their manufacturer
+        manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+        manufacturers = []
+        if manufacturer_partnership and manufacturer_partnership.manufacturer:
+            manufacturers.append(manufacturer_partnership.manufacturer)
+        
+        # Apply search filter
+        if search_term:
+            manufacturers = [
+                m for m in manufacturers 
+                if search_term.lower() in (m.business_name or '').lower() or
+                   search_term.lower() in (m.first_name or '').lower() or
+                   search_term.lower() in (m.last_name or '').lower() or
+                   search_term.lower() in (m.email or '').lower()
+            ]
+        
+        print(f"✅ Found {len(manufacturers)} manufacturers")
+        return jsonify([m.to_public_dict() for m in manufacturers]), 200
+        
+    except Exception as e:
+        print(f"❌ Error fetching manufacturers: {e}")
+        return jsonify({'message': 'Failed to fetch manufacturers', 'error': str(e)}), 500 

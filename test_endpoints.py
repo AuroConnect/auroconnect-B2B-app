@@ -1,32 +1,26 @@
-#!/usr/bin/env python3
-"""
-Quick test for AuroMart B2B Platform - New Workflow
-Tests the basic functionality to ensure everything is working.
-"""
-
 import requests
 import json
 
-# Test configuration
-BASE_URL = "http://localhost:5000"
-API_BASE = f"{BASE_URL}/api"
-
-def test_api_endpoints():
-    """Test the specific API endpoints that the frontend expects"""
+def test_all_endpoints():
+    """Test all endpoints that the frontend expects"""
     
-    print("🔍 Testing API endpoints that frontend expects...")
+    print("🔍 Testing all frontend-expected endpoints...")
     
     # Test 1: Health check
     print("\n1. Testing health endpoint...")
     try:
-        response = requests.get(f"{API_BASE}/health/")
+        response = requests.get("http://localhost:5000/api/health/")
         print(f"   Status: {response.status_code}")
         if response.status_code == 200:
-            print("   ✅ Health endpoint working")
+            data = response.json()
+            print(f"   ✅ Backend is running")
+            print(f"   Database: {data.get('database', 'Unknown')}")
         else:
-            print(f"   ❌ Health endpoint failed: {response.text}")
+            print(f"   ❌ Health check failed: {response.text}")
+            return False
     except Exception as e:
-        print(f"   ❌ Health endpoint error: {e}")
+        print(f"   ❌ Cannot connect to backend: {e}")
+        return False
     
     # Test 2: Register a test user
     print("\n2. Testing user registration...")
@@ -41,7 +35,7 @@ def test_api_endpoints():
     }
     
     try:
-        response = requests.post(f"{API_BASE}/auth/register", json=test_user)
+        response = requests.post("http://localhost:5000/api/auth/register", json=test_user)
         print(f"   Status: {response.status_code}")
         if response.status_code == 201:
             print("   ✅ Registration successful")
@@ -51,22 +45,38 @@ def test_api_endpoints():
             print(f"   User ID: {user_id}")
         else:
             print(f"   ❌ Registration failed: {response.text}")
-            token = None
-            user_id = None
+            # Try to login instead
+            print("   🔄 Trying login...")
+            login_data = {
+                "email": "testuser@auromart.com",
+                "password": "testpass123"
+            }
+            response = requests.post("http://localhost:5000/api/auth/login", json=login_data)
+            if response.status_code == 200:
+                print("   ✅ Login successful")
+                user_data = response.json()
+                token = user_data.get('access_token')
+                user_id = user_data.get('user', {}).get('id')
+                print(f"   User ID: {user_id}")
+            else:
+                print(f"   ❌ Login failed: {response.text}")
+                token = None
+                user_id = None
     except Exception as e:
-        print(f"   ❌ Registration error: {e}")
+        print(f"   ❌ Registration/Login error: {e}")
         token = None
         user_id = None
     
     if not token:
-        print("   ⚠️  Skipping authenticated tests due to registration failure")
-        return
+        print("   ⚠️  Skipping authenticated tests due to auth failure")
+        return False
+    
+    headers = {"Authorization": f"Bearer {token}"}
     
     # Test 3: Categories endpoint
     print("\n3. Testing categories endpoint...")
     try:
-        headers = {"Authorization": f"Bearer {token}"}
-        response = requests.get(f"{API_BASE}/products/categories", headers=headers)
+        response = requests.get("http://localhost:5000/api/products/categories", headers=headers)
         print(f"   Status: {response.status_code}")
         if response.status_code == 200:
             categories = response.json()
@@ -79,7 +89,7 @@ def test_api_endpoints():
     # Test 4: Products endpoint
     print("\n4. Testing products endpoint...")
     try:
-        response = requests.get(f"{API_BASE}/products/", headers=headers)
+        response = requests.get("http://localhost:5000/api/products/", headers=headers)
         print(f"   Status: {response.status_code}")
         if response.status_code == 200:
             products = response.json()
@@ -94,7 +104,7 @@ def test_api_endpoints():
     
     # Test distributors endpoint
     try:
-        response = requests.get(f"{API_BASE}/partners/distributors", headers=headers)
+        response = requests.get("http://localhost:5000/api/partners/distributors", headers=headers)
         print(f"   Distributors Status: {response.status_code}")
         if response.status_code == 200:
             distributors = response.json()
@@ -106,7 +116,7 @@ def test_api_endpoints():
     
     # Test retailers endpoint
     try:
-        response = requests.get(f"{API_BASE}/partners/retailers", headers=headers)
+        response = requests.get("http://localhost:5000/api/partners/retailers", headers=headers)
         print(f"   Retailers Status: {response.status_code}")
         if response.status_code == 200:
             retailers = response.json()
@@ -118,7 +128,7 @@ def test_api_endpoints():
     
     # Test manufacturers endpoint
     try:
-        response = requests.get(f"{API_BASE}/partners/manufacturers", headers=headers)
+        response = requests.get("http://localhost:5000/api/partners/manufacturers", headers=headers)
         print(f"   Manufacturers Status: {response.status_code}")
         if response.status_code == 200:
             manufacturers = response.json()
@@ -128,7 +138,22 @@ def test_api_endpoints():
     except Exception as e:
         print(f"   ❌ Manufacturers endpoint error: {e}")
     
-    print("\n🎯 API endpoint test completed!")
+    # Test 6: User endpoint
+    print("\n6. Testing user endpoint...")
+    try:
+        response = requests.get("http://localhost:5000/api/auth/user", headers=headers)
+        print(f"   Status: {response.status_code}")
+        if response.status_code == 200:
+            user_data = response.json()
+            print(f"   ✅ User endpoint working")
+            print(f"   User: {user_data.get('firstName')} {user_data.get('lastName')} ({user_data.get('role')})")
+        else:
+            print(f"   ❌ User endpoint failed: {response.text}")
+    except Exception as e:
+        print(f"   ❌ User endpoint error: {e}")
+    
+    print("\n🎯 All endpoint tests completed!")
+    return True
 
 if __name__ == "__main__":
-    test_api_endpoints()
+    test_all_endpoints()

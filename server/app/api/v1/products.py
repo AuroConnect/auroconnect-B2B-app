@@ -10,42 +10,47 @@ products_bp = Blueprint('products', __name__)
 @products_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_products():
-    """Get products based on user role and partnerships"""
+    """Get products with role-based visibility"""
     try:
         current_user_id = get_jwt_identity()
         current_user = User.query.get(current_user_id)
         
+        print(f"🔍 Fetching products for user {current_user_id} with role {current_user.role if current_user else 'unknown'}")
+        
         if not current_user:
+            print("❌ User not found")
             return jsonify({'message': 'User not found'}), 404
         
+        # Get category filter from query parameters
         category_id = request.args.get('categoryId')
+        if category_id:
+            print(f"📦 Filtering by category: {category_id}")
         
         # Role-based product visibility
         if current_user.role == 'manufacturer':
-            # Manufacturers see only their own products
+            print("🏭 Manufacturer: showing own products")
             query = Product.query.filter_by(
                 manufacturer_id=current_user_id,
                 is_active=True
             )
-            
         elif current_user.role == 'distributor':
-            # Distributors see products from their connected manufacturer
+            print("🚚 Distributor: showing manufacturer's products")
             manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
             if not manufacturer_partnership:
+                print("❌ No manufacturer connected")
                 return jsonify({'message': 'No manufacturer connected'}), 404
             
             query = Product.query.filter_by(
                 manufacturer_id=manufacturer_partnership.manufacturer_id,
                 is_active=True
             )
-            
         elif current_user.role == 'retailer':
-            # Retailers see products from their connected distributor's inventory
+            print("🏪 Retailer: showing distributor's inventory")
             distributor_partnership = Partnership.get_retailer_distributor(current_user_id)
             if not distributor_partnership:
+                print("❌ No distributor connected")
                 return jsonify({'message': 'No distributor connected'}), 404
             
-            # Get products from distributor's inventory
             inventory_items = Inventory.query.filter_by(
                 distributor_id=distributor_partnership.distributor_id,
                 is_available=True
@@ -53,14 +58,15 @@ def get_products():
             
             product_ids = [item.product_id for item in inventory_items]
             if not product_ids:
+                print("📦 No products in inventory")
                 return jsonify([]), 200
             
             query = Product.query.filter(
                 Product.id.in_(product_ids),
                 Product.is_active == True
             )
-            
         else:
+            print(f"❌ Invalid user role: {current_user.role}")
             return jsonify({'message': 'Invalid user role'}), 400
         
         # Apply category filter
@@ -68,13 +74,13 @@ def get_products():
             query = query.filter_by(category_id=category_id)
         
         products = query.all()
+        print(f"✅ Found {len(products)} products")
         
         # For retailers, add inventory information
         if current_user.role == 'retailer':
             products_with_inventory = []
             for product in products:
                 product_dict = product.to_dict()
-                # Find inventory item for this product
                 inventory_item = next(
                     (item for item in inventory_items if item.product_id == product.id),
                     None
@@ -89,6 +95,7 @@ def get_products():
         return jsonify([prod.to_dict() for prod in products]), 200
         
     except Exception as e:
+        print(f"❌ Error fetching products: {e}")
         return jsonify({'message': 'Failed to fetch products', 'error': str(e)}), 500
 
 @products_bp.route('/<product_id>', methods=['GET'])
@@ -284,10 +291,13 @@ def delete_product(product_id):
 def get_categories():
     """Get all categories"""
     try:
+        print("🔍 Fetching categories...")
         categories = Category.query.all()
+        print(f"✅ Found {len(categories)} categories")
         return jsonify([cat.to_dict() for cat in categories]), 200
         
     except Exception as e:
+        print(f"❌ Error fetching categories: {e}")
         return jsonify({'message': 'Failed to fetch categories', 'error': str(e)}), 500
 
 @products_bp.route('/search', methods=['GET'])
