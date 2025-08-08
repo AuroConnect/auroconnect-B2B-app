@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models.product import Product
 from app.models.user import User
+from app.models.partnership import PartnerLink
 from app import db
 from app.utils.decorators import validate_json
 
@@ -10,7 +11,7 @@ products_bp = Blueprint('products', __name__)
 @products_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_products():
-    """Get all products"""
+    """Get products based on user role and partnerships"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
@@ -24,12 +25,42 @@ def get_products():
         category = request.args.get('category')
         search = request.args.get('search')
         
-        # Build query
+        # Build query based on user role
         query = Product.query
         
+        if user.role == 'manufacturer':
+            # Manufacturers see only their own products
+            query = query.filter(Product.created_by == current_user_id)
+            
+        elif user.role == 'distributor':
+            # Distributors see products from their manufacturer
+            manufacturer_link = PartnerLink.get_distributor_manufacturer(current_user_id)
+            if manufacturer_link and manufacturer_link.manufacturer_id:
+                query = query.filter(Product.created_by == manufacturer_link.manufacturer_id)
+            else:
+                # If no manufacturer link, return empty results
+                query = query.filter(Product.id.is_(None))  # This will return empty results
+                
+        elif user.role == 'retailer':
+            # Retailers see products from their distributor
+            distributor_link = PartnerLink.get_retailer_distributor(current_user_id)
+            if distributor_link and distributor_link.distributor_id:
+                # Get the manufacturer of the distributor to show their products
+                distributor_manufacturer_link = PartnerLink.get_distributor_manufacturer(distributor_link.distributor_id)
+                if distributor_manufacturer_link and distributor_manufacturer_link.manufacturer_id:
+                    query = query.filter(Product.created_by == distributor_manufacturer_link.manufacturer_id)
+                else:
+                    # If no manufacturer link, return empty results
+                    query = query.filter(Product.id.is_(None))
+            else:
+                # If no distributor link, return empty results
+                query = query.filter(Product.id.is_(None))
+        
+        # Apply category filter
         if category:
             query = query.filter(Product.category == category)
         
+        # Apply search filter
         if search:
             query = query.filter(
                 Product.name.ilike(f'%{search}%') |
@@ -38,8 +69,8 @@ def get_products():
         
         # Paginate results
         products = query.paginate(
-            page=page, 
-            per_page=per_page, 
+            page=page,
+            per_page=per_page,
             error_out=False
         )
         
@@ -64,12 +95,40 @@ def get_products():
 @products_bp.route('/<int:product_id>', methods=['GET'])
 @jwt_required()
 def get_product(product_id):
-    """Get a specific product"""
+    """Get a specific product based on user role and partnerships"""
     try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
         product = Product.query.get(product_id)
         
         if not product:
             return jsonify({'error': 'Product not found'}), 404
+        
+        # Check access based on user role
+        if user.role == 'manufacturer':
+            # Manufacturers can only see their own products
+            if product.created_by != current_user_id:
+                return jsonify({'error': 'Product not found'}), 404
+                
+        elif user.role == 'distributor':
+            # Distributors can only see products from their manufacturer
+            manufacturer_link = PartnerLink.get_distributor_manufacturer(current_user_id)
+            if not manufacturer_link or manufacturer_link.manufacturer_id != product.created_by:
+                return jsonify({'error': 'Product not found'}), 404
+                
+        elif user.role == 'retailer':
+            # Retailers can only see products from their distributor's manufacturer
+            distributor_link = PartnerLink.get_retailer_distributor(current_user_id)
+            if distributor_link and distributor_link.distributor_id:
+                distributor_manufacturer_link = PartnerLink.get_distributor_manufacturer(distributor_link.distributor_id)
+                if not distributor_manufacturer_link or distributor_manufacturer_link.manufacturer_id != product.created_by:
+                    return jsonify({'error': 'Product not found'}), 404
+            else:
+                return jsonify({'error': 'Product not found'}), 404
         
         return jsonify({
             'message': 'Product retrieved successfully',
