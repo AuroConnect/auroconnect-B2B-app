@@ -93,15 +93,19 @@ def create_product():
         
         data = request.get_json()
         
+        # Generate SKU if not provided
+        sku = data.get('sku') or Product.generate_sku()
+        
         product = Product(
             name=data['name'],
+            sku=sku,
             description=data.get('description', ''),
             price=data['price'],
             category=data['category'],
-            manufacturer_id=current_user_id,
-            stock_quantity=data.get('stock_quantity', 0),
+            created_by=current_user_id,
+            stock=data.get('stock_quantity', 0) or data.get('stock', 0),
             unit=data.get('unit', 'piece'),
-            min_order_quantity=data.get('min_order_quantity', 1)
+            is_active=data.get('is_active', True)
         )
         
         db.session.add(product)
