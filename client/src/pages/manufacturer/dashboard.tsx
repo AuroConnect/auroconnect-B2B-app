@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/layout/header";
 import MobileNav from "@/components/layout/mobile-nav";
+import QuickActions from "@/components/dashboard/quick-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -124,7 +125,10 @@ export default function ManufacturerDashboard() {
                 <p className="text-gray-600">Manufacturer Dashboard</p>
               </div>
             </div>
-            <Button className="auromart-gradient-primary">
+            <Button 
+              className="auromart-gradient-primary"
+              onClick={() => window.location.href = '/products'}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Product
             </Button>
@@ -310,34 +314,7 @@ export default function ManufacturerDashboard() {
             </Card>
 
             {/* Quick Actions */}
-            <Card className="dashboard-card">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <TrendingUp className="h-5 w-5 mr-2" />
-                  Quick Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New Product
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Bulk Upload Products
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Users className="h-4 w-4 mr-2" />
-                    Manage Distributors
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    View All Orders
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <QuickActions userRole={user.role} />
 
             {/* Performance Metrics */}
             <Card className="dashboard-card">
