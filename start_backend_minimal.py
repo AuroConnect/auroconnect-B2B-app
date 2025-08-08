@@ -188,6 +188,119 @@ def main():
                 print(f"Login error: {e}")
                 return jsonify({'error': 'Server error occurred. Please try again later.'}), 500
         
+        # Get current user endpoint
+        @app.route('/api/auth/user', methods=['GET', 'OPTIONS'])
+        def get_current_user():
+            from flask import request
+            import jwt
+            
+            if request.method == 'OPTIONS':
+                return '', 200
+            
+            try:
+                
+                # Get token from header
+                auth_header = request.headers.get('Authorization')
+                if not auth_header or not auth_header.startswith('Bearer '):
+                    return jsonify({'error': 'No token provided'}), 401
+                
+                token = auth_header.split(' ')[1]
+                
+                # Decode token
+                payload = jwt.decode(token, os.environ['SECRET_KEY'], algorithms=['HS256'])
+                
+                # Get user from database
+                user = db.session.execute(
+                    db.text("SELECT * FROM users WHERE id = :user_id"),
+                    {"user_id": payload['user_id']}
+                ).fetchone()
+                
+                if not user:
+                    return jsonify({'error': 'User not found'}), 404
+                
+                return jsonify({
+                    'user': {
+                        'id': user.id,
+                        'email': user.email,
+                        'first_name': user.first_name,
+                        'last_name': user.last_name,
+                        'role': user.role,
+                        'business_name': user.business_name
+                    }
+                }), 200
+                
+            except jwt.ExpiredSignatureError:
+                return jsonify({'error': 'Token expired'}), 401
+            except jwt.InvalidTokenError:
+                return jsonify({'error': 'Invalid token'}), 401
+            except Exception as e:
+                print(f"Get user error: {e}")
+                return jsonify({'error': 'Server error occurred'}), 500
+        
+        # Orders endpoint
+        @app.route('/api/orders/', methods=['GET', 'OPTIONS'])
+        def get_orders():
+            from flask import request
+            
+            if request.method == 'OPTIONS':
+                return '', 200
+            
+            # Return empty orders list for now
+            return jsonify({
+                'orders': [],
+                'total': 0,
+                'message': 'No orders found'
+            }), 200
+        
+        # WhatsApp notifications endpoint
+        @app.route('/api/whatsapp/notifications', methods=['GET', 'OPTIONS'])
+        def get_whatsapp_notifications():
+            from flask import request
+            
+            if request.method == 'OPTIONS':
+                return '', 200
+            
+            # Return empty notifications list for now
+            return jsonify({
+                'notifications': [],
+                'total': 0,
+                'message': 'No notifications found'
+            }), 200
+        
+        # Notifications endpoint
+        @app.route('/api/notifications/', methods=['GET', 'OPTIONS'])
+        def get_notifications():
+            from flask import request
+            
+            if request.method == 'OPTIONS':
+                return '', 200
+            
+            # Return empty notifications list for now
+            return jsonify({
+                'notifications': [],
+                'total': 0,
+                'message': 'No notifications found'
+            }), 200
+        
+        # Analytics stats endpoint
+        @app.route('/api/analytics/stats', methods=['GET', 'OPTIONS'])
+        def get_analytics_stats():
+            from flask import request
+            
+            if request.method == 'OPTIONS':
+                return '', 200
+            
+            # Return sample analytics data
+            return jsonify({
+                'total_orders': 0,
+                'total_revenue': 0,
+                'total_products': 0,
+                'total_customers': 0,
+                'recent_orders': [],
+                'top_products': [],
+                'monthly_revenue': []
+            }), 200
+        
         print("🌐 Starting Flask server on http://localhost:5000")
         print("📱 Frontend will be available on http://localhost:3000")
         print("🔗 API endpoints available at http://localhost:5000/api")
