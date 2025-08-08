@@ -1,21 +1,4 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: auromart
-      POSTGRES_USER: auromart
-      POSTGRES_PASSWORD: auromart123
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U auromart -d auromart"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis:
     image: redis:7-alpine
     ports:
@@ -32,7 +15,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=postgresql://auromart:auromart123@postgres:5432/auromart
+      - DATABASE_URL=mysql+pymysql://admin:123@Hrushi@3.249.132.231:3306/wa
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=auromart-secret-key-2024-super-secure
       - JWT_SECRET_KEY=auromart-jwt-secret-key-2024-super-secure
@@ -40,8 +23,6 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -57,7 +38,4 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      - backend
-
-volumes:
-  postgres_data: 
+      - backend 

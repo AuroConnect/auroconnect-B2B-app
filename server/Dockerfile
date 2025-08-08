@@ -22,8 +22,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
-echo "🔧 Initializing database..."\n\
-python init_db_docker.py\n\
+echo "🔧 Initializing MySQL database..."\n\
+python init_mysql_db.py\n\
 echo "🚀 Starting server..."\n\
 python run.py' > /app/start.sh && chmod +x /app/start.sh
 
