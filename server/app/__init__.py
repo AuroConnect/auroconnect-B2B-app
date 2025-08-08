@@ -52,6 +52,10 @@ def create_app(config_class=Config):
     from app.api.v1.retailer import retailer_bp
     from app.api.v1.invoices import invoices_bp
     from app.api.v1.health import health_bp
+    from app.api.v1.whatsapp import whatsapp_bp
+    from app.api.v1.analytics import analytics_bp
+    from app.api.v1.notifications import notifications_bp
+    from app.api.v1.favorites import favorites_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(products_bp, url_prefix='/api/products')
@@ -62,6 +66,10 @@ def create_app(config_class=Config):
     app.register_blueprint(retailer_bp, url_prefix='/api/retailer')
     app.register_blueprint(invoices_bp, url_prefix='/api/invoices')
     app.register_blueprint(health_bp, url_prefix='/api')
+    app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')
+    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+    app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
+    app.register_blueprint(favorites_bp, url_prefix='/api/favorites')
     
     # Error handlers
     from app.errors import register_error_handlers
@@ -79,9 +87,11 @@ def create_app(config_class=Config):
     @app.route('/<path:path>')
     def serve_frontend(path):
         """Serve frontend files and handle client-side routing"""
-        # For API routes, let them pass through
+        # For API routes, let them pass through to the API handlers
         if path.startswith('api/'):
-            return None
+            # Return a 404 for API routes so they can be handled by the API blueprints
+            from flask import abort
+            abort(404)
             
         # Try to serve static files from client/dist
         frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'client', 'dist'))

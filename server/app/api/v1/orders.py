@@ -20,20 +20,21 @@ def get_orders():
         
         # Get query parameters
         status_filter = request.args.get('status')
-        order_type = request.args.get('order_type')  # 'manufacturer_distributor' or 'distributor_retailer'
         
         # Role-based order visibility
         if user.role == 'manufacturer':
-            # Manufacturers see orders from their distributors
-            orders = Order.get_manufacturer_orders(current_user_id)
+            # Manufacturers see orders where they are the seller
+            orders = Order.query.filter_by(seller_id=current_user_id).all()
             
         elif user.role == 'distributor':
-            # Distributors see both orders from manufacturer and to retailers
-            orders = Order.get_distributor_orders(current_user_id)
+            # Distributors see orders where they are either buyer or seller
+            orders = Order.query.filter(
+                (Order.buyer_id == current_user_id) | (Order.seller_id == current_user_id)
+            ).all()
             
         elif user.role == 'retailer':
-            # Retailers see their orders to distributors
-            orders = Order.get_retailer_orders(current_user_id)
+            # Retailers see orders where they are the buyer
+            orders = Order.query.filter_by(buyer_id=current_user_id).all()
             
         else:
             return jsonify({'message': 'Invalid user role'}), 400
@@ -41,9 +42,6 @@ def get_orders():
         # Apply filters
         if status_filter and status_filter != 'all':
             orders = [order for order in orders if order.status == status_filter]
-        
-        if order_type:
-            orders = [order for order in orders if order.order_type == order_type]
         
         return jsonify([order.to_dict() for order in orders]), 200
         

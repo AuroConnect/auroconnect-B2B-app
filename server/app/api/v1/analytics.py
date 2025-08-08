@@ -30,16 +30,16 @@ def get_stats():
         }
         
         if user.role == 'retailer':
-            # For retailers, get their orders
-            orders = Order.query.filter_by(retailer_id=current_user_id).all()
+            # For retailers, get their orders (as buyers)
+            orders = Order.query.filter_by(buyer_id=current_user_id).all()
             stats['totalOrders'] = len(orders)
             stats['totalRevenue'] = sum(order.total_amount or 0 for order in orders)
             stats['pendingOrders'] = len([o for o in orders if o.status == 'pending'])
             stats['completedOrders'] = len([o for o in orders if o.status == 'delivered'])
             
         elif user.role == 'distributor':
-            # For distributors, get orders they're fulfilling
-            orders = Order.query.filter_by(distributor_id=current_user_id).all()
+            # For distributors, get orders they're fulfilling (as sellers)
+            orders = Order.query.filter_by(seller_id=current_user_id).all()
             stats['totalOrders'] = len(orders)
             stats['pendingOrders'] = len([o for o in orders if o.status == 'pending'])
             stats['completedOrders'] = len([o for o in orders if o.status == 'delivered'])
