@@ -94,10 +94,10 @@ export function useAuth() {
     });
   };
 
-  const login = (data: LoginData, callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }) => {
+  const login = (data: LoginData, callbacks?: { onSuccess?: (result: any) => void; onError?: (error: Error) => void }) => {
     loginMutation.mutate(data, {
       onSuccess: (result) => {
-        callbacks?.onSuccess?.();
+        callbacks?.onSuccess?.(result);
       },
       onError: (error: Error) => {
         callbacks?.onError?.(error);

@@ -5,11 +5,11 @@ import MobileNav from "@/components/layout/mobile-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Store, 
-  ShoppingCart, 
-  FileText, 
-  Package, 
+import {
+  Store,
+  ShoppingCart,
+  FileText,
+  Package,
   TrendingUp,
   Download,
   Eye,
@@ -18,6 +18,34 @@ import {
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/hooks/useAuth";
+
+// Define interfaces for the data types
+interface RetailerStats {
+  totalOrders: number;
+  pendingOrders: number;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  // Add other product properties as needed
+}
+
+interface Order {
+  id: string;
+  product?: Product;
+  quantity: number;
+  status: string;
+  // Add other order properties as needed
+}
+
+interface Invoice {
+  id: string;
+  totalAmount: number;
+  generatedAt: string;
+  // Add other invoice properties as needed
+}
 
 export default function RetailerDashboard() {
   const { user, isLoading } = useAuth();
@@ -50,22 +78,22 @@ export default function RetailerDashboard() {
     }
   }, [user, isLoading, toast]);
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<RetailerStats>({
     queryKey: ["api", "analytics", "retailer-stats"],
     enabled: !!user && user.role === 'retailer',
   });
 
-  const { data: distributorProducts, isLoading: productsLoading } = useQuery({
+  const { data: distributorProducts, isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["api", "products", "distributor"],
     enabled: !!user && user.role === 'retailer',
   });
 
-  const { data: myOrders, isLoading: ordersLoading } = useQuery({
+  const { data: myOrders, isLoading: ordersLoading } = useQuery<Order[]>({
     queryKey: ["api", "orders", "my-orders"],
     enabled: !!user && user.role === 'retailer',
   });
 
-  const { data: invoices, isLoading: invoicesLoading } = useQuery({
+  const { data: invoices, isLoading: invoicesLoading } = useQuery<Invoice[]>({
     queryKey: ["api", "invoices", "my-invoices"],
     enabled: !!user && user.role === 'retailer',
   });

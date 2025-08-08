@@ -5,12 +5,12 @@ import MobileNav from "@/components/layout/mobile-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Package, 
-  Users, 
-  ShoppingCart, 
-  FileText, 
-  Plus, 
+import {
+  Package,
+  Users,
+  ShoppingCart,
+  FileText,
+  Plus,
   TrendingUp,
   CheckCircle,
   XCircle,
@@ -19,6 +19,30 @@ import {
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/hooks/useAuth";
+
+// Define interfaces for the data types
+interface ManufacturerStats {
+  totalProducts: number;
+  pendingOrders: number;
+  invoicesGenerated: number;
+}
+
+interface Distributor {
+  id: string;
+  businessName?: string;
+  firstName?: string;
+  email: string;
+  // Add other distributor properties as needed
+}
+
+interface Order {
+  id: string;
+  product?: any; // You might want to define a more specific Product type
+  buyer?: Distributor;
+  quantity: number;
+  status: string;
+  // Add other order properties as needed
+}
 
 export default function ManufacturerDashboard() {
   const { user, isLoading } = useAuth();
@@ -51,17 +75,17 @@ export default function ManufacturerDashboard() {
     }
   }, [user, isLoading, toast]);
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<ManufacturerStats>({
     queryKey: ["api", "analytics", "manufacturer-stats"],
     enabled: !!user && user.role === 'manufacturer',
   });
 
-  const { data: recentOrders, isLoading: ordersLoading } = useQuery({
+  const { data: recentOrders, isLoading: ordersLoading } = useQuery<Order[]>({
     queryKey: ["api", "orders", "manufacturer-recent"],
     enabled: !!user && user.role === 'manufacturer',
   });
 
-  const { data: distributors, isLoading: distributorsLoading } = useQuery({
+  const { data: distributors, isLoading: distributorsLoading } = useQuery<Distributor[]>({
     queryKey: ["api", "partners", "distributors"],
     enabled: !!user && user.role === 'manufacturer',
   });
