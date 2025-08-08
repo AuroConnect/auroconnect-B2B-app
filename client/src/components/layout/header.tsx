@@ -57,9 +57,11 @@ export default function Header() {
           {/* Navigation */}
           <nav className="hidden md:flex space-x-8">
             <Link 
-              href="/" 
+              href={typedUser.role === 'manufacturer' ? '/manufacturer/dashboard' : 
+                    typedUser.role === 'distributor' ? '/distributor/dashboard' : 
+                    typedUser.role === 'retailer' ? '/retailer/dashboard' : '/'} 
               className={`nav-link ${
-                location === '/' 
+                location.includes('/dashboard') 
                   ? 'text-primary bg-primary/10' 
                   : 'text-gray-600 hover:text-gray-900'
               }`}

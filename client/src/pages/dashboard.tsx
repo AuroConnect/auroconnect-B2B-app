@@ -16,7 +16,7 @@ export default function Dashboard() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated or to role-specific dashboard
   useEffect(() => {
     if (!isLoading && !user) {
       toast({
@@ -28,6 +28,17 @@ export default function Dashboard() {
         window.location.href = "/";
       }, 500);
       return;
+    }
+
+    // Redirect to role-specific dashboard if user is authenticated
+    if (!isLoading && user) {
+      if (user.role === 'manufacturer') {
+        window.location.href = "/manufacturer/dashboard";
+      } else if (user.role === 'distributor') {
+        window.location.href = "/distributor/dashboard";
+      } else if (user.role === 'retailer') {
+        window.location.href = "/retailer/dashboard";
+      }
     }
   }, [user, isLoading, toast]);
 

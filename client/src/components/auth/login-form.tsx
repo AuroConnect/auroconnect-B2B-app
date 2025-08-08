@@ -26,14 +26,23 @@ export default function LoginForm() {
     }
 
     login({ email, password }, {
-      onSuccess: () => {
+      onSuccess: (result) => {
         toast({
           title: "Login Successful",
           description: "Welcome back!",
         });
-        // Redirect to dashboard
+        // Redirect to role-specific dashboard
         setTimeout(() => {
-          window.location.href = "/dashboard";
+          const user = result.user;
+          if (user?.role === 'manufacturer') {
+            window.location.href = "/manufacturer/dashboard";
+          } else if (user?.role === 'distributor') {
+            window.location.href = "/distributor/dashboard";
+          } else if (user?.role === 'retailer') {
+            window.location.href = "/retailer/dashboard";
+          } else {
+            window.location.href = "/dashboard";
+          }
         }, 1000);
       },
       onError: (error: Error) => {

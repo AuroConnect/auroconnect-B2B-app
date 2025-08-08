@@ -80,6 +80,46 @@ def get_partners():
     except Exception as e:
         return jsonify({'message': 'Failed to fetch partners', 'error': str(e)}), 500
 
+@partners_bp.route('/distributors', methods=['GET'])
+@jwt_required()
+def get_manufacturer_distributors():
+    """Get distributors for manufacturer dashboard"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or user.role != 'manufacturer':
+            return jsonify({'message': 'Access denied'}), 403
+        
+        # Get manufacturer's distributors
+        partnerships = PartnerLink.get_manufacturer_distributors(current_user_id)
+        distributors = [partnership.distributor.to_public_dict() for partnership in partnerships if partnership.distributor]
+        
+        return jsonify(distributors), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch distributors', 'error': str(e)}), 500
+
+@partners_bp.route('/retailers', methods=['GET'])
+@jwt_required()
+def get_distributor_retailers():
+    """Get retailers for distributor dashboard"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or user.role != 'distributor':
+            return jsonify({'message': 'Access denied'}), 403
+        
+        # Get distributor's retailers
+        partnerships = PartnerLink.get_distributor_retailers(current_user_id)
+        retailers = [partnership.retailer.to_public_dict() for partnership in partnerships if partnership.retailer]
+        
+        return jsonify(retailers), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch retailers', 'error': str(e)}), 500
+
 @partners_bp.route('/<partner_id>', methods=['GET'])
 @jwt_required()
 def get_partner_details(partner_id):

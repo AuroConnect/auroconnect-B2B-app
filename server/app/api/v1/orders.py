@@ -48,6 +48,72 @@ def get_orders():
     except Exception as e:
         return jsonify({'message': 'Failed to fetch orders', 'error': str(e)}), 500
 
+@orders_bp.route('/manufacturer-recent', methods=['GET'])
+@jwt_required()
+def get_manufacturer_recent_orders():
+    """Get recent orders for manufacturer dashboard"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or user.role != 'manufacturer':
+            return jsonify({'message': 'Access denied'}), 403
+        
+        # Get recent orders where manufacturer is seller
+        orders = Order.query.filter_by(seller_id=current_user_id)\
+            .order_by(Order.created_at.desc())\
+            .limit(10)\
+            .all()
+        
+        return jsonify([order.to_dict() for order in orders]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch manufacturer orders', 'error': str(e)}), 500
+
+@orders_bp.route('/retailer-incoming', methods=['GET'])
+@jwt_required()
+def get_retailer_incoming_orders():
+    """Get incoming orders from retailers for distributor dashboard"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or user.role != 'distributor':
+            return jsonify({'message': 'Access denied'}), 403
+        
+        # Get orders where distributor is seller (incoming from retailers)
+        orders = Order.query.filter_by(seller_id=current_user_id)\
+            .order_by(Order.created_at.desc())\
+            .limit(10)\
+            .all()
+        
+        return jsonify([order.to_dict() for order in orders]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch retailer orders', 'error': str(e)}), 500
+
+@orders_bp.route('/my-orders', methods=['GET'])
+@jwt_required()
+def get_my_orders():
+    """Get orders for retailer dashboard"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or user.role != 'retailer':
+            return jsonify({'message': 'Access denied'}), 403
+        
+        # Get orders where retailer is buyer
+        orders = Order.query.filter_by(buyer_id=current_user_id)\
+            .order_by(Order.created_at.desc())\
+            .limit(10)\
+            .all()
+        
+        return jsonify([order.to_dict() for order in orders]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch my orders', 'error': str(e)}), 500
+
 @orders_bp.route('/<order_id>', methods=['GET'])
 @jwt_required()
 def get_order_details(order_id):

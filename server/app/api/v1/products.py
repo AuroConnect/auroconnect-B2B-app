@@ -92,6 +92,59 @@ def get_products():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@products_bp.route('/manufacturer', methods=['GET'])
+@jwt_required()
+def get_manufacturer_products():
+    """Get products for distributor dashboard (from their manufacturer)"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or user.role != 'distributor':
+            return jsonify({'message': 'Access denied'}), 403
+        
+        # Get distributor's manufacturer
+        manufacturer_link = PartnerLink.get_distributor_manufacturer(current_user_id)
+        if not manufacturer_link or not manufacturer_link.manufacturer_id:
+            return jsonify([]), 200
+        
+        # Get products from manufacturer
+        products = Product.query.filter_by(created_by=manufacturer_link.manufacturer_id).all()
+        
+        return jsonify([product.to_dict() for product in products]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch manufacturer products', 'error': str(e)}), 500
+
+@products_bp.route('/distributor', methods=['GET'])
+@jwt_required()
+def get_distributor_products():
+    """Get products for retailer dashboard (from their distributor's manufacturer)"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or user.role != 'retailer':
+            return jsonify({'message': 'Access denied'}), 403
+        
+        # Get retailer's distributor
+        distributor_link = PartnerLink.get_retailer_distributor(current_user_id)
+        if not distributor_link or not distributor_link.distributor_id:
+            return jsonify([]), 200
+        
+        # Get distributor's manufacturer
+        manufacturer_link = PartnerLink.get_distributor_manufacturer(distributor_link.distributor_id)
+        if not manufacturer_link or not manufacturer_link.manufacturer_id:
+            return jsonify([]), 200
+        
+        # Get products from manufacturer
+        products = Product.query.filter_by(created_by=manufacturer_link.manufacturer_id).all()
+        
+        return jsonify([product.to_dict() for product in products]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch distributor products', 'error': str(e)}), 500
+
 @products_bp.route('/<int:product_id>', methods=['GET'])
 @jwt_required()
 def get_product(product_id):

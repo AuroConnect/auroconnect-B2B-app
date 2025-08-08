@@ -21,9 +21,12 @@ import Inventory from "@/pages/inventory";
 import Retailers from "@/pages/retailers";
 import Production from "@/pages/production";
 import Distributors from "@/pages/distributors";
+import ManufacturerDashboard from "@/pages/manufacturer/dashboard";
+import DistributorDashboard from "@/pages/distributor/dashboard";
+import RetailerDashboard from "@/pages/retailer/dashboard";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   return (
     <Switch>
@@ -34,6 +37,12 @@ function Router() {
         </>
       ) : (
         <>
+          {/* Role-based dashboard routes */}
+          <Route path="/manufacturer/dashboard" component={ManufacturerDashboard} />
+          <Route path="/distributor/dashboard" component={DistributorDashboard} />
+          <Route path="/retailer/dashboard" component={RetailerDashboard} />
+          
+          {/* General routes */}
           <Route path="/" component={Dashboard} />
           <Route path="/products" component={Products} />
           <Route path="/orders" component={Orders} />

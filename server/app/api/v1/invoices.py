@@ -208,4 +208,24 @@ Notes: {order.notes or 'N/A'}
 Thank you for your business!
     """
     
-    return content 
+    return content
+
+@invoices_bp.route('/my-invoices', methods=['GET'])
+@login_required
+def get_my_invoices():
+    """Get invoices for retailer dashboard"""
+    try:
+        if current_user.role != 'retailer':
+            return jsonify({'message': 'Access denied'}), 403
+        
+        # Get retailer's orders
+        orders = Order.query.filter_by(buyer_id=current_user.id).all()
+        order_ids = [order.id for order in orders]
+        
+        # Get invoices for these orders
+        invoices = Invoice.query.filter(Invoice.order_id.in_(order_ids)).all()
+        
+        return jsonify([invoice.to_dict() for invoice in invoices]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch invoices', 'error': str(e)}), 500 
