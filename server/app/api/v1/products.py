@@ -310,7 +310,9 @@ def create_product():
             price = float(price)
         
         # Handle category field (frontend sends categoryId, backend expects category)
-        category = data.get('category') or data.get('categoryId', 'General')
+        category = data.get('category') or data.get('categoryId')
+        if not category or category == 'null' or category == 'None':
+            category = 'General'
         
         product = Product(
             name=data['name'],
@@ -335,6 +337,9 @@ def create_product():
         
     except Exception as e:
         db.session.rollback()
+        import traceback
+        print(f"Product creation error: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
         return jsonify({'error': str(e)}), 500
 
 @products_bp.route('/<int:product_id>', methods=['PUT'])
