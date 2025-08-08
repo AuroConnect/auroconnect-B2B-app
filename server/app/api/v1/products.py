@@ -74,20 +74,7 @@ def get_products():
             error_out=False
         )
         
-        return jsonify({
-            'message': 'Products retrieved successfully',
-            'data': {
-                'products': [product.to_dict() for product in products.items],
-                'pagination': {
-                    'page': page,
-                    'per_page': per_page,
-                    'total': products.total,
-                    'pages': products.pages,
-                    'has_next': products.has_next,
-                    'has_prev': products.has_prev
-                }
-            }
-        }), 200
+        return jsonify([product.to_dict() for product in products.items]), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -441,10 +428,7 @@ def get_categories():
         categories = db.session.query(Product.category).distinct().all()
         category_list = [category[0] for category in categories if category[0]]
         
-        return jsonify({
-            'message': 'Categories retrieved successfully',
-            'data': category_list
-        }), 200
+        return jsonify(category_list), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

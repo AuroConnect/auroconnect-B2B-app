@@ -8,14 +8,15 @@ def validate_json(required_fields=None):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            if not request.is_json:
-                return jsonify({'message': 'Content-Type must be application/json'}), 400
-            
-            if required_fields:
-                data = request.get_json()
+            # Check if request has JSON data, regardless of Content-Type
+            try:
+                data = request.get_json(force=True)
                 if not data:
                     return jsonify({'message': 'No JSON data provided'}), 400
-                
+            except Exception:
+                return jsonify({'message': 'Invalid JSON data provided'}), 400
+            
+            if required_fields:
                 missing_fields = [field for field in required_fields if field not in data]
                 if missing_fields:
                     return jsonify({'message': f'Missing required fields: {", ".join(missing_fields)}'}), 400
