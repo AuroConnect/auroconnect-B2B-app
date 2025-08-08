@@ -12,7 +12,8 @@ server_dir = Path(__file__).parent / "server"
 sys.path.insert(0, str(server_dir))
 
 # Set environment variables for MySQL connection
-os.environ['DATABASE_URL'] = 'mysql+pymysql://admin:123@Hrushi@3.249.132.231:3306/wa'
+# URL encode the password to handle special characters like '@'
+os.environ['DATABASE_URL'] = 'mysql+pymysql://admin:123%40Hrushi@3.249.132.231:3306/wa'
 os.environ['FLASK_ENV'] = 'development'
 os.environ['SECRET_KEY'] = 'auromart-secret-key-2024-super-secure'
 os.environ['JWT_SECRET_KEY'] = 'auromart-jwt-secret-key-2024-super-secure'

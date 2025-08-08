@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify, redirect, url_for
-from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import User
 from app.utils.decorators import validate_json
@@ -7,6 +6,7 @@ from app.utils.validators import UserSchema
 from marshmallow import ValidationError
 import uuid
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_login import login_user
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -125,11 +125,12 @@ def login():
         return jsonify({'message': 'Login failed', 'error': str(e)}), 500
 
 @auth_bp.route('/logout', methods=['POST'])
-@login_required
+@jwt_required()
 def logout():
     """Logout user"""
     try:
-        logout_user()
+        # For JWT, we don't need to do anything on logout
+        # The client will simply remove the token
         return jsonify({'message': 'Logout successful'}), 200
     except Exception as e:
         return jsonify({'message': 'Logout failed', 'error': str(e)}), 500

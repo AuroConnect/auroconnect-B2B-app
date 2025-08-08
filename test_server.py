@@ -7,37 +7,44 @@ import os
 from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import LoginManager
 from flask_jwt_extended import JWTManager
 
 # Add server directory to path
 server_path = os.path.join(os.path.dirname(__file__), 'server')
 sys.path.insert(0, server_path)
 
-# Import the app's database instance
-from server.app import db, login_manager, migrate
-from server.app.config import Config
+# Create new database instance for this test server
+db = SQLAlchemy()
 
 def create_test_app():
     """Create a minimal test app with just auth endpoints"""
     app = Flask(__name__)
     
-    # Load configuration
-    app.config.from_object(Config)
+    # Load configuration with SQLite for testing
+    app.config['SECRET_KEY'] = 'test-secret-key'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['JWT_SECRET_KEY'] = 'test-jwt-secret'
     
     # Initialize extensions with the app
     db.init_app(app)
-    login_manager.init_app(app)
-    migrate.init_app(app, db)
+    
+    # Setup JWT
+    jwt = JWTManager(app)
     
     # Setup CORS
     CORS(app, 
-         origins=app.config['CORS_ORIGINS'],
+         origins=['*'],
          supports_credentials=True,
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
          allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
          expose_headers=['Content-Type', 'Authorization'])
+    
+    # Create tables
+    with app.app_context():
+        # Import models after db is initialized
+        from server.app.models.user import User
+        db.create_all()
     
     # Register auth blueprint
     from server.app.api.v1.auth import auth_bp
