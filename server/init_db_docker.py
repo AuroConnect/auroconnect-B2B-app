@@ -1,51 +1,29 @@
 #!/usr/bin/env python3
 """
-Initialize PostgreSQL database for AuroMart in Docker
+Initialize database for AuroMart when running with Docker or direct execution
 """
 
 import os
 import sys
-import time
 from pathlib import Path
 
 # Add the server directory to Python path
 server_dir = Path(__file__).parent
 sys.path.insert(0, str(server_dir))
 
+# Set environment variables for MySQL connection if not already set
+if not os.environ.get('DATABASE_URL'):
+    os.environ['DATABASE_URL'] = 'mysql+pymysql://admin:123%40Hrushi@3.249.132.231:3306/wa'
+
+if not os.environ.get('FLASK_ENV'):
+    os.environ['FLASK_ENV'] = 'development'
+
 from app import create_app, db
 from app.models.user import User
-import uuid
-
-def wait_for_database():
-    """Wait for database to be ready"""
-    print("⏳ Waiting for database to be ready...")
-    max_attempts = 30
-    attempt = 0
-    
-    while attempt < max_attempts:
-        try:
-            app = create_app()
-            with app.app_context():
-                with db.engine.connect() as connection:
-                    connection.execute(db.text("SELECT 1"))
-                print("✅ Database is ready!")
-                return True
-        except Exception as e:
-            attempt += 1
-            print(f"⏳ Database not ready yet (attempt {attempt}/{max_attempts}): {e}")
-            time.sleep(2)
-    
-    print("❌ Database connection failed after maximum attempts")
-    return False
 
 def init_database():
     """Initialize the database with tables and sample data"""
-    
-    print("🔧 Initializing AuroMart database in Docker...")
-    
-    # Wait for database to be ready
-    if not wait_for_database():
-        return False
+    print("🔧 Initializing AuroMart database...")
     
     try:
         # Create Flask app
@@ -68,8 +46,8 @@ def init_database():
             # Sample retailer
             retailer = User(
                 email="retailer@example.com",
-                first_name="John",
-                last_name="Retailer",
+                firstName="John",
+                lastName="Retailer",
                 role="retailer",
                 business_name="Sample Retail Store",
                 address="123 Main St, City",
@@ -81,8 +59,8 @@ def init_database():
             # Sample distributor
             distributor = User(
                 email="distributor@example.com",
-                first_name="Jane",
-                last_name="Distributor",
+                firstName="Jane",
+                lastName="Distributor",
                 role="distributor",
                 business_name="Sample Distribution Co",
                 address="456 Business Ave, City",
@@ -94,8 +72,8 @@ def init_database():
             # Sample manufacturer
             manufacturer = User(
                 email="manufacturer@example.com",
-                first_name="Bob",
-                last_name="Manufacturer",
+                firstName="Bob",
+                lastName="Manufacturer",
                 role="manufacturer",
                 business_name="Sample Manufacturing Co",
                 address="789 Industrial Blvd, City",

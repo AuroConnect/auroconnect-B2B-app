@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Simple test script to verify database connection
+Simple script to test database connection
 """
+
+import os
 import sys
 from pathlib import Path
 
@@ -9,11 +11,14 @@ from pathlib import Path
 server_dir = Path(__file__).parent / "server"
 sys.path.insert(0, str(server_dir))
 
-from app import create_app, db
-from app.models.user import User
+# Set environment variables for MySQL connection
+os.environ['DATABASE_URL'] = 'mysql+pymysql://admin:123%40Hrushi@3.249.132.231:3306/wa'
+os.environ['FLASK_ENV'] = 'development'
 
-def test_db_connection():
-    """Test the database connection"""
+from app import create_app, db
+
+def test_connection():
+    """Test database connection"""
     print("Testing database connection...")
     
     try:
@@ -22,23 +27,20 @@ def test_db_connection():
         
         with app.app_context():
             # Test database connection
-            try:
-                with db.engine.connect() as connection:
-                    result = connection.execute(db.text("SELECT 1"))
-                    print("Database connection successful!")
-                    return True
-            except Exception as e:
-                print(f"Database connection failed: {e}")
-                return False
+            print("Attempting to connect to database...")
+            with db.engine.connect() as connection:
+                result = connection.execute(db.text("SELECT 1"))
+                print("Database connection successful!")
+                return True
                 
     except Exception as e:
-        print(f"Failed to create app: {e}")
+        print(f"Database connection failed: {e}")
         return False
 
 if __name__ == "__main__":
-    success = test_db_connection()
+    success = test_connection()
     if success:
-        print("Database connection test PASSED!")
+        print("✅ Database connection test PASSED")
     else:
-        print("Database connection test FAILED!")
+        print("❌ Database connection test FAILED")
     sys.exit(0 if success else 1)

@@ -11,7 +11,7 @@ class Config:
     
     # Database
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mysql+pymysql://admin:123@Hrushi@3.249.132.231:3306/wa'
+        'mysql+pymysql://admin:123%40Hrushi@3.249.132.231:3306/wa'
     
     # Redis
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379'
