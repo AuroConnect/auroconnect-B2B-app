@@ -157,6 +157,11 @@ def get_available_partners():
         # Convert to public format
         partners_data = []
         for partner in available_partners:
+            # Split name into first and last name
+            name_parts = partner.name.split(' ', 1) if partner.name else ['', '']
+            first_name = name_parts[0] if len(name_parts) > 0 else ''
+            last_name = name_parts[1] if len(name_parts) > 1 else ''
+            
             partners_data.append({
                 'id': partner.id,
                 'business_name': partner.business_name,
@@ -164,8 +169,8 @@ def get_available_partners():
                 'phone_number': partner.phone_number,
                 'address': partner.address,
                 'role': partner.role,
-                'firstName': partner.first_name,
-                'lastName': partner.last_name
+                'firstName': first_name,
+                'lastName': last_name
             })
         
         return jsonify(partners_data), 200
@@ -470,8 +475,7 @@ def get_distributors():
             distributors = [
                 d for d in distributors
                 if search_term.lower() in (d.business_name or '').lower() or
-                   search_term.lower() in (d.first_name or '').lower() or
-                   search_term.lower() in (d.last_name or '').lower() or
+                   search_term.lower() in (d.name or '').lower() or
                    search_term.lower() in (d.email or '').lower()
             ]
         
@@ -509,8 +513,7 @@ def get_retailers():
             retailers = [
                 r for r in retailers
                 if search_term.lower() in (r.business_name or '').lower() or
-                   search_term.lower() in (r.first_name or '').lower() or
-                   search_term.lower() in (r.last_name or '').lower() or
+                   search_term.lower() in (r.name or '').lower() or
                    search_term.lower() in (r.email or '').lower()
             ]
         
@@ -550,8 +553,7 @@ def get_manufacturers():
             manufacturers = [
                 m for m in manufacturers
                 if search_term.lower() in (m.business_name or '').lower() or
-                   search_term.lower() in (m.first_name or '').lower() or
-                   search_term.lower() in (m.last_name or '').lower() or
+                   search_term.lower() in (m.name or '').lower() or
                    search_term.lower() in (m.email or '').lower()
             ]
         

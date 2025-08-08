@@ -76,10 +76,17 @@ export default function Partners() {
     retry: 3,
   });
 
+  // Fetch connected distributors (for manufacturers)
+  const { data: connectedDistributors = [], isLoading: connectedDistributorsLoading, error: connectedDistributorsError } = useQuery<User[]>({
+    queryKey: ["api", "partners", "distributors", searchTerm ? `?search=${searchTerm}` : ""],
+    enabled: isAuthenticated && !isLoading && activeTab === "distributors" && user?.role === "manufacturer",
+    retry: 3,
+  });
+
   // Fetch available partners (for retailers and manufacturers)
   const { data: availablePartners = [], isLoading: availablePartnersLoading, error: availablePartnersError } = useQuery<User[]>({
     queryKey: ["api", "partners", "available", searchTerm ? `?search=${searchTerm}` : ""],
-    enabled: isAuthenticated && !isLoading && (activeTab === "distributors" || user?.role === "manufacturer"),
+    enabled: isAuthenticated && !isLoading && activeTab === "distributors" && user?.role === "retailer",
     retry: 3,
   });
 
@@ -101,7 +108,11 @@ export default function Partners() {
   const getCurrentPartners = () => {
     switch (activeTab) {
       case "distributors":
-        return availablePartners; // Show available partners instead of connected ones
+        if (user?.role === "manufacturer") {
+          return connectedDistributors; // Show connected distributors for manufacturers
+        } else {
+          return availablePartners; // Show available partners for retailers
+        }
       case "retailers":
         return retailers;
       case "manufacturers":
@@ -114,7 +125,11 @@ export default function Partners() {
   const getCurrentPartnersLoading = () => {
     switch (activeTab) {
       case "distributors":
-        return availablePartnersLoading;
+        if (user?.role === "manufacturer") {
+          return connectedDistributorsLoading;
+        } else {
+          return availablePartnersLoading;
+        }
       case "retailers":
         return retailersLoading;
       case "manufacturers":
@@ -429,10 +444,12 @@ export default function Partners() {
                   <CardContent className="text-center py-12">
                     <tab.icon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      {searchTerm ? `No ${tab.label.toLowerCase()} found` : `All ${tab.label.toLowerCase()} are already connected`}
+                      {searchTerm ? `No ${tab.label.toLowerCase()} found` : 
+                       user?.role === "manufacturer" ? "No connected distributors" : `All ${tab.label.toLowerCase()} are already connected`}
                     </h3>
                     <p className="text-gray-500">
-                      {searchTerm ? "Try adjusting your search terms" : `You're already connected with all available ${tab.label.toLowerCase()}`}
+                      {searchTerm ? "Try adjusting your search terms" : 
+                       user?.role === "manufacturer" ? "You haven't connected with any distributors yet" : `You're already connected with all available ${tab.label.toLowerCase()}`}
                     </p>
                   </CardContent>
                 </Card>
