@@ -3,12 +3,14 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
+from flask_jwt_extended import JWTManager
 from app.config import Config
 
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
+jwt = JWTManager()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -30,6 +32,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+    jwt.init_app(app)
     
     # Setup CORS
     CORS(app, 
@@ -68,4 +71,25 @@ def create_app(config_class=Config):
     from app.cli import register_commands
     register_commands(app)
     
-    return app 
+    # Serve frontend static files for SPA
+    from flask import send_from_directory, send_file
+    import os
+    
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_frontend(path):
+        """Serve frontend files and handle client-side routing"""
+        # For API routes, let them pass through
+        if path.startswith('api/'):
+            return None
+            
+        # Try to serve static files from client/dist
+        frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'client', 'dist'))
+        
+        if path != "" and os.path.exists(os.path.join(frontend_dist, path)):
+            return send_from_directory(frontend_dist, path)
+            
+        # For all other routes, serve index.html for SPA routing
+        return send_from_directory(frontend_dist, 'index.html')
+    
+    return app

@@ -21,6 +21,11 @@ class User(db.Model, UserMixin):
     
     def __init__(self, **kwargs):
         password = kwargs.pop('password', None)
+        # Handle first_name and last_name if provided separately
+        first_name = kwargs.pop('first_name', None)
+        last_name = kwargs.pop('last_name', None)
+        if first_name and last_name:
+            kwargs['name'] = f"{first_name} {last_name}"
         super(User, self).__init__(**kwargs)
         if password:
             self.set_password(password)

@@ -3,14 +3,26 @@ from flask import request, jsonify
 from flask_jwt_extended import get_jwt_identity
 from app.models import User
 
-def validate_json(f):
+def validate_json(required_fields=None):
     """Decorator to validate JSON request"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not request.is_json:
-            return jsonify({'message': 'Content-Type must be application/json'}), 400
-        return f(*args, **kwargs)
-    return decorated_function
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not request.is_json:
+                return jsonify({'message': 'Content-Type must be application/json'}), 400
+            
+            if required_fields:
+                data = request.get_json()
+                if not data:
+                    return jsonify({'message': 'No JSON data provided'}), 400
+                
+                missing_fields = [field for field in required_fields if field not in data]
+                if missing_fields:
+                    return jsonify({'message': f'Missing required fields: {", ".join(missing_fields)}'}), 400
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 def role_required(required_role):
     """Decorator to check user role"""

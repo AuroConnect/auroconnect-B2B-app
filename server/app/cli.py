@@ -1,7 +1,7 @@
 import click
 from flask.cli import with_appcontext
 from app import db
-from app.models import User, Category, Product, Order, OrderItem, Partnership, Favorite, WhatsAppNotification
+from app.models import User, Category, Product, Order, OrderItem, PartnerLink, Favorite, WhatsAppNotification
 from datetime import datetime, timedelta
 import uuid
 import random
@@ -31,7 +31,7 @@ def register_commands(app):
         Inventory.query.delete()
         Product.query.delete()
         Category.query.delete()
-        Partnership.query.delete()
+        PartnerLink.query.delete()
         Favorite.query.delete()
         User.query.delete()
         db.session.commit()
@@ -595,7 +595,7 @@ def register_commands(app):
         click.echo('Creating partnerships...')
         partnerships = [
             # AuroMart partnerships (Hrushikesh's company)
-            Partnership(
+            PartnerLink(
                 id=str(uuid.uuid4()),
                 requester_id=distributors[0].id,
                 partner_id=manufacturers[0].id,  # Hrushikesh's AuroMart Manufacturing
@@ -603,7 +603,7 @@ def register_commands(app):
                 partnership_type='distributor_manufacturer',
                 created_at=datetime.utcnow() - timedelta(days=30)
             ),
-            Partnership(
+            PartnerLink(
                 id=str(uuid.uuid4()),
                 requester_id=distributors[1].id,
                 partner_id=manufacturers[0].id,  # Hrushikesh's AuroMart Manufacturing
@@ -611,7 +611,7 @@ def register_commands(app):
                 partnership_type='distributor_manufacturer',
                 created_at=datetime.utcnow() - timedelta(days=25)
             ),
-            Partnership(
+            PartnerLink(
                 id=str(uuid.uuid4()),
                 requester_id=distributors[2].id,
                 partner_id=manufacturers[0].id,  # Hrushikesh's AuroMart Manufacturing
@@ -620,7 +620,7 @@ def register_commands(app):
                 created_at=datetime.utcnow() - timedelta(days=20)
             ),
             # Other partnerships
-            Partnership(
+            PartnerLink(
                 id=str(uuid.uuid4()),
                 requester_id=retailers[0].id,
                 partner_id=distributors[0].id,
@@ -628,7 +628,7 @@ def register_commands(app):
                 partnership_type='retailer_distributor',
                 created_at=datetime.utcnow() - timedelta(days=30)
             ),
-            Partnership(
+            PartnerLink(
                 id=str(uuid.uuid4()),
                 requester_id=retailers[1].id,
                 partner_id=distributors[1].id,
@@ -636,7 +636,7 @@ def register_commands(app):
                 partnership_type='retailer_distributor',
                 created_at=datetime.utcnow() - timedelta(days=25)
             ),
-            Partnership(
+            PartnerLink(
                 id=str(uuid.uuid4()),
                 requester_id=distributors[0].id,
                 partner_id=manufacturers[1].id,
@@ -644,7 +644,7 @@ def register_commands(app):
                 partnership_type='distributor_manufacturer',
                 created_at=datetime.utcnow() - timedelta(days=15)
             ),
-            Partnership(
+            PartnerLink(
                 id=str(uuid.uuid4()),
                 requester_id=distributors[1].id,
                 partner_id=manufacturers[2].id,

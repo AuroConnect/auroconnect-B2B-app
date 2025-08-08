@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models import Partnership, User
+from app.models import PartnerLink, User
 from app.utils.decorators import validate_json
 
 partnerships_bp = Blueprint('partnerships', __name__)
@@ -13,7 +13,7 @@ def get_partnerships():
     try:
         current_user_id = get_jwt_identity()
         
-        partnerships = Partnership.query.filter_by(requester_id=current_user_id).all()
+        partnerships = PartnerLink.query.filter_by(requester_id=current_user_id).all()
         return jsonify([partnership.to_dict() for partnership in partnerships]), 200
         
     except Exception as e:
@@ -35,7 +35,7 @@ def send_partnership_request():
             return jsonify({'message': 'Partner ID and partnership type are required'}), 400
         
         # Check if request already exists
-        existing_request = Partnership.query.filter_by(
+        existing_request = PartnerLink.query.filter_by(
             requester_id=current_user_id,
             partner_id=partner_id
         ).first()
@@ -48,7 +48,7 @@ def send_partnership_request():
         if not partner:
             return jsonify({'message': 'Partner not found'}), 404
         
-        new_partnership = Partnership(
+        new_partnership = PartnerLink(
             requester_id=current_user_id,
             partner_id=partner_id,
             partnership_type=partnership_type,
@@ -78,7 +78,7 @@ def respond_to_partnership(partnership_id):
         if status not in ['approved', 'rejected']:
             return jsonify({'message': 'Invalid status'}), 400
         
-        partnership = Partnership.query.get(partnership_id)
+        partnership = PartnerLink.query.get(partnership_id)
         
         if not partnership:
             return jsonify({'message': 'Partnership request not found'}), 404
@@ -103,7 +103,7 @@ def get_received_partnerships():
     try:
         current_user_id = get_jwt_identity()
         
-        partnerships = Partnership.query.filter_by(partner_id=current_user_id).all()
+        partnerships = PartnerLink.query.filter_by(partner_id=current_user_id).all()
         return jsonify([partnership.to_dict() for partnership in partnerships]), 200
         
     except Exception as e:

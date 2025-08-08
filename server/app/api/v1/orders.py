@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Order, OrderItem, Product, Partnership, Inventory
+from app.models import User, Order, OrderItem, Product, PartnerLink, Inventory
 from app import db
 from datetime import datetime, timedelta
 from sqlalchemy import and_
@@ -108,7 +108,7 @@ def create_order():
         # Role-based order creation
         if user.role == 'distributor':
             # Distributor ordering from manufacturer
-            manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+            manufacturer_partnership = PartnerLink.get_distributor_manufacturer(current_user_id)
             if not manufacturer_partnership:
                 return jsonify({'message': 'No manufacturer connected'}), 400
             
@@ -125,7 +125,7 @@ def create_order():
             
         elif user.role == 'retailer':
             # Retailer ordering from distributor
-            distributor_partnership = Partnership.get_retailer_distributor(current_user_id)
+            distributor_partnership = PartnerLink.get_retailer_distributor(current_user_id)
             if not distributor_partnership:
                 return jsonify({'message': 'No distributor connected'}), 400
             

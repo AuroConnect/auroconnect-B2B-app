@@ -6,6 +6,7 @@ from app.utils.decorators import validate_json
 from app.utils.validators import UserSchema
 from marshmallow import ValidationError
 import uuid
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -20,8 +21,8 @@ def register():
         # Log the incoming data for debugging
         print(f"Registration attempt for email: {data.get('email', 'N/A')}")
         
-        # Validate required fields
-        required_fields = ['name', 'email', 'password', 'role']
+        # Validate required fields - updated to match frontend field names
+        required_fields = ['firstName', 'lastName', 'email', 'password', 'role']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'message': f'{field} is required'}), 400
@@ -44,14 +45,14 @@ def register():
         if existing_user:
             return jsonify({'message': 'User with this email already exists'}), 409
         
-        # Create new user
+        # Create new user with proper field mapping
         new_user = User(
-            name=data['name'],
+            name=f"{data['firstName']} {data['lastName']}",
             email=data['email'],
             role=data['role'],
             business_name=data.get('businessName'),
             address=data.get('address'),
-            phone_number=data.get('phoneNumber'),
+            phone_number=data.get('phoneNumber') or data.get('whatsappNumber'),
             is_active=True
         )
         
@@ -108,9 +109,14 @@ def login():
         login_user(user)
         print(f"Login successful for user: {user.email}")
         
+        # Return JWT token for frontend authentication
+        from flask_jwt_extended import create_access_token
+        access_token = create_access_token(identity=user.id)
+        
         return jsonify({
             'message': 'Login successful',
             'user': user.to_dict(),
+            'access_token': access_token,
             'redirectUrl': user.get_dashboard_url()
         }), 200
         
@@ -129,23 +135,32 @@ def logout():
         return jsonify({'message': 'Logout failed', 'error': str(e)}), 500
 
 @auth_bp.route('/user', methods=['GET'])
-@login_required
+@jwt_required()
 def get_user():
     """Get current user information"""
     try:
-        return jsonify(current_user.to_dict()), 200
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        return jsonify(user.to_dict()), 200
     except Exception as e:
         return jsonify({'message': 'Failed to get user', 'error': str(e)}), 500
 
 @auth_bp.route('/dashboard', methods=['GET'])
-@login_required
+@jwt_required()
 def dashboard():
     """Redirect to appropriate dashboard based on user role"""
     try:
-        dashboard_url = current_user.get_dashboard_url()
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+            
+        dashboard_url = user.get_dashboard_url()
         return jsonify({
             'redirectUrl': dashboard_url,
-            'user': current_user.to_dict()
+            'user': user.to_dict()
         }), 200
     except Exception as e:
-        return jsonify({'message': 'Failed to get dashboard', 'error': str(e)}), 500 
+        return jsonify({'message': 'Failed to get dashboard', 'error': str(e)}), 500

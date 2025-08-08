@@ -31,7 +31,7 @@ class OrderSchema(Schema):
 class PartnershipSchema(Schema):
     """Partnership request schema"""
     partnerId = fields.UUID(required=True)
-    partnershipType = fields.Str(required=True, validate=validate.OneOf(['supplier', 'distributor', 'retailer']))
+    partnershipType = fields.Str(required=True, validate=validate.OneOf(['manufacturer_distributor', 'distributor_retailer']))
 
 class FavoriteSchema(Schema):
     """Favorite creation schema"""

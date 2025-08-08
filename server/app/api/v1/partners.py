@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models import User, Partnership
+from app.models import User, PartnerLink
 from app.utils.decorators import role_required, roles_required
 from sqlalchemy import or_
 
@@ -21,13 +21,13 @@ def get_partners():
         # Role-based partner visibility
         if user.role == 'manufacturer':
             # Manufacturers see their distributors
-            partnerships = Partnership.get_manufacturer_distributors(current_user_id)
+            partnerships = PartnerLink.get_manufacturer_distributors(current_user_id)
             partners = [partnership.distributor for partnership in partnerships if partnership.distributor]
             
         elif user.role == 'distributor':
             # Distributors see their manufacturer and retailers
-            manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
-            retailer_partnerships = Partnership.get_distributor_retailers(current_user_id)
+            manufacturer_partnership = PartnerLink.get_distributor_manufacturer(current_user_id)
+            retailer_partnerships = PartnerLink.get_distributor_retailers(current_user_id)
             
             partners = []
             if manufacturer_partnership and manufacturer_partnership.manufacturer:
@@ -57,7 +57,7 @@ def get_partners():
             
         elif user.role == 'retailer':
             # Retailers see their distributor
-            distributor_partnership = Partnership.get_retailer_distributor(current_user_id)
+            distributor_partnership = PartnerLink.get_retailer_distributor(current_user_id)
             partners = []
             
             if distributor_partnership and distributor_partnership.distributor:
@@ -98,7 +98,7 @@ def get_partner_details(partner_id):
         # Check if user has access to this partner
         if user.role == 'manufacturer':
             # Manufacturers can only see their distributors
-            partnership = Partnership.query.filter_by(
+            partnership = PartnerLink.query.filter_by(
                 manufacturer_id=current_user_id,
                 distributor_id=partner_id,
                 partnership_type='manufacturer_distributor',
@@ -110,14 +110,14 @@ def get_partner_details(partner_id):
                 
         elif user.role == 'distributor':
             # Distributors can see their manufacturer and retailers
-            manufacturer_partnership = Partnership.query.filter_by(
+            manufacturer_partnership = PartnerLink.query.filter_by(
                 distributor_id=current_user_id,
                 manufacturer_id=partner_id,
                 partnership_type='manufacturer_distributor',
                 status='active'
             ).first()
             
-            retailer_partnership = Partnership.query.filter_by(
+            retailer_partnership = PartnerLink.query.filter_by(
                 distributor_id=current_user_id,
                 retailer_id=partner_id,
                 partnership_type='distributor_retailer',
@@ -129,7 +129,7 @@ def get_partner_details(partner_id):
                 
         elif user.role == 'retailer':
             # Retailers can only see their distributor
-            partnership = Partnership.query.filter_by(
+            partnership = PartnerLink.query.filter_by(
                 retailer_id=current_user_id,
                 distributor_id=partner_id,
                 partnership_type='distributor_retailer',
@@ -188,15 +188,15 @@ def create_partnership():
                 return jsonify({'message': 'Can only partner with distributors'}), 400
         
         # Check if partnership already exists
-        existing_partnership = Partnership.query.filter_by(
+        existing_partnership = PartnerLink.query.filter_by(
             partnership_type=partnership_type,
             status='active'
         ).filter(
             db.or_(
-                db.and_(Partnership.manufacturer_id == current_user_id, Partnership.distributor_id == partner_id),
-                db.and_(Partnership.distributor_id == current_user_id, Partnership.manufacturer_id == partner_id),
-                db.and_(Partnership.distributor_id == current_user_id, Partnership.retailer_id == partner_id),
-                db.and_(Partnership.retailer_id == current_user_id, Partnership.distributor_id == partner_id)
+                db.and_(PartnerLink.manufacturer_id == current_user_id, PartnerLink.distributor_id == partner_id),
+                db.and_(PartnerLink.distributor_id == current_user_id, PartnerLink.manufacturer_id == partner_id),
+                db.and_(PartnerLink.distributor_id == current_user_id, PartnerLink.retailer_id == partner_id),
+                db.and_(PartnerLink.retailer_id == current_user_id, PartnerLink.distributor_id == partner_id)
             )
         ).first()
         
@@ -206,14 +206,14 @@ def create_partnership():
         # Create partnership
         if partnership_type == 'manufacturer_distributor':
             if user.role == 'manufacturer':
-                partnership = Partnership(
+                partnership = PartnerLink(
                     partnership_type=partnership_type,
                     manufacturer_id=current_user_id,
                     distributor_id=partner_id,
                     status='active'
                 )
             else:
-                partnership = Partnership(
+                partnership = PartnerLink(
                     partnership_type=partnership_type,
                     manufacturer_id=partner_id,
                     distributor_id=current_user_id,
@@ -221,14 +221,14 @@ def create_partnership():
                 )
         else:  # distributor_retailer
             if user.role == 'distributor':
-                partnership = Partnership(
+                partnership = PartnerLink(
                     partnership_type=partnership_type,
                     distributor_id=current_user_id,
                     retailer_id=partner_id,
                     status='active'
                 )
             else:
-                partnership = Partnership(
+                partnership = PartnerLink(
                     partnership_type=partnership_type,
                     distributor_id=partner_id,
                     retailer_id=current_user_id,
@@ -256,7 +256,7 @@ def update_partnership(partnership_id):
         if not user:
             return jsonify({'message': 'User not found'}), 404
         
-        partnership = Partnership.query.get(partnership_id)
+        partnership = PartnerLink.query.get(partnership_id)
         if not partnership:
             return jsonify({'message': 'Partnership not found'}), 404
         
@@ -294,7 +294,7 @@ def delete_partnership(partnership_id):
         if not user:
             return jsonify({'message': 'User not found'}), 404
         
-        partnership = Partnership.query.get(partnership_id)
+        partnership = PartnerLink.query.get(partnership_id)
         if not partnership:
             return jsonify({'message': 'Partnership not found'}), 404
         
@@ -339,12 +339,12 @@ def get_distributors():
         
         if user.role == 'manufacturer':
             print("🏭 Manufacturer: showing connected distributors")
-            partnerships = Partnership.get_manufacturer_distributors(current_user_id)
+            partnerships = PartnerLink.get_manufacturer_distributors(current_user_id)
             distributors = [partnership.distributor for partnership in partnerships if partnership.distributor]
             
         elif user.role == 'retailer':
             print("🏪 Retailer: showing connected distributor")
-            distributor_partnership = Partnership.get_retailer_distributor(current_user_id)
+            distributor_partnership = PartnerLink.get_retailer_distributor(current_user_id)
             distributors = []
             if distributor_partnership and distributor_partnership.distributor:
                 distributors.append(distributor_partnership.distributor)
@@ -388,7 +388,7 @@ def get_retailers():
             print(f"🔍 Searching for retailers with term: {search_term}")
         
         # Distributors see their retailers
-        partnerships = Partnership.get_distributor_retailers(current_user_id)
+        partnerships = PartnerLink.get_distributor_retailers(current_user_id)
         retailers = [partnership.retailer for partnership in partnerships if partnership.retailer]
         
         # Apply search filter
@@ -427,7 +427,7 @@ def get_manufacturers():
             print(f"🔍 Searching for manufacturers with term: {search_term}")
         
         # Distributors see their manufacturer
-        manufacturer_partnership = Partnership.get_distributor_manufacturer(current_user_id)
+        manufacturer_partnership = PartnerLink.get_distributor_manufacturer(current_user_id)
         manufacturers = []
         if manufacturer_partnership and manufacturer_partnership.manufacturer:
             manufacturers.append(manufacturer_partnership.manufacturer)
