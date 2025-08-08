@@ -21,15 +21,16 @@ def get_partnerships():
 
 @partnerships_bp.route('/request', methods=['POST'])
 @jwt_required()
-@validate_json
+@validate_json(['partner_id', 'partnership_type'])
 def send_partnership_request():
     """Send partnership request"""
     try:
         current_user_id = get_jwt_identity()
         data = request.get_json()
         
-        partner_id = data.get('partnerId')
-        partnership_type = data.get('partnershipType')
+        partner_id = data.get('partner_id')
+        partnership_type = data.get('partnership_type')
+        message = data.get('message', '')
         
         if not partner_id or not partnership_type:
             return jsonify({'message': 'Partner ID and partnership type are required'}), 400
@@ -52,7 +53,8 @@ def send_partnership_request():
             requester_id=current_user_id,
             partner_id=partner_id,
             partnership_type=partnership_type,
-            status='pending'
+            status='pending',
+            message=message
         )
         
         db.session.add(new_partnership)

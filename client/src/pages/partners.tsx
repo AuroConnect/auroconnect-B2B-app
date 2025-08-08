@@ -76,9 +76,9 @@ export default function Partners() {
     retry: 3,
   });
 
-  // Fetch distributors (for retailers and manufacturers)
-  const { data: distributors = [], isLoading: distributorsLoading, error: distributorsError } = useQuery<User[]>({
-    queryKey: ["api", "partners", "distributors", searchTerm ? `?search=${searchTerm}` : ""],
+  // Fetch available partners (for retailers and manufacturers)
+  const { data: availablePartners = [], isLoading: availablePartnersLoading, error: availablePartnersError } = useQuery<User[]>({
+    queryKey: ["api", "partners", "available", searchTerm ? `?search=${searchTerm}` : ""],
     enabled: isAuthenticated && !isLoading && (activeTab === "distributors" || user?.role === "manufacturer"),
     retry: 3,
   });
@@ -101,7 +101,7 @@ export default function Partners() {
   const getCurrentPartners = () => {
     switch (activeTab) {
       case "distributors":
-        return distributors;
+        return availablePartners; // Show available partners instead of connected ones
       case "retailers":
         return retailers;
       case "manufacturers":
@@ -114,7 +114,7 @@ export default function Partners() {
   const getCurrentPartnersLoading = () => {
     switch (activeTab) {
       case "distributors":
-        return distributorsLoading;
+        return availablePartnersLoading;
       case "retailers":
         return retailersLoading;
       case "manufacturers":
@@ -269,7 +269,7 @@ export default function Partners() {
   }
 
   // Handle API errors
-  if (favoritesError || distributorsError || retailersError || manufacturersError) {
+  if (favoritesError || availablePartnersError || retailersError || manufacturersError) {
     return (
       <div className="min-h-screen">
         <Header />
@@ -277,7 +277,7 @@ export default function Partners() {
           <div className="text-center py-12">
             <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
             <p className="text-gray-500 mb-4">
-              {favoritesError?.message || distributorsError?.message || retailersError?.message || manufacturersError?.message || "Failed to load partners data"}
+              {favoritesError?.message || availablePartnersError?.message || retailersError?.message || manufacturersError?.message || "Failed to load partners data"}
             </p>
             <Button onClick={() => window.location.reload()}>
               Retry
@@ -429,10 +429,10 @@ export default function Partners() {
                   <CardContent className="text-center py-12">
                     <tab.icon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      {searchTerm ? `No ${tab.label.toLowerCase()} found` : `No ${tab.label.toLowerCase()} available`}
+                      {searchTerm ? `No ${tab.label.toLowerCase()} found` : `All ${tab.label.toLowerCase()} are already connected`}
                     </h3>
                     <p className="text-gray-500">
-                      {searchTerm ? "Try adjusting your search terms" : `Check back later for new ${tab.label.toLowerCase()}`}
+                      {searchTerm ? "Try adjusting your search terms" : `You're already connected with all available ${tab.label.toLowerCase()}`}
                     </p>
                   </CardContent>
                 </Card>

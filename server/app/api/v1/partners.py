@@ -100,6 +100,79 @@ def get_manufacturer_distributors():
     except Exception as e:
         return jsonify({'message': 'Failed to fetch distributors', 'error': str(e)}), 500
 
+@partners_bp.route('/available', methods=['GET'])
+@jwt_required()
+def get_available_partners():
+    """Get available partners (not yet connected)"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        # Get all users of the appropriate role
+        if user.role == 'manufacturer':
+            # Manufacturers can see all distributors
+            available_partners = User.query.filter_by(role='distributor').all()
+            
+            # Remove already connected partners
+            connected_partnerships = PartnerLink.query.filter_by(
+                manufacturer_id=current_user_id,
+                status='active'
+            ).all()
+            connected_ids = [p.distributor_id for p in connected_partnerships]
+            
+            available_partners = [p for p in available_partners if p.id not in connected_ids]
+            
+        elif user.role == 'distributor':
+            # Distributors can see all manufacturers
+            available_partners = User.query.filter_by(role='manufacturer').all()
+            
+            # Remove already connected partners
+            connected_partnerships = PartnerLink.query.filter_by(
+                distributor_id=current_user_id,
+                status='active'
+            ).all()
+            connected_ids = [p.manufacturer_id for p in connected_partnerships]
+            
+            available_partners = [p for p in available_partners if p.id not in connected_ids]
+            
+        elif user.role == 'retailer':
+            # Retailers can see all distributors
+            available_partners = User.query.filter_by(role='distributor').all()
+            
+            # Remove already connected partners
+            connected_partnerships = PartnerLink.query.filter_by(
+                retailer_id=current_user_id,
+                status='active'
+            ).all()
+            connected_ids = [p.distributor_id for p in connected_partnerships]
+            
+            available_partners = [p for p in available_partners if p.id not in connected_ids]
+            
+        else:
+            return jsonify({'message': 'Invalid user role'}), 400
+        
+        # Convert to public format
+        partners_data = []
+        for partner in available_partners:
+            partners_data.append({
+                'id': partner.id,
+                'business_name': partner.business_name,
+                'email': partner.email,
+                'phone_number': partner.phone_number,
+                'address': partner.address,
+                'role': partner.role,
+                'firstName': partner.first_name,
+                'lastName': partner.last_name
+            })
+        
+        return jsonify(partners_data), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch available partners', 'error': str(e)}), 500
+
 @partners_bp.route('/retailers', methods=['GET'])
 @jwt_required()
 def get_distributor_retailers():
