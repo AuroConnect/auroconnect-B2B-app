@@ -174,13 +174,72 @@ export default function Products() {
     },
   });
 
-  const handleAddProduct = () => {
+  const handleAddProduct = async () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.basePrice) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
         variant: "destructive",
       });
+      return;
+    }
+
+    // If file is uploaded, we need to use FormData
+    if (imageUploadType === 'file' && newProduct.imageFile) {
+      const formData = new FormData();
+      formData.append('name', newProduct.name);
+      formData.append('description', newProduct.description);
+      formData.append('sku', newProduct.sku);
+      formData.append('basePrice', newProduct.basePrice);
+      formData.append('categoryId', newProduct.categoryId || '');
+      formData.append('imageFile', newProduct.imageFile);
+      
+      try {
+        // For file uploads, we need a direct fetch call
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`${process.env.VITE_API_URL || 'http://localhost:5000'}/api/products/`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          let errorMessage = 'Failed to add product';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch {
+            errorMessage = response.statusText;
+          }
+          throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        toast({
+          title: "Product Added",
+          description: "Product has been successfully added to your catalog.",
+        });
+        queryClient.invalidateQueries({ queryKey: ["api", "products"] });
+        setIsAddProductOpen(false);
+        setNewProduct({
+          name: "",
+          description: "",
+          sku: "",
+          categoryId: "",
+          basePrice: "",
+          imageUrl: "",
+          imageFile: null
+        });
+        setImageUploadType('url');
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to add product.",
+          variant: "destructive",
+        });
+      }
       return;
     }
 

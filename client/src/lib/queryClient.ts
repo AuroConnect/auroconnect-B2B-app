@@ -68,12 +68,13 @@ const ENDPOINTS_NEEDING_TRAILING_SLASH = [
 export async function apiRequest(
   method: string,
   url: string,
-  data?: unknown | undefined,
+  data?: unknown | FormData | undefined,
 ): Promise<Response> {
   const token = getAuthToken();
   const headers: Record<string, string> = {};
   
-  if (data) {
+  // Only set Content-Type for JSON data, let browser set it for FormData
+  if (data && !(data instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
   
@@ -86,17 +87,26 @@ export async function apiRequest(
   const finalUrl = `${API_BASE_URL}/${cleanUrl}`;
   
   // Add trailing slash only for endpoints that need it
-  const needsTrailingSlash = ENDPOINTS_NEEDING_TRAILING_SLASH.some(endpoint => 
+  const needsTrailingSlash = ENDPOINTS_NEEDING_TRAILING_SLASH.some(endpoint =>
     finalUrl.includes(endpoint) && !finalUrl.includes('categories')
   );
   const urlWithTrailingSlash = needsTrailingSlash && !finalUrl.endsWith('/') ? `${finalUrl}/` : finalUrl;
 
   try {
     console.log(`Making API request to: ${urlWithTrailingSlash}`);
+    
+    // Prepare body - JSON.stringify for objects, use as-is for FormData
+    let body: string | FormData | undefined;
+    if (data instanceof FormData) {
+      body = data;
+    } else if (data) {
+      body = JSON.stringify(data);
+    }
+    
     const res = await fetch(urlWithTrailingSlash, {
       method,
       headers,
-      body: data ? JSON.stringify(data) : undefined,
+      body,
     });
 
     console.log(`Response status: ${res.status}`);

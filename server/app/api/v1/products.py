@@ -138,33 +138,138 @@ def get_product(product_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@products_bp.route('/upload-excel', methods=['POST'])
+@jwt_required()
+def upload_products_excel():
+    """Upload products from Excel file"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or user.role not in ['manufacturer', 'distributor']:
+            return jsonify({'error': 'Only manufacturers and distributors can upload products'}), 403
+        
+        # Check if file is present in request
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+            
+        # Check file extension
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            return jsonify({'error': 'Invalid file format. Please upload Excel file (.xlsx or .xls)'}), 400
+        
+        # Try to import pandas
+        try:
+            import pandas as pd
+        except ImportError:
+            return jsonify({'error': 'Excel processing not available on server'}), 500
+        
+        # Read Excel file
+        try:
+            df = pd.read_excel(file)
+        except Exception as e:
+            return jsonify({'error': f'Error reading Excel file: {str(e)}'}), 400
+        
+        # Validate required columns
+        required_columns = ['name', 'sku', 'basePrice']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return jsonify({'error': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+        
+        # Process each row
+        created_products = []
+        errors = []
+        
+        for index, row in df.iterrows():
+            try:
+                # Generate SKU if not provided
+                sku = row.get('sku') or Product.generate_sku()
+                
+                # Handle price field
+                price = row.get('basePrice', 0)
+                if isinstance(price, str):
+                    price = float(price)
+                
+                # Handle category field
+                category = row.get('category') or row.get('categoryId', 'General')
+                
+                # Create product
+                product = Product(
+                    name=row['name'],
+                    sku=sku,
+                    description=row.get('description', ''),
+                    price=price,
+                    category=category,
+                    created_by=current_user_id,
+                    stock=row.get('stock', 0),
+                    unit=row.get('unit', 'piece'),
+                    is_active=row.get('is_active', True),
+                    image_url=row.get('imageUrl')
+                )
+                
+                db.session.add(product)
+                created_products.append(product)
+                
+            except Exception as e:
+                errors.append(f"Row {index + 1}: {str(e)}")
+        
+        # Commit all products
+        try:
+            db.session.commit()
+            return jsonify({
+                'message': f'Successfully uploaded {len(created_products)} products',
+                'data': {
+                    'created_count': len(created_products),
+                    'errors': errors,
+                    'products': [product.to_dict() for product in created_products]
+                }
+            }), 201
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @products_bp.route('/', methods=['POST'])
 @jwt_required()
-@validate_json(['name', 'description', 'price', 'category'])
+@validate_json(['name', 'sku', 'basePrice'])
 def create_product():
     """Create a new product"""
     try:
         current_user_id = get_jwt_identity()
         user = User.query.get(current_user_id)
         
-        if not user or user.role != 'manufacturer':
-            return jsonify({'error': 'Only manufacturers can create products'}), 403
+        if not user or user.role not in ['manufacturer', 'distributor']:
+            return jsonify({'error': 'Only manufacturers and distributors can create products'}), 403
         
         data = request.get_json()
         
         # Generate SKU if not provided
         sku = data.get('sku') or Product.generate_sku()
         
+        # Handle price field (frontend sends basePrice, backend expects price)
+        price = data.get('basePrice', 0)
+        if isinstance(price, str):
+            price = float(price)
+        
+        # Handle category field (frontend sends categoryId, backend expects category)
+        category = data.get('category') or data.get('categoryId', 'General')
+        
         product = Product(
             name=data['name'],
             sku=sku,
             description=data.get('description', ''),
-            price=data['price'],
-            category=data['category'],
+            price=price,
+            category=category,
             created_by=current_user_id,
             stock=data.get('stock_quantity', 0) or data.get('stock', 0),
             unit=data.get('unit', 'piece'),
-            is_active=data.get('is_active', True)
+            is_active=data.get('is_active', True),
+            image_url=data.get('imageUrl')
         )
         
         db.session.add(product)
@@ -195,8 +300,8 @@ def update_product(product_id):
         if not product:
             return jsonify({'error': 'Product not found'}), 404
         
-        # Only manufacturer can update their own products
-        if user.role != 'manufacturer' or product.manufacturer_id != current_user_id:
+        # Only manufacturer or distributor can update their own products
+        if user.role not in ['manufacturer', 'distributor'] or product.created_by != current_user_id:
             return jsonify({'error': 'Unauthorized to update this product'}), 403
         
         data = request.get_json()
@@ -206,16 +311,27 @@ def update_product(product_id):
             product.name = data['name']
         if 'description' in data:
             product.description = data['description']
-        if 'price' in data:
+        if 'basePrice' in data:
+            price = data['basePrice']
+            if isinstance(price, str):
+                price = float(price)
+            product.price = price
+        elif 'price' in data:
             product.price = data['price']
         if 'category' in data:
             product.category = data['category']
-        if 'stock_quantity' in data:
-            product.stock_quantity = data['stock_quantity']
+        elif 'categoryId' in data:
+            product.category = data['categoryId']
+        if 'stock' in data:
+            product.stock = data['stock']
+        elif 'stock_quantity' in data:
+            product.stock = data['stock_quantity']
         if 'unit' in data:
             product.unit = data['unit']
-        if 'min_order_quantity' in data:
-            product.min_order_quantity = data['min_order_quantity']
+        if 'imageUrl' in data:
+            product.image_url = data['imageUrl']
+        if 'is_active' in data:
+            product.is_active = data['is_active']
         
         db.session.commit()
         
