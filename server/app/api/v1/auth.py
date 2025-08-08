@@ -1,9 +1,6 @@
 from flask import Blueprint, request, jsonify, redirect, url_for
 from app import db
 from app.models import User
-from app.utils.decorators import validate_json
-from app.utils.validators import UserSchema
-from marshmallow import ValidationError
 import uuid
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from flask_login import login_user
