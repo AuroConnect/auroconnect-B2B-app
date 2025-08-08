@@ -14,7 +14,7 @@ from pathlib import Path
 def run_command(command, cwd, name):
     """Run a command in a subprocess"""
     try:
-        print(f"🚀 Starting {name}...")
+        print(f"Starting {name}...")
         process = subprocess.Popen(
             command,
             cwd=cwd,
@@ -31,12 +31,12 @@ def run_command(command, cwd, name):
         
         return process
     except Exception as e:
-        print(f"❌ Failed to start {name}: {e}")
+        print(f"Failed to start {name}: {e}")
         return None
 
 def main():
     """Start both frontend and backend"""
-    print("🎯 Starting AuroMart Development Environment...")
+    print("Starting AuroMart Development Environment...")
     print("=" * 60)
     
     # Get the project root directory
@@ -46,11 +46,11 @@ def main():
     
     # Check if directories exist
     if not server_dir.exists():
-        print(f"❌ Server directory not found: {server_dir}")
+        print(f"Server directory not found: {server_dir}")
         return
     
     if not client_dir.exists():
-        print(f"❌ Client directory not found: {client_dir}")
+        print(f"Client directory not found: {client_dir}")
         return
     
     processes = []
@@ -65,7 +65,7 @@ def main():
         
         if backend_process:
             processes.append(backend_process)
-            print("⏳ Waiting for backend to start...")
+            print("Waiting for backend to start...")
             time.sleep(3)  # Give backend time to start
         
         # Start frontend
@@ -78,10 +78,10 @@ def main():
         if frontend_process:
             processes.append(frontend_process)
         
-        print("✅ Both servers started!")
-        print("🌐 Frontend: http://localhost:3000")
-        print("🔧 Backend: http://localhost:5000")
-        print("📊 Health Check: http://localhost:5000/api/health")
+        print("Both servers started!")
+        print("Frontend: http://localhost:3000")
+        print("Backend: http://localhost:5000")
+        print("Health Check: http://localhost:5000/api/health")
         print("=" * 60)
         print("Press Ctrl+C to stop all servers")
         
@@ -90,12 +90,12 @@ def main():
             process.wait()
             
     except KeyboardInterrupt:
-        print("\n🛑 Stopping servers...")
+        print("\nStopping servers...")
         for process in processes:
             if process:
                 process.terminate()
                 process.wait()
-        print("✅ All servers stopped")
+        print("All servers stopped")
 
 if __name__ == "__main__":
     main()

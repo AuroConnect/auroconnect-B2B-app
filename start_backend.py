@@ -23,7 +23,7 @@ from app.models.user import User
 
 def init_database():
     """Initialize the database with tables and sample data"""
-    print("🔧 Initializing AuroMart MySQL database on EC2...")
+    print("Initializing AuroMart MySQL database on EC2...")
     
     try:
         # Create Flask app
@@ -31,17 +31,17 @@ def init_database():
         
         with app.app_context():
             # Create all tables
-            print("📦 Creating database tables...")
+            print("Creating database tables...")
             db.create_all()
             
             # Check if we already have users
             existing_users = User.query.count()
             if existing_users > 0:
-                print(f"✅ Database already has {existing_users} users")
+                print(f"Database already has {existing_users} users")
                 return True
             
             # Create sample users
-            print("👥 Creating sample users...")
+            print("Creating sample users...")
             
             # Sample retailer
             retailer = User(
@@ -85,8 +85,8 @@ def init_database():
             # Commit changes
             db.session.commit()
             
-            print("✅ Database initialized successfully!")
-            print("📋 Sample users created:")
+            print("Database initialized successfully!")
+            print("Sample users created:")
             print("  - retailer@example.com (password: password123)")
             print("  - distributor@example.com (password: password123)")
             print("  - manufacturer@example.com (password: password123)")
@@ -94,26 +94,26 @@ def init_database():
             return True
             
     except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
+        print(f"Database initialization failed: {e}")
         return False
 
 def main():
     """Main function to start the backend"""
-    print("🚀 Starting AuroMart Backend...")
-    print("📊 Connecting to MySQL database on EC2...")
+    print("Starting AuroMart Backend...")
+    print("Connecting to MySQL database on EC2...")
     
     # Initialize database
     if init_database():
-        print("🎉 Database ready!")
+        print("Database ready!")
     else:
-        print("⚠️  Database initialization failed, but continuing...")
+        print("Database initialization failed, but continuing...")
     
     # Create and run Flask app
     app = create_app()
     
-    print("🌐 Starting Flask server on http://localhost:5000")
-    print("📱 Frontend will be available on http://localhost:3000")
-    print("🔗 API endpoints available at http://localhost:5000/api")
+    print("Starting Flask server on http://localhost:5000")
+    print("Frontend will be available on http://localhost:3000")
+    print("API endpoints available at http://localhost:5000/api")
     
     app.run(
         host='0.0.0.0',
