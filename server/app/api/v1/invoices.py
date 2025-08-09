@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, send_file
-from flask_login import login_required, current_user
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models import Order, Invoice
+from app.models import Order, Invoice, User
 import os
 from datetime import datetime
 import uuid
@@ -9,7 +9,7 @@ import uuid
 invoices_bp = Blueprint('invoices', __name__)
 
 @invoices_bp.route('/generate/<order_id>', methods=['POST'])
-@login_required
+@jwt_required()
 def generate_invoice(order_id):
     """Generate invoice PDF for an order"""
     try:
@@ -17,15 +17,20 @@ def generate_invoice(order_id):
         if not order:
             return jsonify({'message': 'Order not found'}), 404
         
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+
         # Check if user has access to this order
-        if current_user.role == 'manufacturer':
-            if order.seller_id != current_user.id:
+        if user.role == 'manufacturer':
+            if order.seller_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
-        elif current_user.role == 'distributor':
-            if order.seller_id != current_user.id and order.buyer_id != current_user.id:
+        elif user.role == 'distributor':
+            if order.seller_id != current_user_id and order.buyer_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
-        elif current_user.role == 'retailer':
-            if order.buyer_id != current_user.id:
+        elif user.role == 'retailer':
+            if order.buyer_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
         
         # Check if order is shipped or delivered
@@ -77,7 +82,7 @@ def generate_invoice(order_id):
         return jsonify({'message': 'Failed to generate invoice', 'error': str(e)}), 500
 
 @invoices_bp.route('/<invoice_id>', methods=['GET'])
-@login_required
+@jwt_required()
 def get_invoice(invoice_id):
     """Get invoice details"""
     try:
@@ -86,15 +91,20 @@ def get_invoice(invoice_id):
             return jsonify({'message': 'Invoice not found'}), 404
         
         # Check if user has access to this invoice
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+
         order = invoice.order
-        if current_user.role == 'manufacturer':
-            if order.seller_id != current_user.id:
+        if user.role == 'manufacturer':
+            if order.seller_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
-        elif current_user.role == 'distributor':
-            if order.seller_id != current_user.id and order.buyer_id != current_user.id:
+        elif user.role == 'distributor':
+            if order.seller_id != current_user_id and order.buyer_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
-        elif current_user.role == 'retailer':
-            if order.buyer_id != current_user.id:
+        elif user.role == 'retailer':
+            if order.buyer_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
         
         return jsonify(invoice.to_dict()), 200
@@ -103,7 +113,7 @@ def get_invoice(invoice_id):
         return jsonify({'message': 'Failed to fetch invoice', 'error': str(e)}), 500
 
 @invoices_bp.route('/<invoice_id>/download', methods=['GET'])
-@login_required
+@jwt_required()
 def download_invoice(invoice_id):
     """Download invoice PDF"""
     try:
@@ -112,15 +122,20 @@ def download_invoice(invoice_id):
             return jsonify({'message': 'Invoice not found'}), 404
         
         # Check if user has access to this invoice
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+
         order = invoice.order
-        if current_user.role == 'manufacturer':
-            if order.seller_id != current_user.id:
+        if user.role == 'manufacturer':
+            if order.seller_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
-        elif current_user.role == 'distributor':
-            if order.seller_id != current_user.id and order.buyer_id != current_user.id:
+        elif user.role == 'distributor':
+            if order.seller_id != current_user_id and order.buyer_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
-        elif current_user.role == 'retailer':
-            if order.buyer_id != current_user.id:
+        elif user.role == 'retailer':
+            if order.buyer_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
         
         # Check if PDF file exists
@@ -138,7 +153,7 @@ def download_invoice(invoice_id):
         return jsonify({'message': 'Failed to download invoice', 'error': str(e)}), 500
 
 @invoices_bp.route('/order/<order_id>', methods=['GET'])
-@login_required
+@jwt_required()
 def get_order_invoice(order_id):
     """Get invoice for a specific order"""
     try:
@@ -146,15 +161,20 @@ def get_order_invoice(order_id):
         if not order:
             return jsonify({'message': 'Order not found'}), 404
         
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+
         # Check if user has access to this order
-        if current_user.role == 'manufacturer':
-            if order.seller_id != current_user.id:
+        if user.role == 'manufacturer':
+            if order.seller_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
-        elif current_user.role == 'distributor':
-            if order.seller_id != current_user.id and order.buyer_id != current_user.id:
+        elif user.role == 'distributor':
+            if order.seller_id != current_user_id and order.buyer_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
-        elif current_user.role == 'retailer':
-            if order.buyer_id != current_user.id:
+        elif user.role == 'retailer':
+            if order.buyer_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
         
         invoice = Invoice.query.filter_by(order_id=order_id).first()
@@ -211,15 +231,19 @@ Thank you for your business!
     return content
 
 @invoices_bp.route('/my-invoices', methods=['GET'])
-@login_required
+@jwt_required()
 def get_my_invoices():
     """Get invoices for retailer dashboard"""
     try:
-        if current_user.role != 'retailer':
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        if user.role != 'retailer':
             return jsonify({'message': 'Access denied'}), 403
         
         # Get retailer's orders
-        orders = Order.query.filter_by(buyer_id=current_user.id).all()
+        orders = Order.query.filter_by(buyer_id=current_user_id).all()
         order_ids = [order.id for order in orders]
         
         # Get invoices for these orders
