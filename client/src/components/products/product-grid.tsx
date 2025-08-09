@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingCart, Eye, Package, Edit, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useCart } from "@/hooks/useCart";
 import { useToast } from "@/hooks/use-toast";
 
 interface ProductGridProps {
@@ -22,6 +23,7 @@ interface ProductGridProps {
 export default function ProductGrid({ products, isLoading, userRole, categories = [] }: ProductGridProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const cart = useCart();
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -156,8 +158,8 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
   }
 
   const handleAddToCart = (product: any) => {
-    // In a real app, this would add to cart
-    alert(`Added ${product.name} to cart!`);
+    cart.addItem({ id: product.id, name: product.name, sku: product.sku, imageUrl: product.imageUrl, basePrice: product.basePrice }, 1);
+    toast({ title: "Added to cart", description: product.name });
   };
 
   const getActionButton = (product: any) => {
@@ -176,12 +178,12 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
       case 'retailer':
         return (
           <Button 
-            variant="outline" 
             className="w-full"
-            data-testid={`button-manage-stock-${product.id}`}
+            onClick={() => handleAddToCart(product)}
+            data-testid={`button-add-to-cart-${product.id}`}
           >
-            <Package className="h-4 w-4 mr-2" />
-            View Details
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Add to Cart
           </Button>
         );
       case 'manufacturer':

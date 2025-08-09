@@ -10,12 +10,14 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, User, Settings, LogOut, Menu, Sparkles } from "lucide-react";
+import { Bell, User, Settings, LogOut, Menu, Sparkles, ShoppingCart } from "lucide-react";
+import { useCart } from "@/hooks/useCart";
 import type { User as UserType } from "@/hooks/useAuth";
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const [location, setLocation] = useLocation();
+  const cart = useCart();
 
   if (!isAuthenticated || !user) {
     return null;
@@ -117,6 +119,17 @@ export default function Header() {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
+            {/* Cart for distributor and retailer */}
+            {(user.role === 'distributor' || user.role === 'retailer') && (
+              <Button variant="ghost" size="sm" onClick={() => setLocation('/cart')} className="relative">
+                <ShoppingCart className="h-5 w-5" />
+                {cart.count > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] bg-primary text-white flex items-center justify-center">
+                    {cart.count}
+                  </span>
+                )}
+              </Button>
+            )}
             {/* Notifications */}
             <Button variant="ghost" size="sm" className="relative">
               <Bell className="h-5 w-5" />

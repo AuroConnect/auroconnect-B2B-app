@@ -401,8 +401,8 @@ export default function Products() {
                 Browse and order from available products
               </p>
             </div>
-            {/* Add Product Button for Distributors and Manufacturers */}
-            {(user.role === "distributor" || user.role === "manufacturer") && (
+            {/* Add Product Button for Manufacturer only */}
+            {user.role === "manufacturer" && (
               <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
                 <DialogTrigger asChild>
                   <Button className="action-button-primary">

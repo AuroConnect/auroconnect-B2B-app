@@ -165,16 +165,29 @@ export default function Orders() {
   };
 
   const getNextStatusOptions = (currentStatus: string) => {
-    const statusFlow = {
-      'pending': ['accepted', 'rejected', 'processing'],
-      'accepted': ['processing', 'shipped'],
-      'processing': ['shipped', 'delivered'],
-      'shipped': ['delivered'],
-      'delivered': [],
-      'rejected': [],
-      'cancelled': []
+    // Role-aware flow mapping to align with MANUFACTURER/DISTRIBUTOR operations.
+    // Mapping: ACCEPTED ≈ accepted, PACKED ≈ processing, SHIPPED ≈ shipped.
+    if (!user) return [];
+    const manufacturerFlow: Record<string, string[]> = {
+      pending: ['accepted', 'rejected'],
+      accepted: ['processing'],
+      processing: ['shipped'],
+      shipped: ['delivered'],
+      delivered: [],
+      rejected: [],
+      cancelled: [],
     };
-    return statusFlow[currentStatus] || [];
+    const distributorFlow: Record<string, string[]> = {
+      pending: ['accepted', 'rejected'],
+      accepted: ['processing'],
+      processing: ['shipped'],
+      shipped: ['delivered'],
+      delivered: [],
+      rejected: [],
+      cancelled: [],
+    };
+    const flow = user.role === 'manufacturer' ? manufacturerFlow : distributorFlow;
+    return flow[currentStatus] || [];
   };
 
   if (!user) {

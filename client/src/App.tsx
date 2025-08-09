@@ -21,6 +21,7 @@ import Inventory from "@/pages/inventory";
 import Retailers from "@/pages/retailers";
 import Production from "@/pages/production";
 import Distributors from "@/pages/distributors";
+import CartPage from "@/pages/cart";
 import ManufacturerDashboard from "@/pages/manufacturer/dashboard";
 import DistributorDashboard from "@/pages/distributor/dashboard";
 import RetailerDashboard from "@/pages/retailer/dashboard";
@@ -58,6 +59,7 @@ function Router() {
           <Route path="/retailers" component={withAuth(Retailers)} />
           <Route path="/production" component={withAuth(Production)} />
           <Route path="/distributors" component={withAuth(Distributors)} />
+          <Route path="/cart" component={withAuth(CartPage)} />
         </>
       )}
       <Route component={NotFound} />
