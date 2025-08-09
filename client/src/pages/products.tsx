@@ -624,32 +624,17 @@ export default function Products() {
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <Card className="mb-8">
+        {/* Search */}
+        <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                                 <SelectContent className="bg-white border border-gray-200 shadow-lg">
-                   <SelectItem value="all">All Categories</SelectItem>
-                   {(Array.isArray(categories) ? categories : []).map((category: any) => (
-                     <SelectItem key={category.id} value={category.id} className="hover:bg-gray-50">
-                       {category.name}
-                     </SelectItem>
-                   ))}
-                 </SelectContent>
-              </Select>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
           </CardContent>
         </Card>
@@ -669,12 +654,41 @@ export default function Products() {
 
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-4">
-                         <ProductGrid 
-               products={filteredProducts} 
-               isLoading={productsLoading} 
-               userRole={user?.role || 'retailer'} 
-               categories={Array.isArray(categories) ? categories : []}
-             />
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* Category Sidebar */}
+              <Card className="lg:col-span-1 h-max sticky top-20">
+                <CardHeader>
+                  <CardTitle>Categories</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <button
+                    className={`w-full text-left px-3 py-2 rounded-md transition ${selectedCategory === 'all' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'}`}
+                    onClick={() => setSelectedCategory('all')}
+                  >
+                    All Categories
+                  </button>
+                  {(Array.isArray(categories) ? categories : []).map((cat: any) => (
+                    <button
+                      key={cat.id}
+                      className={`w-full text-left px-3 py-2 rounded-md transition ${selectedCategory === cat.id ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'}`}
+                      onClick={() => setSelectedCategory(cat.id)}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Products List */}
+              <div className="lg:col-span-3">
+                <ProductGrid 
+                  products={filteredProducts} 
+                  isLoading={productsLoading} 
+                  userRole={user?.role || 'retailer'} 
+                  categories={Array.isArray(categories) ? categories : []}
+                />
+              </div>
+            </div>
           </TabsContent>
 
           {/* Partners Tab */}
