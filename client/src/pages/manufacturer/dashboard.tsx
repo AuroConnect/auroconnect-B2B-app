@@ -45,7 +45,9 @@ interface Order {
   // Add other order properties as needed
 }
 
-export default function ManufacturerDashboard() {
+import { withRole } from "@/components/auth/route-guards";
+
+function ManufacturerDashboardInner() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
 
@@ -349,3 +351,5 @@ export default function ManufacturerDashboard() {
     </div>
   );
 }
+
+export default withRole(ManufacturerDashboardInner, ["manufacturer"]);

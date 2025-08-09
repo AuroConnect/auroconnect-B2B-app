@@ -50,7 +50,9 @@ interface Order {
   // Add other order properties as needed
 }
 
-export default function DistributorDashboard() {
+import { withRole } from "@/components/auth/route-guards";
+
+function DistributorDashboardInner() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
 
@@ -383,3 +385,5 @@ export default function DistributorDashboard() {
     </div>
   );
 }
+
+export default withRole(DistributorDashboardInner, ["distributor"]);

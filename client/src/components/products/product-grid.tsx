@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -162,7 +162,7 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
 
   const getActionButton = (product: any) => {
     switch (userRole) {
-      case 'retailer':
+      case 'distributor':
         return (
           <Button 
             className="w-full" 
@@ -173,7 +173,7 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
             Add to Cart
           </Button>
         );
-      case 'distributor':
+      case 'retailer':
         return (
           <Button 
             variant="outline" 
@@ -181,7 +181,7 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
             data-testid={`button-manage-stock-${product.id}`}
           >
             <Package className="h-4 w-4 mr-2" />
-            Manage Stock
+            View Details
           </Button>
         );
       case 'manufacturer':
@@ -222,53 +222,58 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="space-y-4">
         {products.map((product) => (
           <Card key={product.id} className="group hover:shadow-lg transition-shadow" data-testid={`product-card-${product.id}`}>
-                         <div className="aspect-square bg-gray-100 rounded-t-lg relative overflow-hidden">
-               {product.imageUrl ? (
-                 <img 
-                   src={product.imageUrl} 
-                   alt={product.name}
-                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                 />
-               ) : (
-                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                   <Package className="h-16 w-16 text-gray-400" />
-                 </div>
-               )}
-               <div className="absolute top-2 right-2 flex gap-1">
-                 <Badge variant="secondary" className="bg-white/90 text-gray-700">
-                   {product.sku}
-                 </Badge>
-                 {product.isActive === false && (
-                   <Badge variant="destructive" className="bg-red-100 text-red-800">
-                     Inactive
-                   </Badge>
-                 )}
-               </div>
-             </div>
             <CardContent className="p-4">
-              <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2" data-testid={`product-name-${product.id}`}>
-                {product.name}
-              </h3>
-              <p className="text-sm text-gray-600 mb-3 line-clamp-2" data-testid={`product-description-${product.id}`}>
-                {product.description}
-              </p>
-              <div className="flex items-center justify-between">
-                <div className="text-lg font-bold text-primary" data-testid={`product-price-${product.id}`}>
-                  ${(product.inventory?.sellingPrice || product.basePrice || 0).toLocaleString()}
-                </div>
-                {product.inventory && (
-                  <div className="text-sm text-gray-500">
-                    Stock: {product.inventory.quantity}
+              <div className="flex gap-4 items-start">
+                <div className="w-24 h-24 bg-gray-100 rounded-md overflow-hidden flex-shrink-0 relative">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                      <Package className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="absolute top-1 right-1">
+                    <Badge variant="secondary" className="bg-white/90 text-gray-700 text-[10px]">
+                      {product.sku}
+                    </Badge>
                   </div>
-                )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-gray-900 mb-1 truncate" data-testid={`product-name-${product.id}`}>
+                        {product.name}
+                      </h3>
+                      <p className="text-sm text-gray-600 line-clamp-2" data-testid={`product-description-${product.id}`}>
+                        {product.description}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-lg font-bold text-primary" data-testid={`product-price-${product.id}`}>
+                        ${(product.inventory?.sellingPrice || product.basePrice || 0).toLocaleString()}
+                      </div>
+                      {product.inventory && (
+                        <div className="text-xs text-gray-500">Stock: {product.inventory.quantity}</div>
+                      )}
+                      {product.isActive === false && (
+                        <Badge variant="destructive" className="mt-1">Inactive</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    {getActionButton(product)}
+                  </div>
+                </div>
               </div>
             </CardContent>
-            <CardFooter className="p-4 pt-0">
-              {getActionButton(product)}
-            </CardFooter>
           </Card>
         ))}
       </div>

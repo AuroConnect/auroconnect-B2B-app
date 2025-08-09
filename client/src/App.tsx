@@ -24,6 +24,7 @@ import Distributors from "@/pages/distributors";
 import ManufacturerDashboard from "@/pages/manufacturer/dashboard";
 import DistributorDashboard from "@/pages/distributor/dashboard";
 import RetailerDashboard from "@/pages/retailer/dashboard";
+import { withAuth } from "@/components/auth/route-guards";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -43,20 +44,20 @@ function Router() {
           <Route path="/retailer/dashboard" component={RetailerDashboard} />
           
           {/* General routes */}
-          <Route path="/" component={Dashboard} />
-          <Route path="/products" component={Products} />
-          <Route path="/orders" component={Orders} />
-          <Route path="/reports" component={Reports} />
-          <Route path="/partnerships" component={Partnerships} />
-          <Route path="/partners" component={Partners} />
-          <Route path="/profile" component={Profile} />
-          <Route path="/settings" component={Settings} />
-          <Route path="/invoices" component={Invoices} />
-          <Route path="/suppliers" component={Suppliers} />
-          <Route path="/inventory" component={Inventory} />
-          <Route path="/retailers" component={Retailers} />
-          <Route path="/production" component={Production} />
-          <Route path="/distributors" component={Distributors} />
+          <Route path="/" component={withAuth(Dashboard)} />
+          <Route path="/products" component={withAuth(Products)} />
+          <Route path="/orders" component={withAuth(Orders)} />
+          <Route path="/reports" component={withAuth(Reports)} />
+          <Route path="/partnerships" component={withAuth(Partnerships)} />
+          <Route path="/partners" component={withAuth(Partners)} />
+          <Route path="/profile" component={withAuth(Profile)} />
+          <Route path="/settings" component={withAuth(Settings)} />
+          <Route path="/invoices" component={withAuth(Invoices)} />
+          <Route path="/suppliers" component={withAuth(Suppliers)} />
+          <Route path="/inventory" component={withAuth(Inventory)} />
+          <Route path="/retailers" component={withAuth(Retailers)} />
+          <Route path="/production" component={withAuth(Production)} />
+          <Route path="/distributors" component={withAuth(Distributors)} />
         </>
       )}
       <Route component={NotFound} />

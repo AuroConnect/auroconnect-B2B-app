@@ -47,7 +47,9 @@ interface Invoice {
   // Add other invoice properties as needed
 }
 
-export default function RetailerDashboard() {
+import { withRole } from "@/components/auth/route-guards";
+
+function RetailerDashboardInner() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
 
@@ -383,3 +385,5 @@ export default function RetailerDashboard() {
     </div>
   );
 }
+
+export default withRole(RetailerDashboardInner, ["retailer"]);
