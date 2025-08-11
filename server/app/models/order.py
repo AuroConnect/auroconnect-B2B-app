@@ -1,15 +1,14 @@
 from app import db
 from datetime import datetime
 import uuid
-from sqlalchemy.dialects.postgresql import UUID
 
 class Order(db.Model):
     __tablename__ = 'orders'
     
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     order_number = db.Column(db.String(255), unique=True, nullable=False)
-    retailer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
-    distributor_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    retailer_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    distributor_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     status = db.Column(db.String(50), default='pending')
     delivery_mode = db.Column(db.String(50), default='delivery')
     total_amount = db.Column(db.Numeric(10, 2), nullable=True)
@@ -44,9 +43,9 @@ class Order(db.Model):
 class OrderItem(db.Model):
     __tablename__ = 'order_items'
     
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = db.Column(UUID(as_uuid=True), db.ForeignKey('orders.id'), nullable=False)
-    product_id = db.Column(UUID(as_uuid=True), db.ForeignKey('products.id'), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    order_id = db.Column(db.String(36), db.ForeignKey('orders.id'), nullable=False)
+    product_id = db.Column(db.String(36), db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
     total_price = db.Column(db.Numeric(10, 2), nullable=False)

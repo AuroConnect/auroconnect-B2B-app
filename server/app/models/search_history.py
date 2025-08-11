@@ -1,13 +1,12 @@
 from app import db
 from datetime import datetime
 import uuid
-from sqlalchemy.dialects.postgresql import UUID
 
 class SearchHistory(db.Model):
     __tablename__ = 'search_history'
     
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     search_term = db.Column(db.String(255), nullable=False)
     search_type = db.Column(db.String(50), nullable=False)
     result_count = db.Column(db.Integer, nullable=False)

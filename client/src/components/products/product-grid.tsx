@@ -155,9 +155,35 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
     );
   }
 
+  // Add to cart mutation
+  const addToCartMutation = useMutation({
+    mutationFn: async (product: any) => {
+      return apiRequest(`/api/cart/add`, {
+        method: "POST",
+        body: JSON.stringify({
+          productId: product.id,
+          quantity: 1
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["api", "cart"] });
+      toast({
+        title: "Added to Cart",
+        description: "Product has been added to your cart successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add product to cart.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddToCart = (product: any) => {
-    // In a real app, this would add to cart
-    alert(`Added ${product.name} to cart!`);
+    addToCartMutation.mutate(product);
   };
 
   const getActionButton = (product: any) => {
@@ -167,10 +193,11 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
           <Button 
             className="w-full" 
             onClick={() => handleAddToCart(product)}
+            disabled={addToCartMutation.isPending}
             data-testid={`button-add-to-cart-${product.id}`}
           >
             <ShoppingCart className="h-4 w-4 mr-2" />
-            Add to Cart
+            {addToCartMutation.isPending ? "Adding..." : "Add to Cart"}
           </Button>
         );
       case 'distributor':

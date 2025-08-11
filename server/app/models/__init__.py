@@ -8,6 +8,7 @@ from .favorite import Favorite
 from .search_history import SearchHistory
 from .whatsapp import WhatsAppNotification
 from .invoice import Invoice
+from .cart import Cart, CartItem
 
 __all__ = [
     'User',
@@ -20,5 +21,7 @@ __all__ = [
     'Favorite',
     'SearchHistory',
     'WhatsAppNotification',
-    'Invoice'
+    'Invoice',
+    'Cart',
+    'CartItem'
 ] 

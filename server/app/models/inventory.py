@@ -1,14 +1,13 @@
 from app import db
 from datetime import datetime
 import uuid
-from sqlalchemy.dialects.postgresql import UUID
 
 class Inventory(db.Model):
     __tablename__ = 'inventory'
     
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    distributor_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=False)
-    product_id = db.Column(UUID(as_uuid=True), db.ForeignKey('products.id'), nullable=False)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    distributor_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    product_id = db.Column(db.String(36), db.ForeignKey('products.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
     selling_price = db.Column(db.Numeric(10, 2), nullable=True)
     is_available = db.Column(db.Boolean, default=True)

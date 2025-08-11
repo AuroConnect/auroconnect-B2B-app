@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { 
   DropdownMenu, 
@@ -10,12 +11,19 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, User, Settings, LogOut, Menu, Sparkles } from "lucide-react";
+import { Bell, User, Settings, LogOut, Menu, Sparkles, ShoppingCart } from "lucide-react";
 import type { User as UserType } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const [location, setLocation] = useLocation();
+
+  // Fetch cart data for cart icon
+  const { data: cart } = useQuery({
+    queryKey: ["api", "cart"],
+    enabled: !!user,
+  });
 
   if (!isAuthenticated || !user) {
     return null;
@@ -115,6 +123,18 @@ export default function Header() {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
+            {/* Cart */}
+            <Link href="/cart">
+              <Button variant="ghost" size="sm" className="relative">
+                <ShoppingCart className="h-5 w-5" />
+                {cart?.totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 auromart-gradient-secondary rounded-full text-xs text-white flex items-center justify-center font-medium">
+                    {cart.totalItems > 99 ? '99+' : cart.totalItems}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
             {/* Notifications */}
             <Button variant="ghost" size="sm" className="relative">
               <Bell className="h-5 w-5" />

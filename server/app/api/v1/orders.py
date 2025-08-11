@@ -1,14 +1,22 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Order, OrderItem, Product
+from app.models import User, Order, OrderItem, Product, Cart, CartItem
 from app import db
 from datetime import datetime, timedelta
 from sqlalchemy import and_
+import uuid
 
 orders_bp = Blueprint('orders', __name__)
 
-@orders_bp.route('/', methods=['GET'])
+@orders_bp.route('/', methods=['GET', 'POST'])
 @jwt_required()
+def orders():
+    """Get orders for the current user or create new order from cart"""
+    if request.method == 'GET':
+        return get_orders()
+    elif request.method == 'POST':
+        return create_order_from_cart()
+
 def get_orders():
     """Get orders for the current user"""
     try:
@@ -307,4 +315,116 @@ def get_order_stats():
         return jsonify(stats)
         
     except Exception as e:
-        return jsonify({'message': str(e)}), 500 
+        return jsonify({'message': str(e)}), 500
+
+def create_order_from_cart():
+    """Create order from user's cart"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        # Only retailers and distributors can place orders
+        if user.role not in ['retailer', 'distributor']:
+            return jsonify({'message': 'Only retailers and distributors can place orders'}), 403
+        
+        # Get user's cart
+        cart = Cart.query.filter_by(user_id=current_user_id).first()
+        if not cart:
+            return jsonify({'message': 'Cart is empty'}), 400
+        
+        # Get cart items
+        cart_items = CartItem.query.filter_by(cart_id=cart.id).all()
+        if not cart_items:
+            return jsonify({'message': 'Cart is empty'}), 400
+        
+        # Validate cart items and determine target partner
+        target_partner_id = None
+        total_amount = 0.0
+        order_items_data = []
+        
+        for cart_item in cart_items:
+            product = Product.query.get(cart_item.product_id)
+            if not product:
+                return jsonify({'message': f'Product {cart_item.product_id} not found'}), 404
+            
+            # Determine target partner based on user role and product
+            if user.role == 'retailer':
+                # Retailer orders from distributor - need to find which distributor has this product
+                # For now, we'll use the product's manufacturer as the distributor
+                # In a real scenario, you'd check the inventory table
+                if not target_partner_id:
+                    target_partner_id = product.manufacturer_id
+                elif target_partner_id != product.manufacturer_id:
+                    return jsonify({'message': 'All products must be from the same distributor'}), 400
+            elif user.role == 'distributor':
+                # Distributor orders from manufacturer
+                if not target_partner_id:
+                    target_partner_id = product.manufacturer_id
+                elif target_partner_id != product.manufacturer_id:
+                    return jsonify({'message': 'All products must be from the same manufacturer'}), 400
+            
+            # Calculate item total
+            unit_price = float(product.base_price) if product.base_price else 0.0  # Convert to float
+            item_total = unit_price * cart_item.quantity
+            total_amount += item_total
+            
+            order_items_data.append({
+                'product_id': cart_item.product_id,
+                'quantity': cart_item.quantity,
+                'unit_price': unit_price,
+                'total_price': item_total
+            })
+        
+        if not target_partner_id:
+            return jsonify({'message': 'Unable to determine target partner'}), 400
+        
+        # Create order
+        order_number = f"ORD-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+        
+        order = Order(
+            id=str(uuid.uuid4()),
+            order_number=order_number,
+            retailer_id=current_user_id if user.role == 'retailer' else target_partner_id,
+            distributor_id=target_partner_id if user.role == 'retailer' else current_user_id,
+            status='pending',
+            delivery_mode='delivery',
+            total_amount=total_amount,
+            notes=f"Order placed from cart by {user.first_name} {user.last_name}",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        db.session.add(order)
+        db.session.flush()  # Get the order ID
+        
+        # Create order items
+        for item_data in order_items_data:
+            order_item = OrderItem(
+                id=str(uuid.uuid4()),
+                order_id=order.id,
+                product_id=item_data['product_id'],
+                quantity=item_data['quantity'],
+                unit_price=item_data['unit_price'],
+                total_price=item_data['total_price']
+            )
+            db.session.add(order_item)
+        
+        # Clear the cart
+        CartItem.query.filter_by(cart_id=cart.id).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Order created successfully',
+            'orderId': order.id,
+            'orderNumber': order.order_number,
+            'totalAmount': float(total_amount),
+            'itemsCount': len(order_items_data)
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': 'Failed to create order', 'error': str(e)}), 500 

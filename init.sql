@@ -136,6 +136,25 @@ CREATE TABLE IF NOT EXISTS whatsapp_notifications (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS carts (
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    user_id VARCHAR(36) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS cart_items (
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    cart_id VARCHAR(36) NOT NULL,
+    product_id VARCHAR(36) NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (cart_id) REFERENCES carts(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
 -- Create indexes
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
@@ -152,6 +171,9 @@ CREATE INDEX idx_favorites_favorite_user ON favorites(favorite_user_id);
 CREATE INDEX idx_search_history_user ON search_history(user_id);
 CREATE INDEX idx_invoices_order ON invoices(order_id);
 CREATE INDEX idx_whatsapp_notifications_user ON whatsapp_notifications(user_id);
+CREATE INDEX idx_carts_user ON carts(user_id);
+CREATE INDEX idx_cart_items_cart ON cart_items(cart_id);
+CREATE INDEX idx_cart_items_product ON cart_items(product_id);
 
 -- Insert sample data
 INSERT INTO categories (id, name, description) VALUES

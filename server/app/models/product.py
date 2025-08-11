@@ -1,17 +1,16 @@
 from app import db
 from datetime import datetime
 import uuid
-from sqlalchemy.dialects.postgresql import UUID
 
 class Product(db.Model):
     __tablename__ = 'products'
     
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
     sku = db.Column(db.String(255), unique=True, nullable=False)
-    category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('categories.id'), nullable=True)
-    manufacturer_id = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'), nullable=True)
+    category_id = db.Column(db.String(36), db.ForeignKey('categories.id'), nullable=True)
+    manufacturer_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
     image_url = db.Column(db.Text, nullable=True)
     base_price = db.Column(db.Numeric(10, 2), nullable=True)
     is_active = db.Column(db.Boolean, default=True)

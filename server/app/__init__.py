@@ -43,6 +43,7 @@ def create_app(config_class=Config):
     from app.api.v1.notifications import notifications_bp
     from app.api.v1.whatsapp import whatsapp_bp
     from app.api.v1.invoices import invoices_bp
+    from app.api.v1.cart import cart_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(products_bp, url_prefix='/api/products')
@@ -56,6 +57,7 @@ def create_app(config_class=Config):
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
     app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')
     app.register_blueprint(invoices_bp, url_prefix='/api/invoices')
+    app.register_blueprint(cart_bp, url_prefix='/api/cart')
     
     # Error handlers
     from app.errors import register_error_handlers
