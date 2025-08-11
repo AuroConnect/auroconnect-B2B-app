@@ -1,22 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
-  Package, 
   Clock, 
   CheckCircle, 
-  XCircle, 
   AlertCircle, 
+  Package, 
   Truck, 
   Check, 
-  X,
-  TrendingUp,
+  X, 
+  XCircle,
   Eye,
-  Calendar,
-  DollarSign
+  TrendingUp,
+  DollarSign,
+  Calendar
 } from "lucide-react";
+import { getQueryFn } from "@/lib/queryClient";
 import { Link } from "wouter";
 
 interface Order {
@@ -39,9 +39,9 @@ interface Order {
 }
 
 export default function RecentOrders() {
-  const { data: orders, isLoading, error } = useQuery({
+  const { data: orders, isLoading, error } = useQuery<Order[]>({
     queryKey: ["api", "orders"],
-    queryFn: apiRequest({ url: "/orders", on401: "throw" }),
+    queryFn: getQueryFn({ on401: "throw" }),
     retry: 1,
     refetchOnWindowFocus: false,
   });

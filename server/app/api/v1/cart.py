@@ -31,7 +31,7 @@ def get_cart():
         # Get cart items with product details
         cart_items = CartItem.query.filter_by(cart_id=cart.id).all()
         items_with_details = []
-        total_amount = 0.0
+        total_amount = 0.0  # Initialize as float
         
         for item in cart_items:
             product = Product.query.get(item.product_id)
@@ -50,7 +50,9 @@ def get_cart():
                     pass
                 
                 unit_price = inventory.selling_price if inventory else product.base_price
-                item_total = unit_price * item.quantity
+                # Convert to float to avoid decimal issues
+                unit_price_float = float(unit_price) if unit_price else 0.0
+                item_total = unit_price_float * item.quantity
                 total_amount += item_total
                 
                 items_with_details.append({
@@ -60,8 +62,8 @@ def get_cart():
                     'productSku': product.sku,
                     'productImage': product.image_url,
                     'quantity': item.quantity,
-                    'unitPrice': float(unit_price),
-                    'totalPrice': float(item_total),
+                    'unitPrice': unit_price_float,
+                    'totalPrice': item_total,
                     'availableStock': inventory.quantity if inventory else 0
                 })
         
@@ -69,7 +71,7 @@ def get_cart():
             'id': cart.id,
             'items': items_with_details,
             'totalItems': len(items_with_details),
-            'totalAmount': float(total_amount)
+            'totalAmount': total_amount
         }), 200
         
     except Exception as e:

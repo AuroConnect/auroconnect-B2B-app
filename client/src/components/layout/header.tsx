@@ -11,18 +11,41 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, User, Settings, LogOut, Menu, Sparkles, ShoppingCart } from "lucide-react";
+import { Bell, User, Settings, LogOut, Menu, Sparkles, ShoppingCart, Package } from "lucide-react";
 import type { User as UserType } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
+import { getQueryFn } from "@/lib/queryClient";
+import { Badge } from "@/components/ui/badge";
+
+interface CartItem {
+  id: string;
+  productId: string;
+  productName: string;
+  productSku: string;
+  productImage: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  availableStock: number;
+}
+
+interface Cart {
+  id: string;
+  items: CartItem[];
+  totalItems: number;
+  totalAmount: number;
+}
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const [location, setLocation] = useLocation();
 
-  // Fetch cart data for cart icon
-  const { data: cart } = useQuery({
+  // Fetch cart data for cart icon with real-time updates
+  const { data: cart, isLoading: cartLoading } = useQuery<Cart>({
     queryKey: ["api", "cart"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!user,
+    refetchInterval: 5000, // Refresh every 5 seconds for real-time updates
+    staleTime: 2000, // Consider data stale after 2 seconds
   });
 
   if (!isAuthenticated || !user) {
@@ -46,6 +69,14 @@ export default function Header() {
 
   const handleSettings = () => {
     setLocation("/settings");
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   return (
@@ -123,15 +154,71 @@ export default function Header() {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
-            {/* Cart */}
+            {/* Enhanced Cart */}
             <Link href="/cart">
-              <Button variant="ghost" size="sm" className="relative">
-                <ShoppingCart className="h-5 w-5" />
+              <Button variant="ghost" size="sm" className="relative group">
+                <div className="flex items-center space-x-2">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartLoading && (
+                    <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  )}
+                </div>
+                
+                {/* Cart Badge */}
                 {cart?.totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 auromart-gradient-secondary rounded-full text-xs text-white flex items-center justify-center font-medium">
+                  <Badge className="absolute -top-1 -right-1 w-5 h-5 auromart-gradient-secondary rounded-full text-xs text-white flex items-center justify-center font-medium border-2 border-white">
                     {cart.totalItems > 99 ? '99+' : cart.totalItems}
-                  </span>
+                  </Badge>
                 )}
+                
+                {/* Cart Tooltip */}
+                <div className="absolute bottom-full right-0 mb-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                  <div className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-900">Shopping Cart</span>
+                      <Package className="h-4 w-4 text-gray-400" />
+                    </div>
+                    
+                    {cart?.items && cart.items.length > 0 ? (
+                      <div className="space-y-2">
+                        {cart.items.slice(0, 3).map((item) => (
+                          <div key={item.id} className="flex items-center space-x-2">
+                            <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                              <Package className="h-3 w-3 text-gray-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-900 truncate">
+                                {item.productName}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Qty: {item.quantity} × {formatCurrency(item.unitPrice)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {cart.items.length > 3 && (
+                          <p className="text-xs text-gray-500 text-center">
+                            +{cart.items.length - 3} more items
+                          </p>
+                        )}
+                        
+                        <div className="border-t pt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-900">Total:</span>
+                            <span className="text-sm font-bold text-gray-900">
+                              {formatCurrency(cart.totalAmount)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-2">
+                        <p className="text-sm text-gray-500">Your cart is empty</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </Button>
             </Link>
 

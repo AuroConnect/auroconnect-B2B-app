@@ -104,10 +104,7 @@ export default function Orders() {
   // Update order status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status, notes }: { orderId: string; status: string; notes?: string }) => {
-      const response = await apiRequest(`/api/orders/${orderId}/status`, {
-        method: "PUT",
-        body: JSON.stringify({ status, notes }),
-      });
+      const response = await apiRequest("PUT", `/api/orders/${orderId}/status`, { status, notes });
       return response.json();
     },
     onSuccess: (data) => {

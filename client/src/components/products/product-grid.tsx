@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Eye, Package, Edit, Trash2 } from "lucide-react";
+import { ShoppingCart, Eye, Package, Edit, Trash2, CheckCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -158,19 +158,16 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
   // Add to cart mutation
   const addToCartMutation = useMutation({
     mutationFn: async (product: any) => {
-      return apiRequest(`/api/cart/add`, {
-        method: "POST",
-        body: JSON.stringify({
-          productId: product.id,
-          quantity: 1
-        }),
+      return apiRequest("POST", `/api/cart/add`, {
+        productId: product.id,
+        quantity: 1
       });
     },
-    onSuccess: () => {
+    onSuccess: (data, product) => {
       queryClient.invalidateQueries({ queryKey: ["api", "cart"] });
       toast({
-        title: "Added to Cart",
-        description: "Product has been added to your cart successfully.",
+        title: "Added to Cart! 🛒",
+        description: `${product.name} has been added to your cart successfully.`,
       });
     },
     onError: (error: any) => {
@@ -191,13 +188,30 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
       case 'retailer':
         return (
           <Button 
-            className="w-full" 
+            className="w-full relative overflow-hidden group" 
             onClick={() => handleAddToCart(product)}
             disabled={addToCartMutation.isPending}
             data-testid={`button-add-to-cart-${product.id}`}
           >
-            <ShoppingCart className="h-4 w-4 mr-2" />
-            {addToCartMutation.isPending ? "Adding..." : "Add to Cart"}
+            <div className="flex items-center justify-center">
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              {addToCartMutation.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Adding...
+                </>
+              ) : (
+                "Add to Cart"
+              )}
+            </div>
+            
+            {/* Success animation overlay */}
+            {addToCartMutation.isSuccess && (
+              <div className="absolute inset-0 bg-green-500 flex items-center justify-center text-white font-medium">
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Added!
+              </div>
+            )}
           </Button>
         );
       case 'distributor':
