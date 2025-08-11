@@ -51,7 +51,7 @@ TEST_ACCOUNTS = [
 def wait_for_server():
     """Wait for the server to be ready"""
     print("⏳ Waiting for server to be ready...")
-    max_attempts = 30
+    max_attempts = 60  # Increased to 60 attempts = 120 seconds (2 minutes)
     for attempt in range(max_attempts):
         try:
             response = requests.get(f"{API_BASE_URL}/api/health", timeout=5)
@@ -60,7 +60,12 @@ def wait_for_server():
                 return True
         except:
             pass
-        print(f"⏳ Attempt {attempt + 1}/{max_attempts} - Server not ready yet...")
+        
+        if attempt < 10:  # Show progress for first 10 attempts
+            print(f"⏳ Attempt {attempt + 1}/{max_attempts} - Server not ready yet...")
+        elif attempt % 10 == 0:  # Show progress every 10 attempts
+            print(f"⏳ Attempt {attempt + 1}/{max_attempts} - Still waiting...")
+        
         time.sleep(2)
     
     print("❌ Server not ready after maximum attempts")

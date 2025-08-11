@@ -1,5 +1,6 @@
 import os
 from datetime import timedelta
+from urllib.parse import quote_plus
 
 class Config:
     """Base configuration class"""
@@ -16,9 +17,9 @@ class Config:
     MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '123@Hrushi')
     MYSQL_DATABASE = os.environ.get('MYSQL_DATABASE', 'wa')
     
-    # MySQL connection string with Django settings
+    # MySQL connection string with Django settings (URL encode password to handle special characters)
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
+        f'mysql+pymysql://{MYSQL_USER}:{quote_plus(MYSQL_PASSWORD)}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
     
     # MySQL specific options (equivalent to Django's OPTIONS)
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -60,12 +61,12 @@ class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f'mysql+pymysql://{Config.MYSQL_USER}:{Config.MYSQL_PASSWORD}@{Config.MYSQL_HOST}:{Config.MYSQL_PORT}/{Config.MYSQL_DATABASE}?charset=utf8mb4'
+        f'mysql+pymysql://{Config.MYSQL_USER}:{quote_plus(Config.MYSQL_PASSWORD)}@{Config.MYSQL_HOST}:{Config.MYSQL_PORT}/{Config.MYSQL_DATABASE}?charset=utf8mb4'
 
 class TestingConfig(Config):
     """Testing configuration"""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://admin:123@Hrushi@3.249.132.231:3306/wa_test?charset=utf8mb4'
+    SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://admin:{quote_plus("123@Hrushi")}@3.249.132.231:3306/wa_test?charset=utf8mb4'
     WTF_CSRF_ENABLED = False
 
 class ProductionConfig(Config):
