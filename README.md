@@ -7,16 +7,16 @@ A comprehensive B2B platform for retailers, distributors, and manufacturers to s
 ### Prerequisites
 - Python 3.8+
 - Node.js 16+
-- PostgreSQL
+- MySQL (External server at 3.249.132.231)
 - npm or yarn
 
 ### Database Setup
-1. Install PostgreSQL
-2. Create a database user:
-```sql
-CREATE USER auromart WITH PASSWORD 'auromart123';
-CREATE DATABASE auromart OWNER auromart;
-```
+The application is configured to use an external MySQL server at `3.249.132.231` with the following credentials:
+- **Host**: 3.249.132.231
+- **Port**: 3306
+- **Database**: wa
+- **Username**: admin
+- **Password**: 123@Hrushi
 
 ### Backend Setup
 ```bash
@@ -125,9 +125,23 @@ auroconnect-B2B-app/
 
 ### Environment Variables
 - `VITE_API_URL` - Frontend API URL (default: http://localhost:5000)
-- `DATABASE_URL` - Backend database URL
+- `DATABASE_URL` - Backend database URL (default: mysql+pymysql://admin:123@Hrushi@3.249.132.231:3306/wa)
 - `SECRET_KEY` - Flask secret key
 - `JWT_SECRET_KEY` - JWT secret key
+
+### MySQL Configuration
+The application is configured to use an external MySQL server with the following settings:
+```python
+# Database configuration
+MYSQL_HOST = '3.249.132.231'
+MYSQL_PORT = '3306'
+MYSQL_USER = 'admin'
+MYSQL_PASSWORD = '123@Hrushi'
+MYSQL_DATABASE = 'wa'
+
+# Connection string
+DATABASE_URL = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
+```
 
 ### Database Reset
 
@@ -146,63 +160,42 @@ docker-compose up -d --build  # Rebuild and start
 ## 🐛 Troubleshooting
 
 ### Common Issues
-1. **Database Connection**: Ensure PostgreSQL is running and credentials are correct
+1. **Database Connection**: Ensure MySQL server at 3.249.132.231 is accessible and credentials are correct
 2. **Port Conflicts**: Check if ports 3000 (frontend) and 5000 (backend) are available
 3. **CORS Issues**: Backend CORS is configured for development (*)
-4. **API Errors**: Check browser console and server logs for detailed error messages
+4. **MySQL Connection**: Verify MySQL server is running and accessible from your network
 
-### Logs
-- Backend logs: Check server console output
-- Frontend logs: Check browser developer tools console
-- Network errors: Check browser Network tab
+### MySQL Connection Issues
+If you encounter MySQL connection issues:
+1. Verify the MySQL server is running at 3.249.132.231:3306
+2. Check that the credentials (admin/123@Hrushi) are correct
+3. Ensure your network allows connections to the MySQL port
+4. Verify the database 'wa' exists or can be created
 
-## 📝 Recent Fixes
+## 🔄 Migration from PostgreSQL to MySQL
 
-### Authentication Issues Fixed
-- Fixed API URL mismatch (5001 → 5000)
-- Enhanced error handling in registration/login
-- Fixed database schema issues
-- Improved CORS configuration
-- Added comprehensive logging
-- Fixed UUID handling in User model
+This project has been successfully migrated from PostgreSQL to MySQL with the following changes:
 
-### UI/UX Improvements
-- Better error messages for users
-- Improved form validation
-- Enhanced network error handling
-- Fixed callback patterns in auth hooks
+### Backend Changes
+- ✅ Updated `requirements.txt` to use PyMySQL instead of psycopg2
+- ✅ Modified database configuration to use MySQL connection strings
+- ✅ Updated database models to be MySQL compatible
+- ✅ Changed database initialization scripts for MySQL
+- ✅ Updated Docker configurations to use MySQL
 
-## 🚀 Deployment
+### Frontend Changes
+- ✅ Updated package.json to use mysql2 instead of PostgreSQL dependencies
+- ✅ Modified shared schema to use MySQL-compatible Drizzle ORM
+- ✅ Updated drizzle.config.ts for MySQL dialect
 
-### Docker Deployment (Recommended)
-```bash
-# Production build
-docker-compose -f docker-compose.prod.yml up -d --build
+### Database Schema Changes
+- ✅ Converted PostgreSQL-specific SQL to MySQL syntax
+- ✅ Updated UUID generation to use MySQL's UUID() function
+- ✅ Modified foreign key constraints for MySQL compatibility
+- ✅ Updated timestamp fields to use MySQL's ON UPDATE CURRENT_TIMESTAMP
 
-# Or use the provided script
-python start_docker.py
-```
-
-### Manual Deployment
-
-#### Backend Deployment
-```bash
-cd server
-pip install -r requirements.txt
-gunicorn -w 4 -b 0.0.0.0:5000 run:app
-```
-
-#### Frontend Deployment
-```bash
-cd client
-npm run build
-# Serve dist/ directory
-```
-
-## 📞 Support
-
-For issues or questions:
-1. Check the troubleshooting section
-2. Review server logs for backend issues
-3. Check browser console for frontend issues
-4. Test API endpoints directly with curl/Postman 
+### Configuration Updates
+- ✅ Environment variables now point to external MySQL server
+- ✅ Database credentials updated to match Django settings
+- ✅ Connection strings include MySQL-specific options
+- ✅ Added MySQL-specific engine options for better compatibility 

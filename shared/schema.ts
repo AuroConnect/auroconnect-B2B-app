@@ -1,128 +1,128 @@
 import { sql, relations } from "drizzle-orm";
 import {
   index,
-  jsonb,
-  pgTable,
+  json,
+  mysqlTable,
   timestamp,
   varchar,
   text,
-  integer,
+  int,
   decimal,
   boolean,
-  pgEnum,
-  uuid,
-} from "drizzle-orm/pg-core";
+  mysqlEnum,
+  char,
+} from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Session storage table for Replit Auth
-export const sessions = pgTable(
+export const sessions = mysqlTable(
   "sessions",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
+    sid: varchar("sid", { length: 255 }).primaryKey(),
+    sess: json("sess").notNull(),
     expire: timestamp("expire").notNull(),
   },
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
 // Enums
-export const userRoleEnum = pgEnum("user_role", ["retailer", "distributor", "manufacturer", "admin"]);
-export const orderStatusEnum = pgEnum("order_status", ["pending", "confirmed", "packed", "out_for_delivery", "delivered", "cancelled"]);
-export const deliveryModeEnum = pgEnum("delivery_mode", ["pickup", "delivery"]);
+export const userRoleEnum = mysqlEnum("user_role", ["retailer", "distributor", "manufacturer", "admin"]);
+export const orderStatusEnum = mysqlEnum("order_status", ["pending", "confirmed", "packed", "out_for_delivery", "delivered", "cancelled"]);
+export const deliveryModeEnum = mysqlEnum("delivery_mode", ["pickup", "delivery"]);
 
 // User table
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
+export const users = mysqlTable("users", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  email: varchar("email", { length: 255 }).unique(),
+  firstName: varchar("first_name", { length: 255 }),
+  lastName: varchar("last_name", { length: 255 }),
+  profileImageUrl: varchar("profile_image_url", { length: 500 }),
   role: userRoleEnum("role").notNull().default("retailer"),
   businessName: text("business_name"),
   address: text("address"),
-  phoneNumber: varchar("phone_number"),
-  whatsappNumber: varchar("whatsapp_number"),
+  phoneNumber: varchar("phone_number", { length: 50 }),
+  whatsappNumber: varchar("whatsapp_number", { length: 50 }),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
 // Categories table
-export const categories = pgTable("categories", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
+export const categories = mysqlTable("categories", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Products table
-export const products = pgTable("products", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
+export const products = mysqlTable("products", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  sku: varchar("sku").notNull().unique(),
-  categoryId: uuid("category_id").references(() => categories.id),
-  manufacturerId: uuid("manufacturer_id").references(() => users.id),
+  sku: varchar("sku", { length: 255 }).notNull().unique(),
+  categoryId: char("category_id", { length: 36 }).references(() => categories.id),
+  manufacturerId: char("manufacturer_id", { length: 36 }).references(() => users.id),
   imageUrl: text("image_url"),
   basePrice: decimal("base_price", { precision: 10, scale: 2 }),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
 // Distributor inventory
-export const inventory = pgTable("inventory", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  distributorId: uuid("distributor_id").references(() => users.id),
-  productId: uuid("product_id").references(() => products.id),
-  quantity: integer("quantity").notNull().default(0),
+export const inventory = mysqlTable("inventory", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  distributorId: char("distributor_id", { length: 36 }).references(() => users.id),
+  productId: char("product_id", { length: 36 }).references(() => products.id),
+  quantity: int("quantity").notNull().default(0),
   sellingPrice: decimal("selling_price", { precision: 10, scale: 2 }),
   isAvailable: boolean("is_available").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
 // Orders table
-export const orders = pgTable("orders", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderNumber: varchar("order_number").notNull().unique(),
-  retailerId: uuid("retailer_id").references(() => users.id),
-  distributorId: uuid("distributor_id").references(() => users.id),
+export const orders = mysqlTable("orders", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  orderNumber: varchar("order_number", { length: 255 }).notNull().unique(),
+  retailerId: char("retailer_id", { length: 36 }).references(() => users.id),
+  distributorId: char("distributor_id", { length: 36 }).references(() => users.id),
   status: orderStatusEnum("status").default("pending"),
   deliveryMode: deliveryModeEnum("delivery_mode").default("delivery"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
 // Order items table
-export const orderItems = pgTable("order_items", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderId: uuid("order_id").references(() => orders.id),
-  productId: uuid("product_id").references(() => products.id),
-  quantity: integer("quantity").notNull(),
+export const orderItems = mysqlTable("order_items", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  orderId: char("order_id", { length: 36 }).references(() => orders.id),
+  productId: char("product_id", { length: 36 }).references(() => products.id),
+  quantity: int("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }),
 });
 
 // Invoices table
-export const invoices = pgTable("invoices", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  invoiceNumber: varchar("invoice_number").notNull().unique(),
-  orderId: uuid("order_id").references(() => orders.id),
+export const invoices = mysqlTable("invoices", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  invoiceNumber: varchar("invoice_number", { length: 255 }).notNull().unique(),
+  orderId: char("order_id", { length: 36 }).references(() => orders.id),
   pdfUrl: text("pdf_url"),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // WhatsApp notifications table
-export const whatsappNotifications = pgTable("whatsapp_notifications", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id),
+export const whatsappNotifications = mysqlTable("whatsapp_notifications", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  userId: char("user_id", { length: 36 }).references(() => users.id),
   message: text("message").notNull(),
-  type: varchar("type").notNull(), // order_update, invoice_sent, etc.
+  type: varchar("type", { length: 50 }).notNull(), // order_update, invoice_sent, etc.
   sentAt: timestamp("sent_at"),
   isDelivered: boolean("is_delivered").default(false),
   createdAt: timestamp("created_at").defaultNow(),
@@ -240,32 +240,32 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
 });
 
 // Business partnerships/connections table
-export const partnerships = pgTable("partnerships", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  requesterId: uuid("requester_id").notNull().references(() => users.id),
-  partnerId: uuid("partner_id").notNull().references(() => users.id),
-  status: varchar("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
-  partnershipType: varchar("partnership_type", { enum: ["supplier", "distributor", "retailer"] }).notNull(),
+export const partnerships = mysqlTable("partnerships", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  requesterId: char("requester_id", { length: 36 }).notNull().references(() => users.id),
+  partnerId: char("partner_id", { length: 36 }).notNull().references(() => users.id),
+  status: varchar("status", { length: 50, enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  partnershipType: varchar("partnership_type", { length: 50, enum: ["supplier", "distributor", "retailer"] }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
 });
 
 // Favorites table for users to save their preferred partners
-export const favorites = pgTable("favorites", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull().references(() => users.id),
-  favoriteUserId: uuid("favorite_user_id").notNull().references(() => users.id),
-  favoriteType: varchar("favorite_type", { enum: ["manufacturer", "distributor", "retailer"] }).notNull(),
+export const favorites = mysqlTable("favorites", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  userId: char("user_id", { length: 36 }).notNull().references(() => users.id),
+  favoriteUserId: char("favorite_user_id", { length: 36 }).notNull().references(() => users.id),
+  favoriteType: varchar("favorite_type", { length: 50, enum: ["manufacturer", "distributor", "retailer"] }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Product search history for better recommendations
-export const searchHistory = pgTable("search_history", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").notNull().references(() => users.id),
-  searchTerm: varchar("search_term").notNull(),
-  searchType: varchar("search_type", { enum: ["product", "manufacturer", "distributor"] }).notNull(),
-  resultCount: integer("result_count").notNull(),
+export const searchHistory = mysqlTable("search_history", {
+  id: char("id", { length: 36 }).primaryKey().default(sql`(UUID())`),
+  userId: char("user_id", { length: 36 }).notNull().references(() => users.id),
+  searchTerm: varchar("search_term", { length: 255 }).notNull(),
+  searchType: varchar("search_type", { length: 50, enum: ["product", "manufacturer", "distributor"] }).notNull(),
+  resultCount: int("result_count").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

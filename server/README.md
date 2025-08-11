@@ -1,64 +1,80 @@
-# AuroMart Flask Backend
+# AuroMart Backend API
 
-A production-ready, modular Flask backend for the AuroMart B2B marketplace platform.
+Flask-based REST API for the AuroMart B2B platform.
 
-## Architecture
+## 🚀 Quick Start
 
-```
-server/
-├── app/
-│   ├── __init__.py          # Application factory
-│   ├── config.py            # Configuration management
-│   ├── models/              # Database models
-│   │   ├── __init__.py
-│   │   ├── user.py
-│   │   ├── product.py
-│   │   ├── category.py
-│   │   ├── inventory.py
-│   │   ├── order.py
-│   │   ├── partnership.py
-│   │   ├── favorite.py
-│   │   └── search_history.py
-│   ├── api/
-│   │   └── v1/             # API version 1
-│   │       ├── __init__.py
-│   │       ├── auth.py
-│   │       ├── partners.py
-│   │       ├── products.py
-│   │       ├── orders.py
-│   │       ├── favorites.py
-│   │       ├── partnerships.py
-│   │       ├── search.py
-│   │       └── health.py
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   ├── decorators.py
-│   │   └── validators.py
-│   ├── errors.py            # Error handlers
-│   └── cli.py              # CLI commands
-├── run.py                   # Development server
-├── wsgi.py                  # Production WSGI
-├── requirements.txt
-├── Dockerfile
-└── README.md
+### Prerequisites
+- Python 3.8+
+- MySQL (External server at 3.249.132.231)
+- Redis (optional, for caching)
+
+### Database Setup
+The application is configured to use an external MySQL server at `3.249.132.231` with the following credentials:
+- **Host**: 3.249.132.231
+- **Port**: 3306
+- **Database**: wa
+- **Username**: admin
+- **Password**: 123@Hrushi
+
+### Installation
+```bash
+pip install -r requirements.txt
 ```
 
-## Features
+### Environment Variables
+Create a `.env` file in the server directory:
+```bash
+# Database Configuration (MySQL)
+MYSQL_HOST=3.249.132.231
+MYSQL_PORT=3306
+MYSQL_USER=admin
+MYSQL_PASSWORD=123@Hrushi
+MYSQL_DATABASE=wa
 
-### 🔐 **Authentication & Authorization**
-- JWT-based authentication
-- Role-based access control
-- Password hashing with Werkzeug
-- Token refresh mechanism
+# Flask Configuration
+FLASK_ENV=development
+SECRET_KEY=your-secret-key-here
+JWT_SECRET_KEY=your-jwt-secret-key-here
 
-### 📊 **Database Models**
-- **User**: Multi-role support (retailer, distributor, manufacturer)
-- **Product**: Product catalog with categories
+# Redis Configuration
+REDIS_URL=redis://localhost:6379
+
+# CORS Configuration
+CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:80
+```
+
+### Database Initialization
+```bash
+# Reset database to clean state
+python reset_db.py
+
+# Or use Flask CLI
+flask init-db
+flask seed-db
+```
+
+### Running the Server
+```bash
+python run.py
+```
+
+The server will start on http://localhost:5000
+
+## 📊 Database Models
+
+### Core Models
+- **User**: Multi-role users (retailer, distributor, manufacturer, admin)
+- **Category**: Product categories
+- **Product**: Products with manufacturer association
 - **Inventory**: Distributor inventory management
-- **Order**: Order processing with items
-- **Partnership**: Business partnership management
+- **Order**: Order management with status tracking
+- **OrderItem**: Individual items in orders
+- **Partnership**: Business partnerships between users
 - **Favorite**: User favorite partners
 - **SearchHistory**: Search tracking
+- **Invoice**: Invoice management
+- **WhatsAppNotification**: WhatsApp integration
 
 ### 🚀 **API Endpoints**
 
@@ -111,7 +127,7 @@ server/
 ### Environment Variables
 ```env
 # Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/auromart
+DATABASE_URL=mysql+pymysql://admin:123@Hrushi@3.249.132.231:3306/wa?charset=utf8mb4
 
 # Security
 SECRET_KEY=your-secret-key
@@ -143,7 +159,7 @@ pip install -r requirements.txt
 ### 2. Set Environment Variables
 ```bash
 export FLASK_ENV=development
-export DATABASE_URL=postgresql://auromart:auromart123@localhost:5432/auromart
+export DATABASE_URL=mysql+pymysql://admin:123@Hrushi@3.249.132.231:3306/wa?charset=utf8mb4
 export SECRET_KEY=your-secret-key
 ```
 
@@ -169,7 +185,7 @@ docker build -t auromart-backend .
 docker run -d \
   --name auromart-backend \
   -p 5000:5000 \
-  -e DATABASE_URL=postgresql://user:pass@host:5432/auromart \
+  -e DATABASE_URL=mysql+pymysql://admin:123@Hrushi@3.249.132.231:3306/wa \
   -e SECRET_KEY=your-secret-key \
   auromart-backend
 ```
@@ -228,95 +244,25 @@ Standard HTTP status codes:
 - `401` - Unauthorized
 - `403` - Forbidden
 - `404` - Not Found
-- `409` - Conflict
-- `500` - Internal Server Error
 
-## Security Features
+## 🔄 MySQL Migration
 
-### Input Validation
-- Marshmallow schemas for request validation
-- SQL injection prevention with SQLAlchemy
-- XSS protection with proper escaping
+This backend has been successfully migrated from PostgreSQL to MySQL with the following changes:
 
-### Authentication
-- JWT tokens with configurable expiration
-- Password hashing with bcrypt
-- Role-based access control
+### Database Changes
+- ✅ Updated connection strings to use MySQL format
+- ✅ Modified database models for MySQL compatibility
+- ✅ Updated initialization scripts for MySQL
+- ✅ Changed UUID generation to use MySQL's UUID() function
+- ✅ Updated timestamp fields with MySQL-specific options
 
-### CORS
-- Configurable CORS origins
-- Preflight request handling
-- Secure headers
+### Configuration Updates
+- ✅ Environment variables point to external MySQL server
+- ✅ Added MySQL-specific engine options
+- ✅ Updated connection parameters for better MySQL compatibility
+- ✅ Added charset and sql_mode configurations
 
-## Monitoring & Health Checks
-
-### Health Check Endpoint
-```bash
-curl http://localhost:5000/api/health
-```
-
-### Docker Health Check
-The Docker container includes a health check that verifies:
-- Application is running
-- Database connection is active
-- API endpoints are responding
-
-## Testing
-
-### Unit Tests
-```bash
-# Run tests
-python -m pytest tests/
-
-# Run with coverage
-python -m pytest --cov=app tests/
-```
-
-### API Tests
-```bash
-# Test API endpoints
-python -m pytest tests/test_api/
-```
-
-## Logging
-
-### Configuration
-Logging is configured based on environment:
-- **Development**: Debug level, console output
-- **Production**: Warning level, structured logging
-
-### Log Levels
-- `DEBUG`: Detailed information
-- `INFO`: General information
-- `WARNING`: Warning messages
-- `ERROR`: Error messages
-- `CRITICAL`: Critical errors
-
-## Performance
-
-### Database Optimization
-- Proper indexing on frequently queried fields
-- Connection pooling with SQLAlchemy
-- Query optimization with eager loading
-
-### Caching
-- Redis integration for session storage
-- Query result caching
-- Rate limiting with Redis
-
-### Scalability
-- Stateless application design
-- Horizontal scaling support
-- Load balancer ready
-
-## Contributing
-
-1. Follow PEP 8 style guidelines
-2. Add tests for new features
-3. Update documentation
-4. Use conventional commit messages
-5. Submit pull requests
-
-## License
-
-This project is licensed under the MIT License. 
+### Dependencies
+- ✅ Replaced psycopg2-binary with PyMySQL
+- ✅ Updated requirements.txt for MySQL support
+- ✅ Added MySQL-specific connection options 

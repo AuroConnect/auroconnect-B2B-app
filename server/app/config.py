@@ -9,9 +9,24 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     
-    # Database
+    # Database - Use external MySQL server with Django settings
+    MYSQL_HOST = os.environ.get('MYSQL_HOST', '3.249.132.231')
+    MYSQL_PORT = os.environ.get('MYSQL_PORT', '3306')
+    MYSQL_USER = os.environ.get('MYSQL_USER', 'admin')
+    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '123@Hrushi')
+    MYSQL_DATABASE = os.environ.get('MYSQL_DATABASE', 'wa')
+    
+    # MySQL connection string with Django settings
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///auromart.db'
+        f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
+    
+    # MySQL specific options (equivalent to Django's OPTIONS)
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'connect_args': {
+            'charset': 'utf8mb4',
+            'sql_mode': 'STRICT_TRANS_TABLES'
+        }
+    }
     
     # Redis
     REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379'
@@ -44,53 +59,24 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
-    SQLALCHEMY_ECHO = True
-    LOG_LEVEL = 'DEBUG'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        f'mysql+pymysql://{Config.MYSQL_USER}:{Config.MYSQL_PASSWORD}@{Config.MYSQL_HOST}:{Config.MYSQL_PORT}/{Config.MYSQL_DATABASE}?charset=utf8mb4'
 
 class TestingConfig(Config):
     """Testing configuration"""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'postgresql://auromart:auromart123@localhost:5432/auromart_test'
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://admin:123@Hrushi@3.249.132.231:3306/wa_test?charset=utf8mb4'
     WTF_CSRF_ENABLED = False
 
 class ProductionConfig(Config):
     """Production configuration"""
     DEBUG = False
-    SQLALCHEMY_ECHO = False
-    
-    # Security settings for production
-    SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
-    
-    # Logging
-    LOG_LEVEL = 'WARNING'
-    
-    @classmethod
-    def init_app(cls, app):
-        Config.init_app(app)
-        
-        # Log to stderr in production
-        import logging
-        from logging import StreamHandler
-        file_handler = StreamHandler()
-        file_handler.setLevel(logging.INFO)
-        app.logger.addHandler(file_handler)
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
 
-class DockerConfig(ProductionConfig):
+class DockerConfig(Config):
     """Docker configuration"""
-    @classmethod
-    def init_app(cls, app):
-        ProductionConfig.init_app(app)
-        
-        # Docker-specific settings
-        import logging
-        log = logging.getLogger()
-        log.setLevel(logging.INFO)
-        if not app.debug:
-            file_handler = logging.StreamHandler()
-            file_handler.setLevel(logging.INFO)
-            app.logger.addHandler(file_handler)
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'mysql+pymysql://auromart:auromart123@mysql:3306/auromart'
 
 config = {
     'development': DevelopmentConfig,

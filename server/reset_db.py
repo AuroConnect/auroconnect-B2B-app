@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
 """
-Database reset script for AuroMart
+Database reset script for AuroMart (MySQL)
 """
 
 import os
 import sys
-import psycopg2
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+import pymysql
+from pymysql.constants import CLIENT
 
 def reset_database():
     """Reset the database to a clean state"""
     
-    # Database configuration
-    DB_NAME = "auromart"
-    DB_USER = "auromart"
-    DB_PASSWORD = "auromart123"
-    DB_HOST = "localhost"
-    DB_PORT = "5432"
+    # Database configuration - Use external MySQL server with Django settings
+    DB_NAME = os.environ.get('MYSQL_DATABASE', 'wa')
+    DB_USER = os.environ.get('MYSQL_USER', 'admin')
+    DB_PASSWORD = os.environ.get('MYSQL_PASSWORD', '123@Hrushi')
+    DB_HOST = os.environ.get('MYSQL_HOST', '3.249.132.231')
+    DB_PORT = int(os.environ.get('MYSQL_PORT', '3306'))
     
     try:
-        # Connect to PostgreSQL server
-        conn = psycopg2.connect(
+        # Connect to MySQL server
+        conn = pymysql.connect(
             host=DB_HOST,
             port=DB_PORT,
             user=DB_USER,
             password=DB_PASSWORD,
-            database="postgres"  # Connect to default database first
+            charset='utf8mb4',
+            client_flag=CLIENT.MULTI_STATEMENTS
         )
-        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
         cursor = conn.cursor()
         
         # Drop database if it exists
@@ -36,18 +36,20 @@ def reset_database():
         
         # Create new database
         print("📦 Creating new database...")
-        cursor.execute(f"CREATE DATABASE {DB_NAME}")
+        cursor.execute(f"CREATE DATABASE {DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
         
         cursor.close()
         conn.close()
         
         # Connect to the new database and run init script
-        conn = psycopg2.connect(
+        conn = pymysql.connect(
             host=DB_HOST,
             port=DB_PORT,
             user=DB_USER,
             password=DB_PASSWORD,
-            database=DB_NAME
+            database=DB_NAME,
+            charset='utf8mb4',
+            client_flag=CLIENT.MULTI_STATEMENTS
         )
         cursor = conn.cursor()
         
@@ -58,7 +60,17 @@ def reset_database():
         with open(init_sql_path, 'r') as f:
             init_sql = f.read()
         
-        cursor.execute(init_sql)
+        # Split the SQL into individual statements and execute them
+        statements = init_sql.split(';')
+        for statement in statements:
+            statement = statement.strip()
+            if statement and not statement.startswith('--'):
+                try:
+                    cursor.execute(statement)
+                except Exception as e:
+                    print(f"Warning: Could not execute statement: {e}")
+                    continue
+        
         conn.commit()
         
         cursor.close()
@@ -72,11 +84,4 @@ def reset_database():
         return False
 
 if __name__ == "__main__":
-    print("🔄 Resetting AuroMart database...")
-    success = reset_database()
-    
-    if success:
-        print("🎉 Database is ready for testing!")
-    else:
-        print("💥 Database reset failed!")
-        sys.exit(1)
+    reset_database()

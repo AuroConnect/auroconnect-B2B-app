@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Initialize PostgreSQL database for AuroMart in Docker
+Initialize MySQL database for AuroMart in Docker
 """
 
 import os
@@ -39,80 +39,25 @@ def wait_for_database():
     return False
 
 def init_database():
-    """Initialize the database with tables and sample data"""
-    
-    print("🔧 Initializing AuroMart database in Docker...")
-    
-    # Wait for database to be ready
-    if not wait_for_database():
-        return False
-    
+    """Initialize the database"""
     try:
-        # Create Flask app
         app = create_app()
         
         with app.app_context():
             # Create all tables
-            print("📦 Creating database tables...")
+            print("🔧 Creating database tables...")
             db.create_all()
             
-            # Check if we already have users
-            existing_users = User.query.count()
-            if existing_users > 0:
-                print(f"✅ Database already has {existing_users} users")
-                return True
+            # Check if we need to seed the database
+            user_count = User.query.count()
+            if user_count == 0:
+                print("🌱 Seeding database with sample data...")
+                from app.cli import seed
+                seed()
+            else:
+                print(f"📊 Database already has {user_count} users, skipping seed")
             
-            # Create sample users
-            print("👥 Creating sample users...")
-            
-            # Sample retailer
-            retailer = User(
-                email="retailer@example.com",
-                first_name="John",
-                last_name="Retailer",
-                role="retailer",
-                business_name="Sample Retail Store",
-                address="123 Main St, City",
-                phone_number="+1234567890"
-            )
-            retailer.set_password("password123")
-            db.session.add(retailer)
-            
-            # Sample distributor
-            distributor = User(
-                email="distributor@example.com",
-                first_name="Jane",
-                last_name="Distributor",
-                role="distributor",
-                business_name="Sample Distribution Co",
-                address="456 Business Ave, City",
-                phone_number="+1234567891"
-            )
-            distributor.set_password("password123")
-            db.session.add(distributor)
-            
-            # Sample manufacturer
-            manufacturer = User(
-                email="manufacturer@example.com",
-                first_name="Bob",
-                last_name="Manufacturer",
-                role="manufacturer",
-                business_name="Sample Manufacturing Co",
-                address="789 Industrial Blvd, City",
-                phone_number="+1234567892"
-            )
-            manufacturer.set_password("password123")
-            db.session.add(manufacturer)
-            
-            # Commit changes
-            db.session.commit()
-            
-            print("✅ Database initialized successfully!")
-            print("📋 Sample users created:")
-            print("  - retailer@example.com (password: password123)")
-            print("  - distributor@example.com (password: password123)")
-            print("  - manufacturer@example.com (password: password123)")
-            
+            print("✅ Database initialization completed!")
             return True
             
     except Exception as e:
@@ -120,10 +65,14 @@ def init_database():
         return False
 
 if __name__ == "__main__":
-    success = init_database()
+    print("🚀 Starting AuroMart MySQL database initialization...")
     
-    if success:
-        print("🎉 Database is ready for testing!")
-    else:
-        print("💥 Database initialization failed!")
+    # Wait for database to be ready
+    if not wait_for_database():
         sys.exit(1)
+    
+    # Initialize database
+    if not init_database():
+        sys.exit(1)
+    
+    print("🎉 AuroMart MySQL database is ready!")
