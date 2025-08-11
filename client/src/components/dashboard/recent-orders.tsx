@@ -1,42 +1,39 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Eye, AlertTriangle } from "lucide-react";
-import { getQueryFn } from "@/lib/queryClient";
-
-interface OrderItem {
-  id: string;
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  product?: {
-    name: string;
-    sku?: string;
-  };
-}
+import { 
+  Package, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle, 
+  Truck, 
+  Check, 
+  X,
+  TrendingUp,
+  Eye,
+  Calendar,
+  DollarSign
+} from "lucide-react";
+import { Link } from "wouter";
 
 interface Order {
   id: string;
   orderNumber: string;
-  retailerId: string;
-  distributorId: string;
   status: string;
-  deliveryMode: string;
   totalAmount: number;
-  notes?: string;
   createdAt: string;
   updatedAt: string;
-  items: OrderItem[];
   retailer?: {
-    firstName: string;
-    lastName: string;
+    id: string;
+    name: string;
     email: string;
   };
   distributor?: {
-    firstName: string;
-    lastName: string;
+    id: string;
+    name: string;
     email: string;
   };
 }
@@ -44,7 +41,7 @@ interface Order {
 export default function RecentOrders() {
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ["api", "orders"],
-    queryFn: getQueryFn({ on401: "throw" }),
+    queryFn: apiRequest({ url: "/orders", on401: "throw" }),
     retry: 1,
     refetchOnWindowFocus: false,
   });
@@ -54,20 +51,40 @@ export default function RecentOrders() {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'confirmed':
-      case 'accepted':
         return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'accepted':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'processing':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'packed':
         return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'dispatched':
+      case 'shipped':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'out_for_delivery':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
+        return 'bg-pink-100 text-pink-800 border-pink-200';
       case 'delivered':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'cancelled':
       case 'rejected':
         return 'bg-red-100 text-red-800 border-red-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending': return <Clock className="h-4 w-4" />;
+      case 'confirmed': return <CheckCircle className="h-4 w-4" />;
+      case 'accepted': return <CheckCircle className="h-4 w-4" />;
+      case 'processing': return <AlertCircle className="h-4 w-4" />;
+      case 'packed': return <Package className="h-4 w-4" />;
+      case 'shipped': return <Truck className="h-4 w-4" />;
+      case 'out_for_delivery': return <Truck className="h-4 w-4" />;
+      case 'delivered': return <Check className="h-4 w-4" />;
+      case 'cancelled': return <X className="h-4 w-4" />;
+      case 'rejected': return <XCircle className="h-4 w-4" />;
+      default: return <Package className="h-4 w-4" />;
     }
   };
 
@@ -100,35 +117,42 @@ export default function RecentOrders() {
     }
   };
 
-  const getCustomerName = (order: Order) => {
-    if (order.retailer) {
-      return `${order.retailer.firstName} ${order.retailer.lastName}`;
-    }
-    if (order.distributor) {
-      return `${order.distributor.firstName} ${order.distributor.lastName}`;
-    }
-    return 'Customer';
+  const getStatusPriority = (status: string) => {
+    const priorities = {
+      'pending': 1,
+      'confirmed': 2,
+      'accepted': 3,
+      'processing': 4,
+      'packed': 5,
+      'shipped': 6,
+      'out_for_delivery': 7,
+      'delivered': 8,
+      'cancelled': 9,
+      'rejected': 10
+    };
+    return priorities[status.toLowerCase()] || 0;
   };
+
+  // Sort orders by status priority and then by creation date
+  const sortedOrders = orders ? [...orders].sort((a, b) => {
+    const statusDiff = getStatusPriority(a.status) - getStatusPriority(b.status);
+    if (statusDiff !== 0) return statusDiff;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  }).slice(0, 5) : [];
 
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Recent Orders</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Recent Orders
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="animate-pulse">
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="space-y-2 flex-1">
-                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                  <div className="h-6 bg-gray-200 rounded w-16"></div>
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-4">
+            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            <p className="text-sm text-gray-600">Loading orders...</p>
           </div>
         </CardContent>
       </Card>
@@ -139,79 +163,85 @@ export default function RecentOrders() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Clock className="h-5 w-5 text-primary mr-2" />
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
             Recent Orders
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-orange-400" />
-            <p className="text-gray-600 mb-2">Failed to load recent orders</p>
-            <p className="text-sm text-gray-500">
-              {error instanceof Error ? error.message : 'An unexpected error occurred'}
-            </p>
+          <div className="text-center py-4">
+            <p className="text-sm text-red-600">Failed to load orders</p>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  const recentOrders = Array.isArray(orders) ? (orders as Order[]).slice(0, 5) : [];
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Clock className="h-5 w-5 text-primary mr-2" />
-          Recent Orders
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Recent Orders
+          </CardTitle>
+          <Link href="/orders">
+            <Button variant="outline" size="sm">
+              View All
+            </Button>
+          </Link>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {recentOrders.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>No recent orders found</p>
-            </div>
-          ) : (
-            recentOrders.slice(0, 4).map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors" data-testid={`order-${order.id}`}>
+        {sortedOrders.length === 0 ? (
+          <div className="text-center py-6">
+            <Package className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-600">No orders yet</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {sortedOrders.map((order) => (
+              <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-900" data-testid={`order-id-${order.id}`}>
-                      {order.orderNumber}
-                    </h4>
-                    <Badge className={`${getStatusColor(order.status)} border`} data-testid={`order-status-${order.id}`}>
-                      {formatStatusDisplay(order.status)}
+                  <div className="flex items-center gap-3 mb-2">
+                    <h4 className="font-medium text-sm">{order.orderNumber}</h4>
+                    <Badge className={`${getStatusColor(order.status)} text-xs`}>
+                      <div className="flex items-center gap-1">
+                        {getStatusIcon(order.status)}
+                        {formatStatusDisplay(order.status)}
+                      </div>
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-600 mb-1" data-testid={`order-customer-${order.id}`}>
-                    {getCustomerName(order)}
-                  </p>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{order.items?.length || 0} items</span>
-                    <span className="font-medium">{formatCurrency(order.totalAmount || 0)}</span>
-                    <span>{formatDate(order.createdAt)}</span>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" />
+                      <span>{formatCurrency(order.totalAmount)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      <span>{formatDate(order.createdAt)}</span>
+                    </div>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="ml-4" data-testid={`button-view-order-${order.id}`}>
-                  <Eye className="h-4 w-4" />
-                </Button>
+                
+                <Link href={`/orders`}>
+                  <Button variant="ghost" size="sm">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </Link>
               </div>
-            ))
-          )}
-        </div>
-        {recentOrders.length > 4 && (
-          <div className="mt-4 text-center">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              data-testid="button-view-all-orders"
-              onClick={() => window.location.href = '/orders'}
-            >
-              View All Orders
-            </Button>
+            ))}
+          </div>
+        )}
+        
+        {orders && orders.length > 5 && (
+          <div className="mt-4 pt-4 border-t">
+            <Link href="/orders">
+              <Button variant="outline" size="sm" className="w-full">
+                View All {orders.length} Orders
+              </Button>
+            </Link>
           </div>
         )}
       </CardContent>

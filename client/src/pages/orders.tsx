@@ -1,50 +1,69 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import Header from "@/components/layout/header";
 import MobileNav from "@/components/layout/mobile-nav";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Package, Eye, CheckCircle, XCircle, Clock, Truck, Check, X, AlertCircle, TrendingUp, DollarSign, ShoppingCart } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-
-interface OrderItem {
-  id: string;
-  productId: string;
-  productName: string;
-  productSku: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  productImage?: string;
-}
+import { Badge } from "@/components/ui/badge";
+import { 
+  Search, 
+  Filter, 
+  Eye, 
+  Clock, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle, 
+  Truck, 
+  Package, 
+  Check, 
+  X,
+  History,
+  Calendar,
+  DollarSign
+} from "lucide-react";
+import OrderStatus from "@/components/orders/order-status";
 
 interface Order {
   id: string;
   orderNumber: string;
   status: string;
   totalAmount: number;
-  notes?: string;
   createdAt: string;
   updatedAt: string;
+  notes?: string;
   retailer?: {
     id: string;
     name: string;
     email: string;
+    phone: string;
   };
   distributor?: {
     id: string;
     name: string;
     email: string;
+    phone: string;
   };
-  items: OrderItem[];
+  items?: Array<{
+    id: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }>;
+  statusHistory?: Array<{
+    status: string;
+    timestamp: string;
+    notes?: string;
+    updatedBy?: string;
+  }>;
 }
 
 export default function Orders() {
@@ -58,6 +77,7 @@ export default function Orders() {
   const [isStatusUpdateOpen, setIsStatusUpdateOpen] = useState(false);
   const [newStatus, setNewStatus] = useState("");
   const [statusNotes, setStatusNotes] = useState("");
+  const [showStatusHistory, setShowStatusHistory] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -84,16 +104,16 @@ export default function Orders() {
   // Update order status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status, notes }: { orderId: string; status: string; notes?: string }) => {
-      const response = await apiRequest("PUT", `/api/orders/${orderId}/status`, {
-        status,
-        notes
+      const response = await apiRequest(`/api/orders/${orderId}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status, notes }),
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Status Updated",
-        description: "Order status has been updated successfully.",
+        description: `Order status updated to ${data.newStatus} successfully.`,
       });
       queryClient.invalidateQueries({ queryKey: ["api", "orders"] });
       setIsStatusUpdateOpen(false);
@@ -119,12 +139,15 @@ export default function Orders() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending': return <Clock className="h-4 w-4" />;
+      case 'confirmed': return <CheckCircle className="h-4 w-4" />;
       case 'accepted': return <CheckCircle className="h-4 w-4" />;
-      case 'rejected': return <XCircle className="h-4 w-4" />;
       case 'processing': return <AlertCircle className="h-4 w-4" />;
+      case 'packed': return <Package className="h-4 w-4" />;
       case 'shipped': return <Truck className="h-4 w-4" />;
+      case 'out_for_delivery': return <Truck className="h-4 w-4" />;
       case 'delivered': return <Check className="h-4 w-4" />;
       case 'cancelled': return <X className="h-4 w-4" />;
+      case 'rejected': return <XCircle className="h-4 w-4" />;
       default: return <Package className="h-4 w-4" />;
     }
   };
@@ -132,12 +155,15 @@ export default function Orders() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'accepted': return 'bg-blue-100 text-blue-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'confirmed': return 'bg-blue-100 text-blue-800';
+      case 'accepted': return 'bg-green-100 text-green-800';
       case 'processing': return 'bg-orange-100 text-orange-800';
-      case 'shipped': return 'bg-purple-100 text-purple-800';
-      case 'delivered': return 'bg-green-100 text-green-800';
+      case 'packed': return 'bg-purple-100 text-purple-800';
+      case 'shipped': return 'bg-indigo-100 text-indigo-800';
+      case 'out_for_delivery': return 'bg-pink-100 text-pink-800';
+      case 'delivered': return 'bg-emerald-100 text-emerald-800';
       case 'cancelled': return 'bg-gray-100 text-gray-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -166,15 +192,36 @@ export default function Orders() {
 
   const getNextStatusOptions = (currentStatus: string) => {
     const statusFlow = {
-      'pending': ['accepted', 'rejected', 'processing'],
-      'accepted': ['processing', 'shipped'],
-      'processing': ['shipped', 'delivered'],
-      'shipped': ['delivered'],
+      'pending': ['confirmed', 'accepted', 'rejected', 'cancelled'],
+      'confirmed': ['accepted', 'processing', 'rejected', 'cancelled'],
+      'accepted': ['processing', 'packed', 'rejected', 'cancelled'],
+      'processing': ['packed', 'shipped', 'rejected', 'cancelled'],
+      'packed': ['shipped', 'out_for_delivery', 'rejected', 'cancelled'],
+      'shipped': ['out_for_delivery', 'delivered', 'rejected', 'cancelled'],
+      'out_for_delivery': ['delivered', 'rejected', 'cancelled'],
       'delivered': [],
       'rejected': [],
       'cancelled': []
     };
     return statusFlow[currentStatus] || [];
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (!user) {
@@ -192,32 +239,28 @@ export default function Orders() {
     <div className="min-h-screen">
       <Header />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
+      <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-                Order Management
-              </h1>
-              <p className="text-gray-600 mt-1">
-            {user.role === 'manufacturer' ? 'Manage orders for your products' : 
-             user.role === 'distributor' ? 'Manage incoming orders from retailers' :
-             'Track your order history'}
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Orders</h1>
+          <p className="text-gray-600">Manage and track your orders</p>
         </div>
 
-        {/* Search and Filters */}
-        <Card className="mb-8">
-            <CardContent className="pt-6">
+        {/* Search and Filter */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search orders by order number, customer, or product..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search orders by number, retailer, or distributor..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
+              
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="All Statuses" />
@@ -225,97 +268,72 @@ export default function Orders() {
                 <SelectContent className="bg-white border border-gray-200 shadow-lg">
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
                   <SelectItem value="accepted">Accepted</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="packed">Packed</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
                   <SelectItem value="delivered">Delivered</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Orders List */}
         <div className="space-y-4">
-        {ordersLoading ? (
-            <div className="text-center py-12">
-              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          {ordersLoading ? (
+            <div className="text-center py-8">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-gray-600">Loading orders...</p>
-                    </div>
+            </div>
+          ) : ordersError ? (
+            <div className="text-center py-8">
+              <p className="text-red-600">Failed to load orders</p>
+            </div>
           ) : filteredOrders.length === 0 ? (
-            <Card>
-              <CardContent className="py-12">
-                <div className="text-center">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Found</h3>
-                  <p className="text-gray-500">
-                    {searchTerm || statusFilter !== 'all' 
-                      ? "No orders match your current filters." 
-                      : "You don't have any orders yet."}
-                  </p>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No orders found</p>
+            </div>
           ) : (
             filteredOrders.map((order) => (
               <Card key={order.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {order.orderNumber}
-                        </h3>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-semibold text-lg">{order.orderNumber}</h3>
                         <Badge className={getStatusColor(order.status)}>
                           <div className="flex items-center gap-1">
                             {getStatusIcon(order.status)}
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </div>
-                    </Badge>
+                            {order.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </div>
+                        </Badge>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Customer</p>
-                          <p className="text-sm text-gray-900">
-                            {order.retailer?.name || 'Unknown'}
-                          </p>
-                          <p className="text-xs text-gray-500">{order.retailer?.email}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          <span>{formatCurrency(order.totalAmount)}</span>
                         </div>
-                        
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">
-                            {user.role === 'manufacturer' ? 'Distributor' : 'Partner'}
-                          </p>
-                          <p className="text-sm text-gray-900">
-                            {user.role === 'manufacturer' 
-                              ? order.distributor?.name 
-                              : order.distributor?.name || 'Unknown'}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {user.role === 'manufacturer' 
-                              ? order.distributor?.email 
-                              : order.distributor?.email}
-                          </p>
-                            </div>
-                        
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Total Amount</p>
-                          <p className="text-lg font-semibold text-gray-900">
-                            ₹{order.totalAmount.toLocaleString()}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {order.items.length} item{order.items.length !== 1 ? 's' : ''}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>{formatDate(order.createdAt)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <History className="h-4 w-4" />
+                          <span>Updated: {formatDate(order.updatedAt)}</span>
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span>Created: {new Date(order.createdAt).toLocaleDateString()}</span>
+                        <span>Created: {formatDate(order.createdAt)}</span>
                         <span>•</span>
-                        <span>Updated: {new Date(order.updatedAt).toLocaleDateString()}</span>
+                        <span>Updated: {formatDate(order.updatedAt)}</span>
                       </div>
                     </div>
                     
@@ -359,41 +377,72 @@ export default function Orders() {
           <DialogHeader>
             <DialogTitle>Order Details - {selectedOrder?.orderNumber}</DialogTitle>
             <DialogDescription>
-              Detailed information about this order
+              Complete order information and status tracking
             </DialogDescription>
           </DialogHeader>
           
           {selectedOrder && (
             <div className="space-y-6">
-              {/* Order Items */}
-              <div>
-                <h4 className="font-semibold mb-3">Order Items</h4>
-                <div className="space-y-3">
-                  {selectedOrder.items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-4 p-3 border rounded-lg">
-                      {item.productImage && (
-                        <img 
-                          src={item.productImage} 
-                          alt={item.productName}
-                          className="w-16 h-16 object-cover rounded"
-                        />
-                      )}
-                      <div className="flex-1">
-                        <h5 className="font-medium">{item.productName}</h5>
-                        <p className="text-sm text-gray-600">SKU: {item.productSku}</p>
+              {/* Order Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold mb-2">Order Information</h4>
+                  <div className="space-y-2 text-sm">
+                    <div><span className="font-medium">Order Number:</span> {selectedOrder.orderNumber}</div>
+                    <div><span className="font-medium">Total Amount:</span> {formatCurrency(selectedOrder.totalAmount)}</div>
+                    <div><span className="font-medium">Created:</span> {formatDate(selectedOrder.createdAt)}</div>
+                    <div><span className="font-medium">Last Updated:</span> {formatDate(selectedOrder.updatedAt)}</div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="font-semibold mb-2">Partners</h4>
+                  <div className="space-y-2 text-sm">
+                    {selectedOrder.retailer && (
+                      <div>
+                        <span className="font-medium">Retailer:</span> {selectedOrder.retailer.name}
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">₹{item.unitPrice.toLocaleString()}</p>
-                        <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
-                        <p className="font-semibold text-blue-600">
-                          ₹{item.totalPrice.toLocaleString()}
-                        </p>
+                    )}
+                    {selectedOrder.distributor && (
+                      <div>
+                        <span className="font-medium">Distributor:</span> {selectedOrder.distributor.name}
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
               </div>
-              
+
+              {/* Order Status */}
+              <div>
+                <h4 className="font-semibold mb-3">Order Status</h4>
+                <OrderStatus 
+                  status={selectedOrder.status} 
+                  statusHistory={selectedOrder.statusHistory}
+                  showHistory={true}
+                />
+              </div>
+
+              {/* Order Items */}
+              {selectedOrder.items && selectedOrder.items.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-3">Order Items</h4>
+                  <div className="space-y-3">
+                    {selectedOrder.items.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <div className="font-medium">{item.productName}</div>
+                          <div className="text-sm text-gray-600">Qty: {item.quantity}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium">{formatCurrency(item.unitPrice)} each</div>
+                          <div className="text-sm text-gray-600">{formatCurrency(item.totalPrice)}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Notes */}
               {selectedOrder.notes && (
                 <div>
@@ -428,7 +477,7 @@ export default function Orders() {
                 <SelectContent>
                   {selectedOrder && getNextStatusOptions(selectedOrder.status).map((status) => (
                     <SelectItem key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                      {status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -466,7 +515,7 @@ export default function Orders() {
               ) : (
                 "Update Status"
               )}
-              </Button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
