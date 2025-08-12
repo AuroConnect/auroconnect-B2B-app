@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
-import Header from "@/components/layout/header";
-import MobileNav from "@/components/layout/mobile-nav";
+
+
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -189,10 +189,7 @@ export default function Orders() {
   }
 
   return (
-    <div className="min-h-screen">
-      <Header />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
@@ -466,12 +463,10 @@ export default function Orders() {
               ) : (
                 "Update Status"
               )}
-              </Button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
-      
-      <MobileNav />
     </div>
   );
 }

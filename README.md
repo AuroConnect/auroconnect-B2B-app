@@ -1,208 +1,278 @@
-# AuroMart B2B Platform
+# AuroMart - B2B Trade Partner Platform
 
-A comprehensive B2B platform for retailers, distributors, and manufacturers to streamline their operations.
+A production-ready, role-based web application for a 3-tier B2B flow: **Manufacturer → Distributor → Retailer**.
+
+## 🚀 Features
+
+### Core Functionality
+- **Authentication & Role Management**: Secure login/signup with role-based access
+- **Product Management**: CRUD operations, bulk Excel upload, inventory tracking
+- **Partner Management**: Link manufacturers with distributors, distributors with retailers
+- **Order Management**: Complete order lifecycle (pending → accepted → shipped → delivered)
+- **Cart System**: Add products, manage quantities, place orders
+- **Pricing Rules**: Custom pricing per distributor, volume discounts
+- **Invoice Generation**: PDF invoices for orders
+- **Reports & Analytics**: Sales reports, export to PDF/CSV
+- **Notifications**: Real-time in-app notifications
+- **Business Settings**: Profile management, addresses, preferences
+
+### Role-Based Access
+- **Manufacturer**: Manage products, view distributor orders, set pricing
+- **Distributor**: Browse manufacturer catalog, manage retailer orders
+- **Retailer**: Browse distributor catalog, place orders, track deliveries
+
+## 🛠 Tech Stack
+
+### Backend
+- **Framework**: Flask (Python)
+- **Database**: MySQL
+- **ORM**: SQLAlchemy
+- **Authentication**: JWT (Flask-JWT-Extended)
+- **File Processing**: Pandas (Excel upload)
+- **PDF Generation**: ReportLab
+
+### Frontend
+- **Framework**: React 18 with TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: React Query (TanStack Query)
+- **Routing**: Wouter
+- **HTTP Client**: Axios
+- **UI Components**: Custom components with Lucide icons
+
+### Infrastructure
+- **Containerization**: Docker & Docker Compose
+- **Database**: MySQL (EC2 instance)
+- **Production**: Optimized for deployment
+
+## 📋 Prerequisites
+
+- Docker & Docker Compose
+- Node.js 18+ (for development)
+- Python 3.9+ (for development)
+- MySQL database (production)
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- PostgreSQL
-- npm or yarn
+### Production Deployment
 
-### Database Setup
-1. Install PostgreSQL
-2. Create a database user:
-```sql
-CREATE USER auromart WITH PASSWORD 'auromart123';
-CREATE DATABASE auromart OWNER auromart;
-```
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd auroconnect-B2B-app
+   ```
 
-### Backend Setup
+2. **Configure environment variables**
+   ```bash
+   # Update database connection in docker-compose.prod.yml
+   DATABASE_URL=mysql+pymysql://username:password@your-mysql-host:3306/database_name
+   ```
+
+3. **Build and run production containers**
+   ```bash
+   docker-compose -f docker-compose.prod.yml build --no-cache
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
+
+4. **Create demo users**
+   ```bash
+   python create_demo_users.py
+   ```
+
+5. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5000
+
+### Development Setup
+
+1. **Start development environment**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Install frontend dependencies** (if developing locally)
+   ```bash
+   cd client
+   npm install
+   npm run dev
+   ```
+
+3. **Install backend dependencies** (if developing locally)
+   ```bash
+   cd server
+   pip install -r requirements.txt
+   python run.py
+   ```
+
+## 👥 Demo Users
+
+The application comes with pre-configured demo users for testing:
+
+| Role | Email | Password | Business Name |
+|------|-------|----------|---------------|
+| Manufacturer | m@demo.com | Demo@123 | Auro Manufacturer |
+| Distributor | d@demo.com | Demo@123 | Auro Distributor |
+| Retailer | r@demo.com | Demo@123 | Auro Retailer |
+
+## 🔄 Key Workflows
+
+### 1. Product Management (Manufacturer)
+1. Login as manufacturer (m@demo.com)
+2. Navigate to Products page
+3. Add new products or bulk upload via Excel
+4. Set pricing rules for distributors
+
+### 2. Order Placement (Retailer → Distributor)
+1. Login as retailer (r@demo.com)
+2. Browse catalog in Products page
+3. Add items to cart
+4. Place order with delivery details
+
+### 3. Order Processing (Distributor)
+1. Login as distributor (d@demo.com)
+2. View incoming orders in Orders page
+3. Accept/reject orders
+4. Update status (packed → shipped → delivered)
+
+### 4. Partner Management
+1. Manufacturers can link with distributors
+2. Distributors can link with retailers
+3. Each role sees only their linked partners' data
+
+## 📊 Database Schema
+
+### Core Tables
+- `users` - User accounts with role-based access
+- `products` - Product catalog with inventory
+- `orders` - Order management with status tracking
+- `order_items` - Individual items in orders
+- `partner_links` - Manufacturer-Distributor relationships
+- `distributor_retailer_links` - Distributor-Retailer relationships
+- `pricing_rules` - Custom pricing configurations
+- `notifications` - In-app notification system
+
+## 🔒 Security Features
+
+- **JWT Authentication**: Secure token-based authentication
+- **Role-Based Access Control**: Strict data visibility rules
+- **Input Validation**: Server-side validation for all inputs
+- **SQL Injection Protection**: Parameterized queries via SQLAlchemy
+- **CORS Configuration**: Controlled cross-origin requests
+- **Password Hashing**: Secure password storage with Werkzeug
+
+## 📱 Responsive Design
+
+- Mobile-first responsive design
+- Optimized for all screen sizes
+- Touch-friendly interface
+- Progressive Web App features
+
+## 🚀 Production Deployment
+
+### Environment Variables
 ```bash
-cd server
-pip install -r requirements.txt
-python reset_db.py  # Reset database to clean state
-python run.py       # Start backend server
+# Database
+DATABASE_URL=mysql+pymysql://user:pass@host:3306/db
+
+# Security
+JWT_SECRET_KEY=your-super-secret-key
+SECRET_KEY=your-app-secret-key
+
+# CORS
+CORS_ORIGINS=http://localhost:3000,https://yourdomain.com
+
+# Flask
+FLASK_ENV=production
 ```
 
-### Frontend Setup
+### Docker Production Commands
 ```bash
-cd client
-npm install
-npm run dev
+# Build production images
+docker-compose -f docker-compose.prod.yml build --no-cache
+
+# Start production services
+docker-compose -f docker-compose.prod.yml up -d
+
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Stop services
+docker-compose -f docker-compose.prod.yml down
 ```
-
-### Quick Development Start
-
-#### Option 1: Local Development
-```bash
-python start_dev.py  # Starts both frontend and backend
-```
-
-#### Option 2: Docker Compose (Recommended)
-```bash
-python start_docker.py  # Starts everything with Docker
-```
-
-Or manually:
-```bash
-docker-compose up -d --build
-```
-
-## 🔧 Fixed Issues
-
-### Authentication System
-- ✅ Fixed API URL configuration (port 5000)
-- ✅ Fixed database schema issues
-- ✅ Enhanced error handling and messages
-- ✅ Improved CORS configuration
-- ✅ Fixed user registration and login flows
-- ✅ Added proper JWT token handling
-
-### Backend Fixes
-- ✅ Fixed User model UUID handling
-- ✅ Enhanced auth endpoints with better error messages
-- ✅ Added comprehensive logging
-- ✅ Fixed database schema with password_hash column
-- ✅ Improved CORS configuration for development
-
-### Frontend Fixes
-- ✅ Fixed API request configuration
-- ✅ Enhanced error handling in forms
-- ✅ Improved user authentication flow
-- ✅ Fixed registration form validation
-- ✅ Added better network error handling
 
 ## 🧪 Testing
 
 ### API Testing
 ```bash
-cd server
-python test_api.py
+# Test authentication
+python test_auth.py
+
+# Test demo user login
+python test_demo_login.py
+
+# Create demo users
+python create_demo_users.py
 ```
 
-### Manual Testing
-1. Start the backend: `cd server && python run.py`
-2. Start the frontend: `cd client && npm run dev`
-3. Visit http://localhost:3000
-4. Test registration and login flows
+### Manual Testing Checklist
+- [ ] All roles can sign up and login
+- [ ] Product CRUD operations work
+- [ ] Cart functionality works
+- [ ] Order placement and processing
+- [ ] Partner linking works
+- [ ] Reports generation
+- [ ] Invoice generation
+- [ ] Notifications work
 
-## 📁 Project Structure
+## 📈 Performance Optimizations
 
-```
-auroconnect-B2B-app/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/    # UI components
-│   │   ├── hooks/        # Custom hooks
-│   │   ├── pages/        # Page components
-│   │   └── lib/          # Utilities
-├── server/                # Flask backend
-│   ├── app/
-│   │   ├── api/          # API endpoints
-│   │   ├── models/       # Database models
-│   │   └── utils/        # Utilities
-├── shared/               # Shared schemas
-└── init.sql             # Database schema
-```
-
-## 🔐 Authentication Flow
-
-1. **Registration**: Users can register as retailer, distributor, or manufacturer
-2. **Login**: Email/password authentication with JWT tokens
-3. **Authorization**: Role-based access control
-4. **Session Management**: Automatic token refresh
-
-## 🌐 API Endpoints
-
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/auth/user` - Get current user info
-- `GET /api/health` - Health check
-
-## 🛠️ Development
-
-### Environment Variables
-- `VITE_API_URL` - Frontend API URL (default: http://localhost:5000)
-- `DATABASE_URL` - Backend database URL
-- `SECRET_KEY` - Flask secret key
-- `JWT_SECRET_KEY` - JWT secret key
-
-### Database Reset
-
-#### Local Development
-```bash
-cd server
-python reset_db.py
-```
-
-#### Docker Development
-```bash
-docker-compose down -v  # Remove volumes
-docker-compose up -d --build  # Rebuild and start
-```
+- **Database Indexing**: Optimized queries with proper indexes
+- **Caching**: React Query for frontend caching
+- **Lazy Loading**: Components loaded on demand
+- **Image Optimization**: Compressed product images
+- **Bundle Optimization**: Minified production builds
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
-1. **Database Connection**: Ensure PostgreSQL is running and credentials are correct
-2. **Port Conflicts**: Check if ports 3000 (frontend) and 5000 (backend) are available
-3. **CORS Issues**: Backend CORS is configured for development (*)
-4. **API Errors**: Check browser console and server logs for detailed error messages
+
+1. **Database Connection Failed**
+   - Check MySQL server is running
+   - Verify connection string in docker-compose.yml
+   - Ensure database exists
+
+2. **Authentication Errors**
+   - Clear browser cache and cookies
+   - Check JWT secret key configuration
+   - Verify user exists in database
+
+3. **Frontend Build Issues**
+   - Clear node_modules and reinstall
+   - Check Node.js version compatibility
+   - Verify environment variables
 
 ### Logs
-- Backend logs: Check server console output
-- Frontend logs: Check browser developer tools console
-- Network errors: Check browser Network tab
-
-## 📝 Recent Fixes
-
-### Authentication Issues Fixed
-- Fixed API URL mismatch (5001 → 5000)
-- Enhanced error handling in registration/login
-- Fixed database schema issues
-- Improved CORS configuration
-- Added comprehensive logging
-- Fixed UUID handling in User model
-
-### UI/UX Improvements
-- Better error messages for users
-- Improved form validation
-- Enhanced network error handling
-- Fixed callback patterns in auth hooks
-
-## 🚀 Deployment
-
-### Docker Deployment (Recommended)
 ```bash
-# Production build
-docker-compose -f docker-compose.prod.yml up -d --build
+# Backend logs
+docker logs auromart-backend-prod
 
-# Or use the provided script
-python start_docker.py
-```
+# Frontend logs
+docker logs auromart-frontend-prod
 
-### Manual Deployment
-
-#### Backend Deployment
-```bash
-cd server
-pip install -r requirements.txt
-gunicorn -w 4 -b 0.0.0.0:5000 run:app
-```
-
-#### Frontend Deployment
-```bash
-cd client
-npm run build
-# Serve dist/ directory
+# All services
+docker-compose -f docker-compose.prod.yml logs -f
 ```
 
 ## 📞 Support
 
-For issues or questions:
-1. Check the troubleshooting section
-2. Review server logs for backend issues
-3. Check browser console for frontend issues
-4. Test API endpoints directly with curl/Postman 
+For technical support or feature requests:
+- Create an issue in the repository
+- Contact the development team
+- Check the troubleshooting section above
+
+## 📄 License
+
+This project is proprietary software. All rights reserved.
+
+---
+
+**AuroMart B2B Platform** - Streamlining B2B trade relationships with modern technology. 

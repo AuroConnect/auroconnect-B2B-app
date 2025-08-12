@@ -1,67 +1,54 @@
+version: '3.8'
+
 services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: auromart
-      POSTGRES_USER: auromart
-      POSTGRES_PASSWORD: auromart123
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U auromart -d auromart"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
   backend:
     build:
       context: ./server
       dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: auromart-backend-prod
+    restart: unless-stopped
     environment:
       - FLASK_ENV=production
-      - DATABASE_URL=postgresql://auromart:auromart123@postgres:5432/auromart
-      - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=auromart-secret-key-2024-super-secure
-      - JWT_SECRET_KEY=auromart-jwt-secret-key-2024-super-secure
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://frontend:80
+      - DATABASE_URL=mysql+pymysql://auroconnect:auroconnect123@3.249.132.231:3306/auroconnect_b2b
+      - JWT_SECRET_KEY=your-super-secret-jwt-key-change-this-in-production
+      - CORS_ORIGINS=http://localhost:3001,https://yourdomain.com
     ports:
       - "5000:5000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/health')"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    restart: unless-stopped
+      start_period: 40s
+    networks:
+      - auromart-network
 
   frontend:
     build:
       context: ./client
       dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    container_name: auromart-frontend-prod
+    restart: unless-stopped
     ports:
-      - "80:80"
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+      - NODE_ENV=production
     depends_on:
       - backend
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - auromart-network
 
-volumes:
-  postgres_data:
+networks:
+  auromart-network:
+    driver: bridge

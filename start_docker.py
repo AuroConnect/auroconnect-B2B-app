@@ -90,7 +90,7 @@ def wait_for_services():
     attempt = 0
     
     while attempt < max_attempts:
-        success, stdout, stderr = run_command("curl -f http://localhost:3000")
+        success, stdout, stderr = run_command("curl -f http://localhost:3001")
         if success:
             print("✅ Frontend is ready!")
             break
@@ -110,8 +110,8 @@ def show_status():
     print("\n" + "=" * 60)
     print("🎉 AuroMart is running!")
     print("=" * 60)
-    print("🌐 Frontend: http://localhost:3000")
-    print("🔧 Backend API: http://localhost:5000")
+    print("🌐 Frontend: http://localhost:3001")
+    print("🔧 Backend API: http://localhost:5002")
     print("📊 Health Check: http://localhost:5000/api/health")
     print("🗄️  Database: PostgreSQL (Docker)")
     print("=" * 60)
