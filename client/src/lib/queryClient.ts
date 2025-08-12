@@ -1,6 +1,8 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 // API Base URL - change this to your Flask backend URL
+
+
 const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:5000';
 
 // Get JWT token from localStorage
@@ -69,11 +71,12 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  isFormData: boolean = false,
 ): Promise<Response> {
   const token = getAuthToken();
   const headers: Record<string, string> = {};
   
-  if (data) {
+  if (data && !isFormData) {
     headers['Content-Type'] = 'application/json';
   }
   
@@ -96,7 +99,7 @@ export async function apiRequest(
     const res = await fetch(urlWithTrailingSlash, {
       method,
       headers,
-      body: data ? JSON.stringify(data) : undefined,
+      body: data ? (isFormData ? data as FormData : JSON.stringify(data)) : undefined,
     });
 
     console.log(`Response status: ${res.status}`);

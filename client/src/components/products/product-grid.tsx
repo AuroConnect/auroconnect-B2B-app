@@ -120,55 +120,26 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
   };
 
   const handleDeleteProduct = () => {
-    if (confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+    if (confirm("Are you sure you want to delete this product?")) {
       deleteProductMutation.mutate();
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-          <Card key={i} className="animate-pulse">
-            <div className="aspect-square bg-gray-200 rounded-t-lg"></div>
-            <CardContent className="p-4">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
-              <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-            </CardContent>
-            <CardFooter className="p-4 pt-0">
-              <div className="h-9 bg-gray-200 rounded w-full"></div>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-
-  if (!products || products.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <Package className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Products Found</h3>
-        <p className="text-gray-500">Try adjusting your search or filter criteria.</p>
-      </div>
-    );
-  }
-
   // Add to cart mutation
   const addToCartMutation = useMutation({
-    mutationFn: async (product: any) => {
-      return apiRequest("POST", `/api/cart/add`, {
-        productId: product.id,
+    mutationFn: async (productId: string) => {
+      const response = await apiRequest("POST", "/api/cart", {
+        productId,
         quantity: 1
       });
+      return response.json();
     },
-    onSuccess: (data, product) => {
-      queryClient.invalidateQueries({ queryKey: ["api", "cart"] });
+    onSuccess: () => {
       toast({
-        title: "Added to Cart! 🛒",
-        description: `${product.name} has been added to your cart successfully.`,
+        title: "Added to Cart",
+        description: "Product has been added to your cart.",
       });
+      queryClient.invalidateQueries({ queryKey: ["api", "cart"] });
     },
     onError: (error: any) => {
       toast({
@@ -179,8 +150,8 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
     },
   });
 
-  const handleAddToCart = (product: any) => {
-    addToCartMutation.mutate(product);
+  const handleAddToCart = (productId: string) => {
+    addToCartMutation.mutate(productId);
   };
 
   const getActionButton = (product: any) => {
@@ -188,20 +159,22 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
       case 'retailer':
         return (
           <Button 
-            className="w-full relative overflow-hidden group" 
-            onClick={() => handleAddToCart(product)}
+            className="w-full action-button-primary"
+            onClick={() => handleAddToCart(product.id)}
             disabled={addToCartMutation.isPending}
             data-testid={`button-add-to-cart-${product.id}`}
           >
             <div className="flex items-center justify-center">
-              <ShoppingCart className="h-4 w-4 mr-2" />
               {addToCartMutation.isPending ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                   Adding...
                 </>
               ) : (
-                "Add to Cart"
+                <>
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Add to Cart
+                </>
               )}
             </div>
             
@@ -216,79 +189,164 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
         );
       case 'distributor':
         return (
-          <Button 
-            variant="outline" 
-            className="w-full"
-            data-testid={`button-manage-stock-${product.id}`}
-          >
-            <Package className="h-4 w-4 mr-2" />
-            Manage Stock
-          </Button>
+          <div className="flex gap-2 w-full">
+            <Button 
+              className="flex-1 action-button-primary"
+              onClick={() => handleAddToCart(product.id)}
+              disabled={addToCartMutation.isPending}
+              data-testid={`button-add-to-cart-${product.id}`}
+            >
+              <div className="flex items-center justify-center">
+                {addToCartMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to Cart
+                  </>
+                )}
+              </div>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              data-testid={`button-manage-stock-${product.id}`}
+            >
+              <Package className="h-4 w-4" />
+            </Button>
+          </div>
         );
       case 'manufacturer':
         return (
           <div className="flex gap-2 w-full">
             <Button 
-              variant="outline" 
-              className="flex-1"
-              onClick={() => handleEditProduct(product)}
-              data-testid={`button-edit-product-${product.id}`}
+              className="flex-1 action-button-primary"
+              onClick={() => handleAddToCart(product.id)}
+              disabled={addToCartMutation.isPending}
+              data-testid={`button-add-to-cart-${product.id}`}
             >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
+              <div className="flex items-center justify-center">
+                {addToCartMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to Cart
+                  </>
+                )}
+              </div>
             </Button>
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => handleEditProduct(product)}
-              data-testid={`button-view-product-${product.id}`}
+              data-testid={`button-edit-product-${product.id}`}
             >
-              <Eye className="h-4 w-4" />
+              <Edit className="h-4 w-4" />
             </Button>
           </div>
         );
       default:
         return (
           <Button 
-            variant="outline" 
-            className="w-full"
-            data-testid={`button-view-product-${product.id}`}
+            className="w-full action-button-primary"
+            onClick={() => handleAddToCart(product.id)}
+            disabled={addToCartMutation.isPending}
+            data-testid={`button-add-to-cart-${product.id}`}
           >
-            <Eye className="h-4 w-4 mr-2" />
-            View Details
+            <div className="flex items-center justify-center">
+              {addToCartMutation.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Add to Cart
+                </>
+              )}
+            </div>
           </Button>
         );
     }
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <Card key={index} className="animate-pulse">
+            <div className="aspect-square bg-gray-200 rounded-t-lg"></div>
+            <CardContent className="p-4">
+              <div className="h-4 bg-gray-200 rounded mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded mb-3"></div>
+              <div className="h-3 bg-gray-200 rounded mb-3"></div>
+              <div className="flex items-center justify-between">
+                <div className="h-6 bg-gray-200 rounded w-20"></div>
+                <div className="h-8 bg-gray-200 rounded w-24"></div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  // Show empty state
+  if (!products || products.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Package className="h-8 w-8 text-gray-400" />
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Products Found</h3>
+        <p className="text-gray-600 mb-6">No products are available at the moment.</p>
+        {userRole === 'manufacturer' && (
+          <Button className="action-button-primary">
+            <Edit className="h-4 w-4 mr-2" />
+            Add Your First Product
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {products.map((product) => (
           <Card key={product.id} className="group hover:shadow-lg transition-shadow" data-testid={`product-card-${product.id}`}>
-                         <div className="aspect-square bg-gray-100 rounded-t-lg relative overflow-hidden">
-               {product.imageUrl ? (
-                 <img 
-                   src={product.imageUrl} 
-                   alt={product.name}
-                   className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                 />
-               ) : (
-                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-                   <Package className="h-16 w-16 text-gray-400" />
-                 </div>
-               )}
-               <div className="absolute top-2 right-2 flex gap-1">
-                 <Badge variant="secondary" className="bg-white/90 text-gray-700">
-                   {product.sku}
-                 </Badge>
-                 {product.isActive === false && (
-                   <Badge variant="destructive" className="bg-red-100 text-red-800">
-                     Inactive
-                   </Badge>
-                 )}
-               </div>
-             </div>
+            <div className="aspect-square bg-gray-100 rounded-t-lg relative overflow-hidden">
+              {product.imageUrl ? (
+                <img 
+                  src={product.imageUrl} 
+                  alt={product.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                  <Package className="h-16 w-16 text-gray-400" />
+                </div>
+              )}
+              <div className="absolute top-2 right-2 flex gap-1">
+                <Badge variant="secondary" className="bg-white/90 text-gray-700">
+                  {product.sku}
+                </Badge>
+                {product.isActive === false && (
+                  <Badge variant="destructive" className="bg-red-100 text-red-800">
+                    Inactive
+                  </Badge>
+                )}
+              </div>
+            </div>
             <CardContent className="p-4">
               <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2" data-testid={`product-name-${product.id}`}>
                 {product.name}
@@ -298,13 +356,11 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
               </p>
               <div className="flex items-center justify-between">
                 <div className="text-lg font-bold text-primary" data-testid={`product-price-${product.id}`}>
-                  ${(product.inventory?.sellingPrice || product.basePrice || 0).toLocaleString()}
+                  ₹{product.basePrice?.toLocaleString() || '0'}
                 </div>
-                {product.inventory && (
-                  <div className="text-sm text-gray-500">
-                    Stock: {product.inventory.quantity}
-                  </div>
-                )}
+                <div className="text-sm text-gray-500">
+                  SKU: {product.sku}
+                </div>
               </div>
             </CardContent>
             <CardFooter className="p-4 pt-0">
@@ -316,11 +372,11 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
 
       {/* Edit Product Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white border border-gray-200 shadow-xl">
-          <DialogHeader className="pb-6">
-            <DialogTitle className="text-xl font-semibold text-gray-900">Edit Product</DialogTitle>
-            <DialogDescription className="text-gray-600">
-              Update your product information. All changes will be saved immediately.
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Product - {editingProduct?.name}</DialogTitle>
+            <DialogDescription>
+              Update the product information below
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6">
@@ -361,7 +417,7 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border border-gray-200 shadow-lg">
-                    {categories.map((category: any) => (
+                    {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id} className="hover:bg-gray-50">
                         {category.name}
                       </SelectItem>

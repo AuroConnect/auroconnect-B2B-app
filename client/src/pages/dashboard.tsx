@@ -13,12 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/hooks/useAuth";
 
 export default function Dashboard() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isLoading && !isAuthenticated) {
       toast({
         title: "Unauthorized", 
         description: "You are logged out. Logging in again...",
@@ -29,19 +29,22 @@ export default function Dashboard() {
       }, 500);
       return;
     }
-  }, [user, isLoading, toast]);
+  }, [isAuthenticated, isLoading, toast]);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["api", "analytics", "stats"],
-    enabled: !!user,
+    enabled: !!isAuthenticated && !!user,
+    staleTime: 30000, // 30 seconds
   });
 
   const { data: notifications } = useQuery({
     queryKey: ["api", "notifications"],
-    enabled: !!user,
+    enabled: !!isAuthenticated && !!user,
+    staleTime: 30000, // 30 seconds
   });
 
-  if (isLoading || !user) {
+  // Show loading state while checking authentication or loading user data
+  if (isLoading || !isAuthenticated || !user) {
     return (
       <div className="min-h-screen auromart-gradient-bg flex items-center justify-center">
         <div className="text-center">

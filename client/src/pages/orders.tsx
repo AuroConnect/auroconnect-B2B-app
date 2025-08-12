@@ -67,7 +67,7 @@ interface Order {
 }
 
 export default function Orders() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -81,7 +81,7 @@ export default function Orders() {
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!isLoading && !isAuthenticated) {
       toast({
         title: "Unauthorized",
         description: "You are logged out. Logging in again...",
@@ -92,13 +92,14 @@ export default function Orders() {
       }, 500);
       return;
     }
-  }, [user, isLoading, toast]);
+  }, [isAuthenticated, isLoading, toast]);
 
   // Fetch orders
   const { data: orders = [], isLoading: ordersLoading, error: ordersError } = useQuery<Order[]>({
     queryKey: ["api", "orders", statusFilter],
-    enabled: !!user && !isLoading,
+    enabled: !!isAuthenticated && !!user,
     retry: 3,
+    staleTime: 30000,
   });
 
   // Update order status mutation
@@ -221,12 +222,12 @@ export default function Orders() {
     });
   };
 
-  if (!user) {
+  if (isLoading || !isAuthenticated || !user) {
     return (
       <div className="min-h-screen auromart-gradient-bg flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading...</p>
+          <p className="text-white text-lg">Loading orders...</p>
         </div>
       </div>
     );

@@ -16,21 +16,37 @@ import Register from "@/pages/register";
 import Profile from "@/pages/profile";
 import Settings from "@/pages/settings";
 import Cart from "@/pages/cart";
+import Inventory from "@/pages/inventory";
+import LoginForm from "@/components/auth/login-form";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen auromart-gradient-bg flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
+      {!isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
+          <Route path="/login" component={LoginPage} />
           <Route path="/register" component={Register} />
         </>
       ) : (
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/products" component={Products} />
+          <Route path="/inventory" component={Inventory} />
           <Route path="/cart" component={Cart} />
           <Route path="/orders" component={Orders} />
           <Route path="/reports" component={Reports} />
@@ -38,10 +54,29 @@ function Router() {
           <Route path="/partners" component={Partners} />
           <Route path="/profile" component={Profile} />
           <Route path="/settings" component={Settings} />
+          <Route component={NotFound} />
         </>
       )}
-      <Route component={NotFound} />
     </Switch>
+  );
+}
+
+// Dedicated Login Page Component
+function LoginPage() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-green-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <LoginForm />
+        <div className="text-center mt-6">
+          <a 
+            href="/"
+            className="text-gray-700 hover:text-gray-900 font-medium inline-flex items-center"
+          >
+            ← Back to Home
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
 

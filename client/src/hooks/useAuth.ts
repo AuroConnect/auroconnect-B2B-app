@@ -40,8 +40,12 @@ export function useAuth() {
     queryKey: ["api", "auth", "user"],
     retry: false,
     enabled: !!localStorage.getItem('authToken'),
+    staleTime: 5 * 60 * 1000, // 5 minutes
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/auth/user');
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
       return response.json();
     },
   });
@@ -57,16 +61,19 @@ export function useAuth() {
       
       if (result.access_token) {
         setAuthToken(result.access_token);
+        // Immediately set user data in cache
         queryClient.setQueryData(["api", "auth", "user"], result.user);
       }
       
       return result;
     },
     onSuccess: (result) => {
+      // Ensure user data is set and invalidate related queries
       if (result.user) {
         queryClient.setQueryData(["api", "auth", "user"], result.user);
       }
-      queryClient.invalidateQueries({ queryKey: ["api", "auth", "user"] });
+      // Invalidate all queries to refresh data
+      queryClient.invalidateQueries();
     },
   });
 
@@ -114,9 +121,9 @@ export function useAuth() {
 
   return {
     user: user as User | null,
-    isLoading,
+    isLoading: isLoading || loginMutation.isPending,
     error,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !isLoading,
     login,
     register,
     logout: logoutMutation.mutate,

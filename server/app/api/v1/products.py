@@ -1,9 +1,15 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models import Product, Category, Inventory, User
-from app.utils.decorators import role_required
+from app.models.product import Product
+from app.models.category import Category
+from app.models.user import User
+from app.models.inventory import Inventory
+from app.utils.decorators import role_required, roles_required
 from sqlalchemy import or_
+import openpyxl
+from werkzeug.utils import secure_filename
+import os
 
 products_bp = Blueprint('products', __name__)
 
@@ -40,7 +46,7 @@ def get_product(product_id):
 
 @products_bp.route('/', methods=['POST'])
 @jwt_required()
-@role_required(['manufacturer', 'distributor'])
+@roles_required(['manufacturer', 'distributor'])
 def create_product():
     """Create new product (manufacturers and distributors)"""
     try:
@@ -80,7 +86,7 @@ def create_product():
 
 @products_bp.route('/<product_id>', methods=['PUT'])
 @jwt_required()
-@role_required(['manufacturer', 'distributor'])
+@roles_required(['manufacturer', 'distributor'])
 def update_product(product_id):
     """Update product (manufacturers and distributors)"""
     try:
@@ -250,3 +256,99 @@ def search_products():
         
     except Exception as e:
         return jsonify({'message': 'Failed to search products', 'error': str(e)}), 500 
+
+@products_bp.route('/bulk-upload', methods=['POST'])
+@jwt_required()
+@roles_required(['manufacturer', 'distributor'])
+def bulk_upload_products():
+    """Bulk upload products from Excel file"""
+    try:
+        current_user_id = get_jwt_identity()
+        
+        if 'file' not in request.files:
+            return jsonify({'message': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'message': 'No file selected'}), 400
+        
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            return jsonify({'message': 'Please upload an Excel file (.xlsx or .xls)'}), 400
+        
+        # Read Excel file
+        try:
+            workbook = openpyxl.load_workbook(file, data_only=True)
+            worksheet = workbook.active
+            
+            # Get headers from first row
+            headers = []
+            for cell in worksheet[1]:
+                headers.append(cell.value.lower() if cell.value else '')
+            
+            # Validate required columns
+            required_columns = ['name', 'sku', 'base_price']
+            missing_columns = [col for col in required_columns if col not in headers]
+            if missing_columns:
+                return jsonify({'message': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+            
+            added_count = 0
+            failed_count = 0
+            errors = []
+            
+            # Process each row starting from row 2
+            for row_num in range(2, worksheet.max_row + 1):
+                try:
+                    row_data = {}
+                    for col_num, header in enumerate(headers, 1):
+                        cell_value = worksheet.cell(row=row_num, column=col_num).value
+                        row_data[header] = cell_value
+                    
+                    # Validate required fields
+                    if not row_data.get('name') or not row_data.get('sku') or not row_data.get('base_price'):
+                        errors.append(f"Row {row_num}: Missing required fields")
+                        failed_count += 1
+                        continue
+                    
+                    # Check if SKU already exists
+                    existing_product = Product.query.filter_by(sku=str(row_data['sku'])).first()
+                    if existing_product:
+                        errors.append(f"Row {row_num}: SKU '{row_data['sku']}' already exists")
+                        failed_count += 1
+                        continue
+                    
+                    # Create new product
+                    new_product = Product(
+                        name=str(row_data['name']),
+                        description=str(row_data.get('description', '')),
+                        sku=str(row_data['sku']),
+                        category_id=row_data.get('category_id'),
+                        manufacturer_id=current_user_id,
+                        image_url=row_data.get('image_url'),
+                        base_price=float(row_data['base_price']),
+                        stock_quantity=int(row_data.get('stock_quantity', 0)),
+                        is_active=True
+                    )
+                    
+                    db.session.add(new_product)
+                    added_count += 1
+                    
+                except Exception as e:
+                    errors.append(f"Row {row_num}: {str(e)}")
+                    failed_count += 1
+            
+            if added_count > 0:
+                db.session.commit()
+            
+            return jsonify({
+                'message': 'Bulk upload completed',
+                'added': added_count,
+                'failed': failed_count,
+                'errors': errors
+            }), 200
+            
+        except Exception as e:
+            return jsonify({'message': f'Error reading Excel file: {str(e)}'}), 400
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': 'Failed to process bulk upload', 'error': str(e)}), 500 

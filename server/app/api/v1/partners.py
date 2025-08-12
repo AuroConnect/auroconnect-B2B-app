@@ -7,6 +7,40 @@ from sqlalchemy import or_
 
 partners_bp = Blueprint('partners', __name__)
 
+@partners_bp.route('/', methods=['GET'])
+@jwt_required()
+def get_partners():
+    """Get available partners for current user (base route)"""
+    try:
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        # Determine allowed roles based on user role
+        allowed_roles = []
+        if current_user.role == 'retailer':
+            allowed_roles = ['distributor']
+        elif current_user.role == 'distributor':
+            allowed_roles = ['retailer', 'manufacturer']
+        elif current_user.role == 'manufacturer':
+            allowed_roles = ['distributor']
+        
+        # Get available partners
+        query = User.query.filter(
+            User.role.in_(allowed_roles),
+            User.is_active == True,
+            User.id != current_user_id
+        )
+        
+        available_partners = query.all()
+        
+        return jsonify([partner.to_public_dict() for partner in available_partners]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch partners', 'error': str(e)}), 500
+
 @partners_bp.route('/distributors', methods=['GET'])
 @jwt_required()
 def get_distributors():
