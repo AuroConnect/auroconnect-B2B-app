@@ -1,7 +1,7 @@
 import click
 from flask.cli import with_appcontext
 from app import db
-from app.models import User, Category, Product, Order, OrderItem, Partnership, Favorite, WhatsAppNotification
+from app.models import User, Category, Product, Order, OrderItem, Partnership, Favorite
 from datetime import datetime, timedelta
 import uuid
 import random
@@ -23,7 +23,6 @@ def register_commands(app):
         
         # Clear existing data
         click.echo('Clearing existing data...')
-        WhatsAppNotification.query.delete()
         OrderItem.query.delete()
         Order.query.delete()
         # Clear inventory first due to foreign key constraints
@@ -688,38 +687,7 @@ def register_commands(app):
             db.session.add(favorite)
         db.session.commit()
         
-        # Create sample WhatsApp notifications
-        click.echo('Creating WhatsApp notifications...')
-        notifications = [
-            WhatsAppNotification(
-                id=str(uuid.uuid4()),
-                user_id=retailers[0].id,
-                message="🛒 New order from TechMart Electronics\nOrder: ORD-20240806-001\nAmount: ₹95,000\nItems: 2 products\n\nPlease acknowledge:\n1️⃣ Accept\n2️⃣ Reject",
-                type='order_alert',
-                sent_at=datetime.utcnow() - timedelta(hours=2),
-                is_delivered=True
-            ),
-            WhatsAppNotification(
-                id=str(uuid.uuid4()),
-                user_id=retailers[0].id,
-                message="✅ Order Status Update\nOrder: ORD-20240806-001\nStatus: Confirmed\n\nYour order has been confirmed and is being processed!",
-                type='status_update',
-                sent_at=datetime.utcnow() - timedelta(hours=1),
-                is_delivered=True
-            ),
-            WhatsAppNotification(
-                id=str(uuid.uuid4()),
-                user_id=distributors[0].id,
-                message="📦 Order Status Update\nOrder: ORD-20240806-001\nStatus: Packed\n\nYour order is packed and ready for dispatch!",
-                type='status_update',
-                sent_at=datetime.utcnow() - timedelta(minutes=30),
-                is_delivered=True
-            )
-        ]
-        
-        for notification in notifications:
-            db.session.add(notification)
-        db.session.commit()
+
         
         click.echo('Database seeded with comprehensive sample data!')
         click.echo(f'Created:')
@@ -729,7 +697,7 @@ def register_commands(app):
         click.echo(f'- {len(orders)} orders')
         click.echo(f'- {len(partnerships)} partnerships')
         click.echo(f'- {len(favorites)} favorites')
-        click.echo(f'- {len(notifications)} WhatsApp notifications')
+
     
     @app.cli.command()
     @with_appcontext

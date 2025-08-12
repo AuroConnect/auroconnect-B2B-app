@@ -307,10 +307,9 @@ export default function Products() {
 
   // Handle API errors
   if (productsError || categoriesError) {
-    return (
-      <div className="min-h-screen">
-        <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      return (
+    <div className="min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
             <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
             <p className="text-gray-500 mb-4">
@@ -321,14 +320,12 @@ export default function Products() {
             </Button>
           </div>
         </div>
-        <MobileNav />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen">
-      <Header />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
@@ -705,8 +702,6 @@ export default function Products() {
           </TabsContent>
         </Tabs>
       </div>
-      
-      <MobileNav />
     </div>
   );
 }

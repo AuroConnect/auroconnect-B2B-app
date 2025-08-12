@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Order, Invoice, WhatsAppNotification
+from app.models import User, Order, Invoice
 from app import db
 from app.utils.decorators import role_required
 from datetime import datetime
@@ -186,26 +186,7 @@ def generate_invoice(order_id):
         invoice.pdf_url = f"/invoices/{pdf_filename}"
         db.session.commit()
         
-        # Send WhatsApp notification to retailer
-        retailer = User.query.get(order.retailer_id)
-        message = f"📄 Invoice Generated\n"
-        message += f"Order: {order.order_number}\n"
-        message += f"Invoice: {invoice_number}\n"
-        message += f"Amount: ₹{order.total_amount}\n\n"
-        message += "Your invoice is ready for download!"
-        
-        notification = WhatsAppNotification(
-            user_id=order.retailer_id,
-            message=message,
-            type='invoice_sent',
-            sent_at=datetime.utcnow(),
-            is_delivered=True
-        )
-        
-        db.session.add(notification)
-        db.session.commit()
-        
-        print(f"📱 Invoice Notification to Retailer {retailer.email}: {message}")
+
         
         return jsonify({
             'message': 'Invoice generated successfully',

@@ -41,7 +41,6 @@ def create_app(config_class=Config):
     from app.api.v1.health import health_bp
     from app.api.v1.analytics import analytics_bp
     from app.api.v1.notifications import notifications_bp
-    from app.api.v1.whatsapp import whatsapp_bp
     from app.api.v1.invoices import invoices_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -54,7 +53,6 @@ def create_app(config_class=Config):
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
     app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
-    app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')
     app.register_blueprint(invoices_bp, url_prefix='/api/invoices')
     
     # Error handlers

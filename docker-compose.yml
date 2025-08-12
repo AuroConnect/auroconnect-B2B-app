@@ -38,14 +38,14 @@ services:
       - JWT_SECRET_KEY=auromart-jwt-secret-key-2024-super-secure
       - CORS_ORIGINS=http://localhost:3001,http://frontend:80
     ports:
-      - "5002:5000"
+      - "5001:5000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5002/api/health')"]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5001/api/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

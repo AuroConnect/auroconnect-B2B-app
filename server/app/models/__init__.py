@@ -6,7 +6,6 @@ from .order import Order, OrderItem
 from .partnership import Partnership
 from .favorite import Favorite
 from .search_history import SearchHistory
-from .whatsapp import WhatsAppNotification
 from .invoice import Invoice
 
 __all__ = [
@@ -19,6 +18,5 @@ __all__ = [
     'Partnership',
     'Favorite',
     'SearchHistory',
-    'WhatsAppNotification',
     'Invoice'
 ] 
