@@ -1,13 +1,16 @@
 import { Link, useLocation } from "wouter";
 import { Home, Package, ShoppingCart, BarChart3, Users } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function MobileNav() {
   const [location] = useLocation();
+  const { user } = useAuth();
 
   const navItems = [
     { href: "/", icon: Home, label: "Dashboard" },
     { href: "/products", icon: Package, label: "Products" },
     { href: "/partners", icon: Users, label: "Partners" },
+    ...(user?.role !== 'manufacturer' ? [{ href: "/cart", icon: ShoppingCart, label: "Cart" }] : []),
     { href: "/orders", icon: ShoppingCart, label: "Orders" },
     { href: "/reports", icon: BarChart3, label: "Reports" },
   ];

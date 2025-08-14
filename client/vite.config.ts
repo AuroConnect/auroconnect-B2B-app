@@ -22,6 +22,14 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    // Add cache busting for development
+    rollupOptions: {
+      output: {
+        entryFileNames: `assets/[name].[hash].js`,
+        chunkFileNames: `assets/[name].[hash].js`,
+        assetFileNames: `assets/[name].[hash].[ext]`
+      }
+    }
   },
   define: {
     'import.meta.env': JSON.stringify(process.env)

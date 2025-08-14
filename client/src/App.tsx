@@ -22,8 +22,10 @@ import LoginForm from "@/components/auth/login-form";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Show loading state
-  if (isLoading) {
+  // Show loading state only if we have a token and are checking auth
+  const hasToken = !!localStorage.getItem('authToken');
+  
+  if (hasToken && isLoading) {
     return (
       <div className="min-h-screen auromart-gradient-bg flex items-center justify-center">
         <div className="text-center">
@@ -41,6 +43,7 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/login" component={LoginPage} />
           <Route path="/register" component={Register} />
+          <Route component={NotFound} />
         </>
       ) : (
         <>

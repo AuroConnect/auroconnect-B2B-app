@@ -1,101 +1,134 @@
 #!/usr/bin/env python3
 """
-Development startup script for AuroMart
+AuroMart Development Startup Script
+This script helps you quickly start the development environment.
 """
 
-import os
-import sys
 import subprocess
+import sys
 import time
+import os
 import signal
-import threading
 from pathlib import Path
 
-def run_command(command, cwd, name):
-    """Run a command in a subprocess"""
+def run_command(command, description, cwd=None):
+    """Run a command and return the process"""
+    print(f"🚀 {description}...")
+    print(f"   Command: {command}")
+    print(f"   Directory: {cwd or 'current'}")
+    
     try:
-        print(f"🚀 Starting {name}...")
         process = subprocess.Popen(
             command,
-            cwd=cwd,
             shell=True,
+            cwd=cwd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
             bufsize=1
         )
-        
-        # Print output in real-time
-        for line in process.stdout:
-            print(f"[{name}] {line.rstrip()}")
-        
         return process
     except Exception as e:
-        print(f"❌ Failed to start {name}: {e}")
+        print(f"❌ Error starting {description}: {e}")
         return None
 
+def check_backend_health():
+    """Check if backend is healthy"""
+    try:
+        import requests
+        response = requests.get("http://localhost:5000/api/health", timeout=2)
+        return response.status_code == 200
+    except:
+        return False
+
 def main():
-    """Start both frontend and backend"""
-    print("🎯 Starting AuroMart Development Environment...")
-    print("=" * 60)
+    """Main function to start development environment"""
+    print("🚀 AuroMart Development Environment Startup")
+    print("=" * 50)
     
-    # Get the project root directory
-    project_root = Path(__file__).parent
-    server_dir = project_root / "server"
-    client_dir = project_root / "client"
-    
-    # Check if directories exist
-    if not server_dir.exists():
-        print(f"❌ Server directory not found: {server_dir}")
-        return
-    
-    if not client_dir.exists():
-        print(f"❌ Client directory not found: {client_dir}")
-        return
+    # Check if we're in the right directory
+    if not Path("server").exists() or not Path("client").exists():
+        print("❌ Error: Please run this script from the AuroMart root directory")
+        print("   Make sure you have 'server' and 'client' folders")
+        sys.exit(1)
     
     processes = []
     
     try:
-        # Start backend server
+        # Start Backend
+        print("\n🔧 Starting Backend Server...")
         backend_process = run_command(
             "python run.py",
-            server_dir,
-            "Backend Server"
+            "Backend Server",
+            cwd="server"
         )
         
         if backend_process:
-            processes.append(backend_process)
-            print("⏳ Waiting for backend to start...")
-            time.sleep(3)  # Give backend time to start
+            processes.append(("Backend", backend_process))
+            print("✅ Backend process started")
+        else:
+            print("❌ Failed to start backend")
+            sys.exit(1)
         
-        # Start frontend
+        # Wait for backend to be ready
+        print("\n⏳ Waiting for backend to be ready...")
+        for i in range(30):
+            if check_backend_health():
+                print("✅ Backend is ready!")
+                break
+            time.sleep(1)
+            if i % 5 == 0:
+                print(f"   Still waiting... ({i+1}/30)")
+        else:
+            print("⚠️  Backend might not be ready, but continuing...")
+        
+        # Start Frontend
+        print("\n🎨 Starting Frontend Development Server...")
         frontend_process = run_command(
             "npm run dev",
-            client_dir,
-            "Frontend"
+            "Frontend Development Server",
+            cwd="client"
         )
         
         if frontend_process:
-            processes.append(frontend_process)
+            processes.append(("Frontend", frontend_process))
+            print("✅ Frontend process started")
+        else:
+            print("❌ Failed to start frontend")
+            sys.exit(1)
         
-        print("✅ Both servers started!")
-        print("🌐 Frontend: http://localhost:3000")
-        print("🔧 Backend: http://localhost:5000")
-        print("📊 Health Check: http://localhost:5000/api/health")
-        print("=" * 60)
-        print("Press Ctrl+C to stop all servers")
+        print("\n" + "=" * 50)
+        print("🎉 Development Environment Started!")
+        print("\n📱 Access your application:")
+        print("   Frontend: http://localhost:5173")
+        print("   Backend API: http://localhost:5000")
+        print("\n🔧 Demo Accounts:")
+        print("   Email: hrushikesh@auromart.com")
+        print("   Password: password123")
+        print("\n⏹️  Press Ctrl+C to stop all servers")
         
-        # Wait for processes
-        for process in processes:
-            process.wait()
+        # Keep the script running
+        while True:
+            time.sleep(1)
             
     except KeyboardInterrupt:
-        print("\n🛑 Stopping servers...")
-        for process in processes:
-            if process:
+        print("\n\n🛑 Stopping development servers...")
+        
+        # Stop all processes
+        for name, process in processes:
+            print(f"   Stopping {name}...")
+            try:
                 process.terminate()
-                process.wait()
-        print("✅ All servers stopped")
+                process.wait(timeout=5)
+                print(f"   ✅ {name} stopped")
+            except subprocess.TimeoutExpired:
+                print(f"   ⚠️  {name} didn't stop gracefully, forcing...")
+                process.kill()
+            except Exception as e:
+                print(f"   ❌ Error stopping {name}: {e}")
+        
+        print("\n👋 Development environment stopped")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

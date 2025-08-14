@@ -30,6 +30,8 @@ interface Product {
   imageUrl?: string;
   isActive: boolean;
   stockQuantity: number;
+  createdAt?: string;
+  updatedAt?: string;
   category?: {
     id: string;
     name: string;
@@ -64,6 +66,7 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [selectedManufacturer, setSelectedManufacturer] = useState("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkUploadRef = useRef<HTMLInputElement>(null);
 
@@ -98,6 +101,14 @@ export default function Products() {
   const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery<Category[]>({
     queryKey: ["api", "products", "categories"],
     enabled: !!isAuthenticated && !!user,
+    retry: 3,
+    staleTime: 30000,
+  });
+
+  // Get manufacturers for distributor filter
+  const { data: manufacturers, isLoading: manufacturersLoading } = useQuery<any[]>({
+    queryKey: ["api", "manufacturers"],
+    enabled: !!isAuthenticated && !!user && userRole === 'distributor',
     retry: 3,
     staleTime: 30000,
   });
@@ -173,15 +184,63 @@ export default function Products() {
     },
   });
 
-  // Filter products based on search term and category
-  const filteredProducts = React.useMemo(() => {
+  // Filter and sort products
+  const filteredAndSortedProducts = React.useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
-    return products.filter((product: Product) =>
+    
+    // First filter by category
+    let filtered = products;
+    if (selectedCategory !== "all") {
+      filtered = products.filter((product: Product) => 
+        product.categoryId === selectedCategory
+      );
+    }
+    
+    // Filter by manufacturer (for distributors)
+    if (userRole === 'distributor' && selectedManufacturer !== "all") {
+      filtered = filtered.filter((product: Product) => 
+        product.manufacturerId === selectedManufacturer
+      );
+    }
+    
+    // Then filter by search term
+    filtered = filtered.filter((product: Product) =>
       product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [products, searchTerm]);
+    
+    // Then sort
+    filtered.sort((a: Product, b: Product) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case "name":
+          aValue = a.name?.toLowerCase() || "";
+          bValue = b.name?.toLowerCase() || "";
+          break;
+        case "price":
+          aValue = a.basePrice || 0;
+          bValue = b.basePrice || 0;
+          break;
+                 case "createdAt":
+           aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+           bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+           break;
+        default:
+          aValue = a.name?.toLowerCase() || "";
+          bValue = b.name?.toLowerCase() || "";
+      }
+      
+      if (sortOrder === "asc") {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+    
+    return filtered;
+  }, [products, searchTerm, selectedCategory, sortBy, sortOrder]);
 
   const handleAddProduct = () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.basePrice) {
@@ -348,15 +407,39 @@ export default function Products() {
                 </SelectContent>
               </Select>
 
+              {/* Manufacturer Filter (for distributors only) */}
+              {userRole === 'distributor' && (
+                <Select value={selectedManufacturer} onValueChange={setSelectedManufacturer}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="All Manufacturers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Manufacturers</SelectItem>
+                    {manufacturers?.map((manufacturer: any) => (
+                      <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                        {manufacturer.businessName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
               {/* Sort */}
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full sm:w-40">
+              <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
+                const [field, order] = value.split('-');
+                setSortBy(field);
+                setSortOrder(order as "asc" | "desc");
+              }}>
+                <SelectTrigger className="w-full sm:w-48">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="price">Price</SelectItem>
-                  <SelectItem value="createdAt">Date Added</SelectItem>
+                  <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                  <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                  <SelectItem value="price-asc">Price (Low to High)</SelectItem>
+                  <SelectItem value="price-desc">Price (High to Low)</SelectItem>
+                  <SelectItem value="createdAt-asc">Date Added (Oldest First)</SelectItem>
+                  <SelectItem value="createdAt-desc">Date Added (Newest First)</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -385,7 +468,7 @@ export default function Products() {
 
         {/* Products Display */}
         <ProductGrid 
-          products={filteredProducts} 
+          products={filteredAndSortedProducts} 
           isLoading={productsLoading || categoriesLoading}
           userRole={userRole}
           categories={categories || []}
@@ -529,19 +612,80 @@ export default function Products() {
               </div>
             </div>
 
-            {/* Image URL */}
+            {/* Image Upload */}
             <div className="space-y-2">
-              <Label htmlFor="imageUrl" className="text-sm font-medium">
-                Image URL
+              <Label className="text-sm font-medium">
+                Product Image
               </Label>
-              <Input
-                id="imageUrl"
-                type="url"
-                value={newProduct.imageUrl}
-                onChange={(e) => setNewProduct(prev => ({ ...prev, imageUrl: e.target.value }))}
-                placeholder="https://example.com/image.jpg"
-                className="w-full"
-              />
+              <div className="space-y-3">
+                {/* Image URL Option */}
+                <div>
+                  <Label htmlFor="imageUrl" className="text-xs text-gray-600">
+                    Image URL (Google Drive, Unsplash, etc.)
+                  </Label>
+                  <Input
+                    id="imageUrl"
+                    type="url"
+                    value={newProduct.imageUrl}
+                    onChange={(e) => setNewProduct(prev => ({ ...prev, imageUrl: e.target.value }))}
+                    placeholder="https://drive.google.com/... or https://images.unsplash.com/..."
+                    className="w-full"
+                  />
+                </div>
+                
+                {/* File Upload Option */}
+                <div>
+                  <Label htmlFor="imageFile" className="text-xs text-gray-600">
+                    Or Upload Image File (JPEG, PNG, GIF)
+                  </Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Choose File
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // For now, we'll create a local URL for preview
+                          // In a real app, you'd upload to a server
+                          const imageUrl = URL.createObjectURL(file);
+                          setNewProduct(prev => ({ ...prev, imageUrl }));
+                        }
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Supported formats: JPEG, PNG, GIF (no size limit)
+                  </p>
+                </div>
+                
+                {/* Image Preview */}
+                {newProduct.imageUrl && (
+                  <div className="mt-2">
+                    <Label className="text-xs text-gray-600">Preview:</Label>
+                    <div className="mt-1 w-32 h-32 border rounded-lg overflow-hidden">
+                      <img
+                        src={newProduct.imageUrl}
+                        alt="Product preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

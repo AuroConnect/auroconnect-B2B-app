@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles } from "lucide-react";
+import { Link } from "wouter";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -33,7 +34,7 @@ export default function LoginForm() {
         });
         // Redirect to dashboard
         setTimeout(() => {
-          window.location.href = "/dashboard";
+          window.location.href = "/";
         }, 1000);
       },
       onError: (error: Error) => {
@@ -116,13 +117,12 @@ export default function LoginForm() {
         <div className="text-center">
           <p className="text-sm text-gray-500">
             Don't have an account?{" "}
-            <button 
-              type="button"
+            <Link 
+              href="/register"
               className="text-primary hover:text-primary/80 font-medium"
-              onClick={() => window.location.href = '/register'}
             >
               Sign up here
-            </button>
+            </Link>
           </p>
         </div>
       </form>

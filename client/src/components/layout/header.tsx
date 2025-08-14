@@ -154,8 +154,9 @@ export default function Header() {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
-            {/* Enhanced Cart */}
-            <Link href="/cart">
+            {/* Enhanced Cart - Only show for Distributors and Retailers */}
+            {user?.role !== 'manufacturer' && (
+              <Link href="/cart">
               <Button variant="ghost" size="sm" className="relative group">
                 <div className="flex items-center space-x-2">
                   <ShoppingCart className="h-5 w-5" />
@@ -221,6 +222,7 @@ export default function Header() {
                 </div>
               </Button>
             </Link>
+            )}
 
             {/* Notifications */}
             <Button variant="ghost" size="sm" className="relative">

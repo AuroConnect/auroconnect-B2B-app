@@ -2,11 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, ShoppingCart, Factory, Shield, MessageCircle, FileText, BarChart3, Users, Sparkles, Zap, TrendingUp, Bell, Truck, Info } from "lucide-react";
-import LoginForm from "@/components/auth/login-form";
 import { Play } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Landing() {
-  const [showLogin, setShowLogin] = useState(false);
   const [showDemoAccounts, setShowDemoAccounts] = useState(false);
 
   const features = [
@@ -99,24 +98,7 @@ export default function Landing() {
     }
   ];
 
-  if (showLogin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-green-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <LoginForm />
-          <div className="text-center mt-6">
-            <Button 
-              variant="link" 
-              onClick={() => setShowLogin(false)}
-              className="text-gray-700 hover:text-gray-900 font-medium"
-            >
-              ← Back to Home
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-green-50">
@@ -138,20 +120,22 @@ export default function Landing() {
                 <Info className="h-4 w-4 mr-2" />
                 Demo Accounts
               </Button>
-              <Button 
-                onClick={() => setShowLogin(true)}
-                className="glass-button text-gray-700 border-gray-300 hover:bg-white/80"
-                data-testid="button-login"
-              >
-                Sign In
-              </Button>
-              <Button 
-                onClick={() => window.location.href = '/register'}
-                className="auromart-gradient-primary text-white hover:scale-105 transition-transform"
-                data-testid="button-register"
-              >
-                Sign Up
-              </Button>
+              <Link href="/login">
+                <Button 
+                  className="glass-button text-gray-700 border-gray-300 hover:bg-white/80"
+                  data-testid="button-login"
+                >
+                  Sign In
+                </Button>
+              </Link>
+              <Link href="/register">
+                <Button 
+                  className="auromart-gradient-primary text-white hover:scale-105 transition-transform"
+                  data-testid="button-register"
+                >
+                  Sign Up
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -198,7 +182,7 @@ export default function Landing() {
                 <Button 
                   onClick={() => {
                     setShowDemoAccounts(false);
-                    setShowLogin(true);
+                    window.location.href = '/login';
                   }}
                 >
                   Try Login
@@ -228,23 +212,25 @@ export default function Landing() {
             auto invoicing, and complete workflow management built for India's market.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              onClick={() => window.location.href = '/register'}
-              className="auromart-gradient-primary text-white text-lg px-8 py-4 hover:scale-105 transition-transform"
-              data-testid="button-get-started"
-            >
-              <Sparkles className="h-5 w-5 mr-2" />
-              Get Started
-            </Button>
-            <Button 
-              size="lg" 
-              className="glass-button text-gray-700 text-lg px-8 py-4 border-gray-300 hover:bg-white/80"
-              onClick={() => setShowLogin(true)}
-              data-testid="button-demo"
-            >
-              Try Demo
-            </Button>
+            <Link href="/register">
+              <Button 
+                size="lg" 
+                className="auromart-gradient-primary text-white text-lg px-8 py-4 hover:scale-105 transition-transform"
+                data-testid="button-get-started"
+              >
+                <Sparkles className="h-5 w-5 mr-2" />
+                Get Started
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button 
+                size="lg" 
+                className="glass-button text-gray-700 text-lg px-8 py-4 border-gray-300 hover:bg-white/80"
+                data-testid="button-demo"
+              >
+                Try Demo
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -403,14 +389,15 @@ export default function Landing() {
             Join thousands of businesses already using AuroMart to streamline their ordering and billing processes.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button 
-              size="lg" 
-              className="action-button-primary text-lg px-8 py-4 h-auto"
-              onClick={() => window.location.href = '/register'}
-            >
-              <Sparkles className="h-5 w-5 mr-2" />
-              Get Started Today
-            </Button>
+            <Link href="/register">
+              <Button 
+                size="lg" 
+                className="action-button-primary text-lg px-8 py-4 h-auto"
+              >
+                <Sparkles className="h-5 w-5 mr-2" />
+                Get Started Today
+              </Button>
+            </Link>
             <Button 
               variant="outline" 
               size="lg" 

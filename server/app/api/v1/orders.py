@@ -5,6 +5,7 @@ from app.models.order import Order, OrderItem
 from app.models.product import Product
 from app.models.user import User
 from app.models.cart import CartItem
+from app.models.inventory import Inventory
 from app.utils.decorators import role_required, roles_required
 from datetime import datetime
 import uuid
@@ -14,7 +15,7 @@ orders_bp = Blueprint('orders', __name__)
 @orders_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_orders():
-    """Get orders based on user role"""
+    """Get orders based on user role with enhanced hierarchy support"""
     try:
         current_user_id = get_jwt_identity()
         current_user = User.query.get(current_user_id)
@@ -25,25 +26,28 @@ def get_orders():
         status_filter = request.args.get('status')
         order_type = request.args.get('type', 'all')  # 'buying', 'selling', 'all'
         
-        # Base query
+        # Enhanced role-based order filtering
         if current_user.role == 'manufacturer':
-            # Manufacturer sees orders where they are the seller
+            # Manufacturer sees orders where they are the seller (to distributors)
             query = Order.query.filter_by(seller_id=current_user_id)
+            
         elif current_user.role == 'distributor':
             if order_type == 'buying':
-                # Orders to manufacturer
+                # Orders to manufacturer (for restocking)
                 query = Order.query.filter_by(buyer_id=current_user_id)
             elif order_type == 'selling':
-                # Orders from retailers
+                # Orders from retailers (fulfilling retailer orders)
                 query = Order.query.filter_by(seller_id=current_user_id)
             else:
-                # All orders (buying and selling)
+                # All orders (buying from manufacturer + selling to retailers)
                 query = Order.query.filter(
                     (Order.buyer_id == current_user_id) | (Order.seller_id == current_user_id)
                 )
+                
         elif current_user.role == 'retailer':
-            # Retailer sees orders where they are the buyer
+            # Retailer sees orders where they are the buyer (from distributor)
             query = Order.query.filter_by(buyer_id=current_user_id)
+            
         else:
             return jsonify({'message': 'Invalid user role'}), 400
         
@@ -78,7 +82,7 @@ def get_order(order_id):
         
         # Check if user has access to this order
         if order.buyer_id != current_user_id and order.seller_id != current_user_id:
-            return jsonify({'message': 'Access denied'}), 403
+                return jsonify({'message': 'Access denied'}), 403
         
         return jsonify(order.to_dict()), 200
         
@@ -115,11 +119,55 @@ def create_order():
             if not product:
                 return jsonify({'message': f'Product {product_id} not found'}), 404
             
-            # Check stock
-            if product.stock_quantity < quantity:
-                return jsonify({'message': f'Insufficient stock for {product.name}'}), 400
-            
-            seller_id = product.manufacturer_id
+            # Check stock from inventory based on user role and hierarchy
+            if current_user.role == 'retailer':
+                # Retailer ordering from distributor - check distributor's inventory
+                from app.models.partnership import Partnership
+                partnership = Partnership.query.filter_by(
+                    retailer_id=current_user_id,
+                    partnership_type='DISTRIBUTOR_RETAILER',
+                    status='ACTIVE'
+                ).first()
+                
+                if not partnership:
+                    return jsonify({'message': 'No active partnership with distributor'}), 400
+                
+                inventory = Inventory.query.filter_by(
+                    product_id=product_id,
+                    owner_id=partnership.distributor_id
+                ).first()
+                
+                if not inventory or inventory.quantity < quantity:
+                    return jsonify({'message': f'Insufficient stock for {product.name}. Available: {inventory.quantity if inventory else 0}, Requested: {quantity}'}), 400
+                
+                seller_id = partnership.distributor_id
+                    
+            elif current_user.role == 'distributor':
+                # Distributor ordering from manufacturer - check manufacturer's inventory
+                from app.models.product_allocation import ProductAllocation
+                allocation = ProductAllocation.query.filter_by(
+                    manufacturer_id=product.manufacturer_id,
+                    distributor_id=current_user_id,
+                    product_id=product_id,
+                    is_active=True
+                ).first()
+                
+                if not allocation:
+                    return jsonify({'message': f'Product {product.name} not allocated to you'}), 400
+                
+                inventory = Inventory.query.filter_by(
+                    product_id=product_id,
+                    owner_id=product.manufacturer_id
+                ).first()
+                
+                if not inventory or inventory.quantity < quantity:
+                    return jsonify({'message': f'Insufficient stock for {product.name}. Available: {inventory.quantity if inventory else 0}, Requested: {quantity}'}), 400
+                
+                seller_id = product.manufacturer_id
+            else:
+                # Manufacturer - no stock check needed
+                inventory = None
+                seller_id = product.manufacturer_id
             
             if seller_id not in orders_by_seller:
                 orders_by_seller[seller_id] = {

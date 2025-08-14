@@ -1,6 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Product, Cart, CartItem, Inventory
+from app.models.user import User
+from app.models.product import Product
+from app.models.cart import Cart, CartItem
+from app.models.inventory import Inventory
 from app import db
 from sqlalchemy import and_
 
@@ -36,20 +39,51 @@ def get_cart():
         for item in cart_items:
             product = Product.query.get(item.product_id)
             if product:
-                # Get inventory info for pricing
+                # Get inventory info for pricing based on role hierarchy
                 inventory = None
                 if user.role == 'distributor':
-                    # Distributor sees manufacturer's inventory
-                    inventory = Inventory.query.filter_by(
-                        distributor_id=product.manufacturer_id,
-                        product_id=product.id
+                    # Distributor sees their own inventory for allocated products
+                    from app.models.product_allocation import ProductAllocation
+                    allocation = ProductAllocation.query.filter_by(
+                        manufacturer_id=product.manufacturer_id,
+                        distributor_id=current_user_id,
+                        product_id=product.id,
+                        is_active=True
                     ).first()
+                    
+                    if allocation:
+                        # This is an allocated manufacturer product
+                        inventory = Inventory.query.filter_by(
+                            owner_id=current_user_id,
+                            product_id=product.id
+                        ).first()
+                        unit_price = float(allocation.selling_price)
+                    else:
+                        # This is the distributor's own product
+                        inventory = Inventory.query.filter_by(
+                            owner_id=current_user_id,
+                            product_id=product.id
+                        ).first()
+                        unit_price = product.base_price
+                        
                 elif user.role == 'retailer':
-                    # Retailer sees distributor's inventory
-                    # This would need to be linked through partnerships
-                    pass
+                    # Retailer sees their linked distributor's inventory
+                    from app.models.partnership import Partnership
+                    partnership = Partnership.query.filter_by(
+                        retailer_id=current_user_id,
+                        partnership_type='DISTRIBUTOR_RETAILER',
+                        status='ACTIVE'
+                    ).first()
+                    
+                    if partnership and product.manufacturer_id == partnership.distributor_id:
+                        inventory = Inventory.query.filter_by(
+                            owner_id=partnership.distributor_id,
+                            product_id=product.id
+                        ).first()
+                        unit_price = inventory.selling_price if inventory else product.base_price
+                    else:
+                        unit_price = product.base_price
                 
-                unit_price = inventory.selling_price if inventory else product.base_price
                 # Convert to float to avoid decimal issues
                 unit_price_float = float(unit_price) if unit_price else 0.0
                 item_total = unit_price_float * item.quantity
@@ -77,7 +111,7 @@ def get_cart():
     except Exception as e:
         return jsonify({'message': 'Failed to fetch cart', 'error': str(e)}), 500
 
-@cart_bp.route('/add', methods=['POST'])
+@cart_bp.route('/', methods=['POST'])
 @jwt_required()
 def add_to_cart():
     """Add item to cart"""
@@ -109,6 +143,9 @@ def add_to_cart():
             # Distributor can buy from manufacturers
             if product.manufacturer_id == current_user_id:
                 return jsonify({'message': 'You cannot buy your own products'}), 400
+        elif user.role == 'manufacturer':
+            # Manufacturers can add any product to cart (for testing/demo purposes)
+            pass
         
         # Get or create cart
         cart = Cart.query.filter_by(user_id=current_user_id).first()

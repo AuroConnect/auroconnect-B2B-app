@@ -24,6 +24,7 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
   const queryClient = useQueryClient();
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [addedToCartProducts, setAddedToCartProducts] = useState<Set<string>>(new Set());
   const [editForm, setEditForm] = useState({
     name: "",
     description: "",
@@ -134,12 +135,22 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, productId) => {
       toast({
         title: "Added to Cart",
         description: "Product has been added to your cart.",
       });
       queryClient.invalidateQueries({ queryKey: ["api", "cart"] });
+      // Add to the set of products that were successfully added
+      setAddedToCartProducts(prev => new Set([...prev, productId]));
+      // Remove from the set after 3 seconds
+      setTimeout(() => {
+        setAddedToCartProducts(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(productId);
+          return newSet;
+        });
+      }, 3000);
     },
     onError: (error: any) => {
       toast({
@@ -179,7 +190,7 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
             </div>
             
             {/* Success animation overlay */}
-            {addToCartMutation.isSuccess && (
+            {addedToCartProducts.has(product.id) && (
               <div className="absolute inset-0 bg-green-500 flex items-center justify-center text-white font-medium">
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Added!
@@ -202,6 +213,11 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     Adding...
                   </>
+                ) : addedToCartProducts.has(product.id) ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Added!
+                  </>
                 ) : (
                   <>
                     <ShoppingCart className="h-4 w-4 mr-2" />
@@ -221,36 +237,16 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
         );
       case 'manufacturer':
         return (
-          <div className="flex gap-2 w-full">
-            <Button 
-              className="flex-1 action-button-primary"
-              onClick={() => handleAddToCart(product.id)}
-              disabled={addToCartMutation.isPending}
-              data-testid={`button-add-to-cart-${product.id}`}
-            >
-              <div className="flex items-center justify-center">
-                {addToCartMutation.isPending ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Adding...
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Add to Cart
-                  </>
-                )}
-              </div>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => handleEditProduct(product)}
-              data-testid={`button-edit-product-${product.id}`}
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleEditProduct(product)}
+            data-testid={`button-edit-product-${product.id}`}
+            className="w-full"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Product
+          </Button>
         );
       default:
         return (
@@ -265,6 +261,11 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                   Adding...
+                </>
+              ) : addedToCartProducts.has(product.id) ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Added!
                 </>
               ) : (
                 <>

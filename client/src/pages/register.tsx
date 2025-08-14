@@ -92,7 +92,7 @@ export default function Register() {
         });
         // Redirect to login after a short delay
         setTimeout(() => {
-          window.location.href = "/";
+          window.location.href = "/login";
         }, 2000);
       },
       onError: (error: Error) => {
@@ -360,9 +360,9 @@ export default function Register() {
                 <div className="text-center">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Already have an account?{" "}
-                    <Link href="/" className="text-primary hover:underline font-medium">
-                      Sign in here
-                    </Link>
+                                         <Link href="/login" className="text-primary hover:underline font-medium">
+                       Sign in here
+                     </Link>
                   </p>
                 </div>
               </div>

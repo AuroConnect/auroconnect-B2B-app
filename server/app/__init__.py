@@ -45,6 +45,8 @@ def create_app(config_class=Config):
     from app.api.v1.invoices import invoices_bp
     from app.api.v1.cart import cart_bp
     from app.api.v1.reports import reports_bp
+    from app.api.v1.inventory import inventory_bp
+    from app.api.v1.product_allocations import product_allocations_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(products_bp, url_prefix='/api/products')
@@ -60,6 +62,8 @@ def create_app(config_class=Config):
     app.register_blueprint(invoices_bp, url_prefix='/api/invoices')
     app.register_blueprint(cart_bp, url_prefix='/api/cart')
     app.register_blueprint(reports_bp, url_prefix='/api/reports')
+    app.register_blueprint(inventory_bp, url_prefix='/api/inventory')
+    app.register_blueprint(product_allocations_bp, url_prefix='/api/product-allocations')
     
     # Error handlers
     from app.errors import register_error_handlers

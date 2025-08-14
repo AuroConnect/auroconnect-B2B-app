@@ -14,18 +14,116 @@ import os
 products_bp = Blueprint('products', __name__)
 
 @products_bp.route('/', methods=['GET'])
+@jwt_required()
 def get_products():
-    """Get all products"""
+    """Get all products with inventory info for authenticated users"""
     try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
         category_id = request.args.get('categoryId')
         
-        query = Product.query.filter_by(is_active=True)
+        # Apply role-based product filtering
+        if user.role == 'manufacturer':
+            # Manufacturers see only their own products
+            query = Product.query.filter_by(
+                manufacturer_id=current_user_id,
+                is_active=True
+            )
+        elif user.role == 'distributor':
+            # Distributors see:
+            # 1. Products allocated to them by manufacturers
+            # 2. Their own products
+            from app.models.product_allocation import ProductAllocation
+            
+            # Get allocated product IDs
+            allocated_products = db.session.query(ProductAllocation.product_id).filter_by(
+                distributor_id=current_user_id,
+                is_active=True
+            ).subquery()
+            
+            query = Product.query.filter(
+                db.or_(
+                    Product.id.in_(allocated_products),
+                    Product.manufacturer_id == current_user_id
+                ),
+                Product.is_active == True
+            )
+        elif user.role == 'retailer':
+            # Retailers see products from distributors (simplified for now)
+            # In a real implementation, this would check partnerships
+            query = Product.query.filter_by(is_active=True)
+        else:
+            return jsonify({'message': 'Invalid user role'}), 400
         
         if category_id:
             query = query.filter_by(category_id=category_id)
         
         products = query.all()
-        return jsonify([prod.to_dict() for prod in products]), 200
+        products_with_inventory = []
+        
+        for product in products:
+            product_dict = product.to_dict()
+            
+            # Apply role-based inventory and pricing rules
+            if user.role == 'manufacturer':
+                # Manufacturers see unlimited stock and base price
+                product_dict['availableStock'] = 999  # Unlimited for manufacturers
+                product_dict['sellingPrice'] = float(product.base_price) if product.base_price else 0
+                product_dict['isAllocated'] = False
+                products_with_inventory.append(product_dict)
+                    
+            elif user.role == 'distributor':
+                # Check if this is an allocated product
+                allocation = ProductAllocation.query.filter_by(
+                    manufacturer_id=product.manufacturer_id,
+                    distributor_id=current_user_id,
+                    product_id=product.id,
+                    is_active=True
+                ).first()
+                
+                if allocation:
+                    # This is a manufacturer product allocated to this distributor
+                    inventory = Inventory.query.filter_by(
+                        distributor_id=current_user_id,
+                        product_id=product.id
+                    ).first()
+                    
+                    product_dict['availableStock'] = inventory.quantity if inventory else 0
+                    product_dict['sellingPrice'] = float(allocation.selling_price)
+                    product_dict['isAllocated'] = True
+                    product_dict['allocationId'] = allocation.id
+                    product_dict['manufacturerName'] = product.manufacturer.business_name if product.manufacturer else "Unknown"
+                    products_with_inventory.append(product_dict)
+                    
+                elif product.manufacturer_id == current_user_id:
+                    # This is the distributor's own product
+                    inventory = Inventory.query.filter_by(
+                        distributor_id=current_user_id,
+                        product_id=product.id
+                    ).first()
+                    
+                    product_dict['availableStock'] = inventory.quantity if inventory else 0
+                    product_dict['sellingPrice'] = float(product.base_price) if product.base_price else 0
+                    product_dict['isAllocated'] = False
+                    product_dict['manufacturerName'] = user.business_name
+                    products_with_inventory.append(product_dict)
+                    
+            elif user.role == 'retailer':
+                # Retailers see distributor's inventory and pricing (simplified)
+                # Find any distributor inventory for this product
+                inventory = Inventory.query.filter_by(product_id=product.id).first()
+                
+                product_dict['availableStock'] = inventory.quantity if inventory else 0
+                product_dict['sellingPrice'] = float(inventory.selling_price) if inventory and inventory.selling_price else float(product.base_price) if product.base_price else 0
+                product_dict['isAllocated'] = False
+                product_dict['distributorName'] = inventory.distributor.business_name if inventory and inventory.distributor else "Unknown"
+                products_with_inventory.append(product_dict)
+        
+        return jsonify(products_with_inventory), 200
         
     except Exception as e:
         return jsonify({'message': 'Failed to fetch products', 'error': str(e)}), 500
@@ -134,7 +232,7 @@ def update_product(product_id):
 
 @products_bp.route('/<product_id>', methods=['DELETE'])
 @jwt_required()
-@role_required(['manufacturer', 'distributor'])
+@roles_required(['manufacturer', 'distributor'])
 def delete_product(product_id):
     """Delete product (manufacturers and distributors)"""
     try:
@@ -220,15 +318,45 @@ def get_partner_products(partner_id):
     except Exception as e:
         return jsonify({'message': 'Failed to fetch partner products', 'error': str(e)}), 500
 
-@products_bp.route('/categories', methods=['GET'])
-def get_categories():
-    """Get all categories"""
-    try:
-        categories = Category.query.all()
-        return jsonify([cat.to_dict() for cat in categories]), 200
-        
-    except Exception as e:
-        return jsonify({'message': 'Failed to fetch categories', 'error': str(e)}), 500
+@products_bp.route('/categories', methods=['GET', 'POST'])
+def categories():
+    """Get all categories or create new category"""
+    if request.method == 'GET':
+        """Get all categories"""
+        try:
+            categories = Category.query.all()
+            return jsonify([cat.to_dict() for cat in categories]), 200
+            
+        except Exception as e:
+            return jsonify({'message': 'Failed to fetch categories', 'error': str(e)}), 500
+    
+    elif request.method == 'POST':
+        """Create new category"""
+        try:
+            data = request.get_json()
+            
+            # Validate required fields
+            if not data.get('name'):
+                return jsonify({'message': 'Category name is required'}), 400
+            
+            # Check if category already exists
+            existing_category = Category.query.filter_by(name=data['name']).first()
+            if existing_category:
+                return jsonify({'message': 'Category with this name already exists'}), 409
+            
+            new_category = Category(
+                name=data['name'],
+                description=data.get('description', '')
+            )
+            
+            db.session.add(new_category)
+            db.session.commit()
+            
+            return jsonify(new_category.to_dict()), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'message': 'Failed to create category', 'error': str(e)}), 500
 
 @products_bp.route('/search', methods=['GET'])
 def search_products():
@@ -325,7 +453,6 @@ def bulk_upload_products():
                         manufacturer_id=current_user_id,
                         image_url=row_data.get('image_url'),
                         base_price=float(row_data['base_price']),
-                        stock_quantity=int(row_data.get('stock_quantity', 0)),
                         is_active=True
                     )
                     
@@ -351,4 +478,37 @@ def bulk_upload_products():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': 'Failed to process bulk upload', 'error': str(e)}), 500 
+        return jsonify({'message': 'Failed to process bulk upload', 'error': str(e)}), 500
+
+@products_bp.route('/manufacturers', methods=['GET'])
+@jwt_required()
+def get_manufacturers():
+    """Get all manufacturers for distributor filtering"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        if user.role == 'distributor':
+            # Get manufacturers who have allocated products to this distributor
+            from app.models.product_allocation import ProductAllocation
+            
+            allocated_manufacturers = db.session.query(User).join(
+                ProductAllocation, User.id == ProductAllocation.manufacturer_id
+            ).filter(
+                ProductAllocation.distributor_id == current_user_id,
+                ProductAllocation.is_active == True
+            ).distinct().all()
+            
+            return jsonify([{
+                'id': manufacturer.id,
+                'businessName': manufacturer.business_name,
+                'email': manufacturer.email
+            } for manufacturer in allocated_manufacturers])
+        else:
+            return jsonify({'message': 'Access denied'}), 403
+            
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500 

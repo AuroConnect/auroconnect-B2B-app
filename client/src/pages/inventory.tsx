@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { 
   Search, 
   Filter, 
@@ -24,7 +26,14 @@ import {
   TrendingDown,
   BarChart3,
   Download,
-  Upload
+  Upload,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  FileSpreadsheet,
+  Settings,
+  Bell
 } from "lucide-react";
 
 interface InventoryItem {
@@ -32,12 +41,29 @@ interface InventoryItem {
   productId: string;
   productName: string;
   sku: string;
-  currentStock: number;
-  minStockLevel: number;
-  maxStockLevel: number;
-  unit: string;
-  lastUpdated: string;
-  status: 'in_stock' | 'low_stock' | 'out_of_stock';
+  quantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  lowStockThreshold: number;
+  autoRestockQuantity: number;
+  isLowStock: boolean;
+  needsRestock: boolean;
+  sellingPrice: number;
+  isAvailable: boolean;
+  lastRestockDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface InventoryAnalytics {
+  totalItems: number;
+  totalQuantity: number;
+  totalReserved: number;
+  totalAvailable: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  totalValue: number;
+  averageStockLevel: number;
 }
 
 export default function Inventory() {
@@ -47,12 +73,16 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isAddStockOpen, setIsAddStockOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [stockAdjustment, setStockAdjustment] = useState({
     quantity: "",
     reason: "",
     type: "add" as "add" | "subtract"
   });
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -70,16 +100,48 @@ export default function Inventory() {
   }, [user, isLoading, toast]);
 
   // Fetch inventory data
-  const { data: inventory = [], isLoading: inventoryLoading, error: inventoryError } = useQuery<InventoryItem[]>({
+  const { data: inventoryData, isLoading: inventoryLoading, error: inventoryError } = useQuery<{
+    inventory: InventoryItem[];
+    summary: {
+      totalItems: number;
+      lowStockItems: number;
+      outOfStockItems: number;
+    };
+  }>({
     queryKey: ["api", "inventory"],
     enabled: !!user && !isLoading,
     retry: 3,
+    staleTime: 30000,
   });
+
+  // Fetch inventory analytics
+  const { data: analytics, isLoading: analyticsLoading } = useQuery<{
+    analytics: InventoryAnalytics;
+  }>({
+    queryKey: ["api", "inventory", "analytics"],
+    enabled: !!user && !isLoading,
+    retry: 3,
+    staleTime: 30000,
+  });
+
+  // Fetch low stock alerts
+  const { data: lowStockAlerts, isLoading: lowStockLoading } = useQuery<{
+    lowStockItems: InventoryItem[];
+    count: number;
+  }>({
+    queryKey: ["api", "inventory", "low-stock"],
+    enabled: !!user && !isLoading,
+    retry: 3,
+    staleTime: 30000,
+  });
+
+  const inventory = inventoryData?.inventory || [];
+  const analyticsData = analytics?.analytics;
 
   // Update stock mutation
   const updateStockMutation = useMutation({
     mutationFn: async ({ itemId, quantity, reason, type }: { itemId: string; quantity: number; reason: string; type: string }) => {
-      const response = await apiRequest("PUT", `/api/inventory/${itemId}/stock`, { 
+      const response = await apiRequest("PUT", `/api/inventory/${itemId}`, { 
         quantity, 
         reason, 
         type 
@@ -104,39 +166,71 @@ export default function Inventory() {
     },
   });
 
-  // Filter inventory based on search term and status
-  const filteredInventory = inventory.filter((item) => {
-    const matchesSearch = 
-      item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.sku.toLowerCase().includes(searchTerm.toLowerCase());
+  // Auto-restock mutation
+  const autoRestockMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/inventory/auto-restock");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Auto-Restock Completed",
+        description: `Successfully restocked ${data.restockedItems?.length || 0} items.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["api", "inventory"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to auto-restock.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk upload mutation
+  const bulkUploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await apiRequest("POST", "/api/inventory/bulk-update", formData, true);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Bulk Upload Completed",
+        description: `Successfully updated ${data.results?.success || 0} items.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["api", "inventory"] });
+      setIsBulkUploadOpen(false);
+      setBulkFile(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload file.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Filter inventory items
+  const filteredInventory = inventory.filter((item: InventoryItem) => {
+    const matchesSearch = item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.sku.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+    let matchesStatus = true;
+    if (statusFilter === "low_stock") matchesStatus = item.isLowStock;
+    else if (statusFilter === "out_of_stock") matchesStatus = item.availableQuantity === 0;
+    else if (statusFilter === "available") matchesStatus = item.availableQuantity > 0;
     
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'in_stock': return 'bg-green-100 text-green-800';
-      case 'low_stock': return 'bg-yellow-100 text-yellow-800';
-      case 'out_of_stock': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'in_stock': return <Package className="h-4 w-4" />;
-      case 'low_stock': return <AlertTriangle className="h-4 w-4" />;
-      case 'out_of_stock': return <AlertTriangle className="h-4 w-4" />;
-      default: return <Package className="h-4 w-4" />;
-    }
-  };
-
-  const handleStockUpdate = () => {
+  const handleUpdateStock = () => {
     if (!selectedItem || !stockAdjustment.quantity || !stockAdjustment.reason) {
       toast({
-        title: "Missing Information",
+        title: "Validation Error",
         description: "Please fill in all required fields.",
         variant: "destructive",
       });
@@ -157,255 +251,410 @@ export default function Inventory() {
       itemId: selectedItem.id,
       quantity,
       reason: stockAdjustment.reason,
-      type: stockAdjustment.type
+      type: stockAdjustment.type,
     });
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const handleAutoRestock = () => {
+    autoRestockMutation.mutate();
   };
 
-  if (!user) {
+  const handleBulkUpload = () => {
+    if (!bulkFile) {
+      toast({
+        title: "No File Selected",
+        description: "Please select a file to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkUploadMutation.mutate(bulkFile);
+  };
+
+  const getStatusBadge = (item: InventoryItem) => {
+    if (item.availableQuantity === 0) {
+      return <Badge variant="destructive">Out of Stock</Badge>;
+    } else if (item.isLowStock) {
+      return <Badge variant="secondary">Low Stock</Badge>;
+    } else {
+      return <Badge variant="default">In Stock</Badge>;
+    }
+  };
+
+  const getStockProgress = (item: InventoryItem) => {
+    const percentage = (item.availableQuantity / (item.lowStockThreshold * 2)) * 100;
+    return Math.min(percentage, 100);
+  };
+
+  if (isLoading || inventoryLoading) {
     return (
-      <div className="min-h-screen auromart-gradient-bg flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading...</p>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading inventory...</p>
+          </div>
         </div>
+        <MobileNav />
       </div>
     );
   }
 
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       <Header />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Inventory Management
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Track and manage your product inventory
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Button variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              <Button variant="outline">
-                <Upload className="h-4 w-4 mr-2" />
-                Import
-              </Button>
-              <Button className="action-button-primary">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Product
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Products</p>
-                  <p className="text-2xl font-bold text-gray-900">{inventory.length}</p>
-                </div>
-                <Package className="h-8 w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">In Stock</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {inventory.filter(item => item.status === 'in_stock').length}
-                  </p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Low Stock</p>
-                  <p className="text-2xl font-bold text-yellow-600">
-                    {inventory.filter(item => item.status === 'low_stock').length}
-                  </p>
-                </div>
-                <AlertTriangle className="h-8 w-8 text-yellow-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Out of Stock</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {inventory.filter(item => item.status === 'out_of_stock').length}
-                  </p>
-                </div>
-                <TrendingDown className="h-8 w-8 text-red-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search and Filter */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search products by name or SKU..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Main Content */}
+          <div className="flex-1">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
+                <p className="text-gray-600 mt-1">Manage your product inventory and stock levels</p>
               </div>
               
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="in_stock">In Stock</SelectItem>
-                  <SelectItem value="low_stock">Low Stock</SelectItem>
-                  <SelectItem value="out_of_stock">Out of Stock</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => setIsBulkUploadOpen(true)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Bulk Upload
+                </Button>
+                <Button
+                  onClick={handleAutoRestock}
+                  disabled={autoRestockMutation.isPending}
+                  variant="outline"
+                  size="sm"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${autoRestockMutation.isPending ? 'animate-spin' : ''}`} />
+                  Auto Restock
+                </Button>
+                <Button
+                  onClick={() => setIsSettingsOpen(true)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </Button>
+              </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Inventory List */}
-        <div className="space-y-4">
-          {inventoryLoading ? (
-            <div className="text-center py-8">
-              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading inventory...</p>
-            </div>
-          ) : inventoryError ? (
-            <div className="text-center py-8">
-              <p className="text-red-600">Failed to load inventory</p>
-            </div>
-          ) : filteredInventory.length === 0 ? (
-            <div className="text-center py-8">
-              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No inventory items found</p>
-            </div>
-          ) : (
-            filteredInventory.map((item) => (
-              <Card key={item.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg">{item.productName}</h3>
-                        <Badge className={getStatusColor(item.status)}>
-                          <div className="flex items-center gap-1">
-                            {getStatusIcon(item.status)}
-                            {item.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </div>
-                        </Badge>
+            {/* Analytics Cards */}
+            {analyticsData && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Items</p>
+                        <p className="text-2xl font-bold text-gray-900">{analyticsData.totalItems}</p>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-3">
-                        <div>
-                          <span className="font-medium">SKU:</span> {item.sku}
-                        </div>
-                        <div>
-                          <span className="font-medium">Current Stock:</span> {item.currentStock} {item.unit}
-                        </div>
-                        <div>
-                          <span className="font-medium">Min Level:</span> {item.minStockLevel} {item.unit}
-                        </div>
-                        <div>
-                          <span className="font-medium">Last Updated:</span> {formatDate(item.lastUpdated)}
-                        </div>
+                      <Package className="w-8 h-8 text-blue-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Available Stock</p>
+                        <p className="text-2xl font-bold text-gray-900">{analyticsData.totalAvailable}</p>
                       </div>
+                      <CheckCircle className="w-8 h-8 text-green-600" />
                     </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedItem(item);
-                          setIsAddStockOpen(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Update Stock
-                      </Button>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
+                        <p className="text-2xl font-bold text-orange-600">{analyticsData.lowStockCount}</p>
+                      </div>
+                      <AlertTriangle className="w-8 h-8 text-orange-600" />
                     </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Value</p>
+                        <p className="text-2xl font-bold text-gray-900">₹{analyticsData.totalValue?.toLocaleString()}</p>
+                      </div>
+                      <BarChart3 className="w-8 h-8 text-purple-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="low-stock">Low Stock Alerts</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="overview" className="mt-6">
+                {/* Search and Filters */}
+                <div className="flex flex-col lg:flex-row gap-4 mb-6">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Search products by name or SKU..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+                  
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full lg:w-48">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Items</SelectItem>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="low_stock">Low Stock</SelectItem>
+                      <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Inventory Table */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Inventory Items ({filteredInventory.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-4 font-medium">Product</th>
+                            <th className="text-left py-3 px-4 font-medium">SKU</th>
+                            <th className="text-left py-3 px-4 font-medium">Stock Level</th>
+                            <th className="text-left py-3 px-4 font-medium">Status</th>
+                            <th className="text-left py-3 px-4 font-medium">Price</th>
+                            <th className="text-left py-3 px-4 font-medium">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredInventory.map((item: InventoryItem) => (
+                            <tr key={item.id} className="border-b hover:bg-gray-50">
+                              <td className="py-3 px-4">
+                                <div>
+                                  <p className="font-medium">{item.productName}</p>
+                                  <p className="text-sm text-gray-500">ID: {item.productId}</p>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <code className="bg-gray-100 px-2 py-1 rounded text-sm">{item.sku}</code>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span>Available: {item.availableQuantity}</span>
+                                    <span>Reserved: {item.reservedQuantity}</span>
+                                  </div>
+                                  <Progress value={getStockProgress(item)} className="h-2" />
+                                  <p className="text-xs text-gray-500">
+                                    Threshold: {item.lowStockThreshold}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                {getStatusBadge(item)}
+                              </td>
+                              <td className="py-3 px-4">
+                                ₹{item.sellingPrice?.toLocaleString() || 'N/A'}
+                              </td>
+                              <td className="py-3 px-4">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedItem(item);
+                                    setIsAddStockOpen(true);
+                                  }}
+                                >
+                                  <Edit className="w-4 h-4 mr-1" />
+                                  Update
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="low-stock" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-orange-600" />
+                      Low Stock Alerts ({lowStockAlerts?.lowStockItems?.length || 0})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {lowStockAlerts?.lowStockItems?.length > 0 ? (
+                      <div className="space-y-4">
+                        {lowStockAlerts.lowStockItems.map((item: InventoryItem) => (
+                          <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg bg-orange-50">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{item.productName}</h4>
+                              <p className="text-sm text-gray-600">SKU: {item.sku}</p>
+                              <p className="text-sm text-orange-600">
+                                Available: {item.availableQuantity} / Threshold: {item.lowStockThreshold}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedItem(item);
+                                  setIsAddStockOpen(true);
+                                }}
+                              >
+                                Restock
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                        <p className="text-gray-600">No low stock alerts at the moment!</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="analytics" className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Inventory Analytics</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {analyticsData ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h4 className="font-medium mb-4">Stock Distribution</h4>
+                          <div className="space-y-3">
+                            <div className="flex justify-between">
+                              <span>Total Quantity</span>
+                              <span className="font-medium">{analyticsData.totalQuantity}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Reserved Stock</span>
+                              <span className="font-medium">{analyticsData.totalReserved}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Available Stock</span>
+                              <span className="font-medium">{analyticsData.totalAvailable}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Average Stock Level</span>
+                              <span className="font-medium">{Math.round(analyticsData.averageStockLevel)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <h4 className="font-medium mb-4">Stock Status</h4>
+                          <div className="space-y-3">
+                            <div className="flex justify-between">
+                              <span>In Stock Items</span>
+                              <span className="font-medium text-green-600">
+                                {analyticsData.totalItems - analyticsData.lowStockCount - analyticsData.outOfStockCount}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Low Stock Items</span>
+                              <span className="font-medium text-orange-600">{analyticsData.lowStockCount}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Out of Stock Items</span>
+                              <span className="font-medium text-red-600">{analyticsData.outOfStockCount}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Total Value</span>
+                              <span className="font-medium">₹{analyticsData.totalValue?.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No analytics data available</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       </div>
 
-      {/* Stock Update Dialog */}
+      {/* Update Stock Dialog */}
       <Dialog open={isAddStockOpen} onOpenChange={setIsAddStockOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update Stock - {selectedItem?.productName}</DialogTitle>
+            <DialogTitle>Update Stock Level</DialogTitle>
             <DialogDescription>
-              Update the stock level for this product
+              Update the stock level for {selectedItem?.productName}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <Label htmlFor="type">Update Type</Label>
-              <Select value={stockAdjustment.type} onValueChange={(value: "add" | "subtract") => setStockAdjustment(prev => ({ ...prev, type: value }))}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="add">Add Stock</SelectItem>
-                  <SelectItem value="subtract">Subtract Stock</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
               <Label htmlFor="quantity">Quantity</Label>
               <Input
                 id="quantity"
                 type="number"
-                min="1"
                 value={stockAdjustment.quantity}
-                onChange={(e) => setStockAdjustment(prev => ({ ...prev, quantity: e.target.value }))}
+                onChange={(e) => setStockAdjustment({ ...stockAdjustment, quantity: e.target.value })}
                 placeholder="Enter quantity"
               />
+            </div>
+            
+            <div>
+              <Label htmlFor="type">Type</Label>
+              <Select
+                value={stockAdjustment.type}
+                onValueChange={(value: "add" | "subtract") => setStockAdjustment({ ...stockAdjustment, type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="add">Add Stock</SelectItem>
+                  <SelectItem value="subtract">Remove Stock</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div>
@@ -413,36 +662,65 @@ export default function Inventory() {
               <Input
                 id="reason"
                 value={stockAdjustment.reason}
-                onChange={(e) => setStockAdjustment(prev => ({ ...prev, reason: e.target.value }))}
-                placeholder="e.g., New shipment, Sales, Damaged goods"
+                onChange={(e) => setStockAdjustment({ ...stockAdjustment, reason: e.target.value })}
+                placeholder="Enter reason for adjustment"
               />
             </div>
           </div>
           
-          <div className="flex justify-end gap-3 pt-6 border-t">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsAddStockOpen(false)}
-            >
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsAddStockOpen(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleStockUpdate}
+            <Button
+              onClick={handleUpdateStock}
               disabled={updateStockMutation.isPending}
             >
-              {updateStockMutation.isPending ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Updating...
-                </>
-              ) : (
-                "Update Stock"
-              )}
+              {updateStockMutation.isPending ? "Updating..." : "Update Stock"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
-      
+
+      {/* Bulk Upload Dialog */}
+      <Dialog open={isBulkUploadOpen} onOpenChange={setIsBulkUploadOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Inventory</DialogTitle>
+            <DialogDescription>
+              Upload an Excel file to update multiple inventory items at once.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="file">Excel File</Label>
+              <Input
+                id="file"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setBulkFile(e.target.files?.[0] || null)}
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                File should contain: SKU, Quantity, Low Stock Threshold, Auto Restock Quantity, Selling Price
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsBulkUploadOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkUpload}
+              disabled={bulkUploadMutation.isPending || !bulkFile}
+            >
+              {bulkUploadMutation.isPending ? "Uploading..." : "Upload"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <MobileNav />
     </div>
   );

@@ -129,7 +129,20 @@ export default function Cart() {
   // Place order from cart
   const placeOrderMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/orders");
+      if (!cart?.items || cart.items.length === 0) {
+        throw new Error("No items in cart");
+      }
+      
+      const cart_items = cart.items.map(item => ({
+        product_id: item.productId,
+        quantity: item.quantity
+      }));
+      
+      const response = await apiRequest("POST", "/api/orders", {
+        cart_items,
+        delivery_option: 'DELIVER_TO_BUYER',
+        notes: ''
+      });
       return response.json();
     },
     onSuccess: (data) => {
@@ -304,7 +317,7 @@ export default function Cart() {
                         Stock: {item.availableStock}
                       </Badge>
                       <Badge variant="secondary" className="text-xs">
-                        ${item.unitPrice.toFixed(2)} each
+                        ₹{item.unitPrice.toFixed(2)} each
                       </Badge>
                     </div>
                   </div>
@@ -346,11 +359,11 @@ export default function Cart() {
                   
                   <div className="text-right">
                     <p className={`text-sm font-medium ${isUpdatingItem ? 'text-gray-400' : 'text-gray-900'}`}>
-                      ${localTotal.toFixed(2)}
+                      ₹{localTotal.toFixed(2)}
                     </p>
                     {localQuantity !== item.quantity && (
                       <p className="text-xs text-gray-500 line-through">
-                        ${item.totalPrice.toFixed(2)}
+                        ₹{item.totalPrice.toFixed(2)}
                       </p>
                     )}
                     <Button
@@ -382,7 +395,7 @@ export default function Cart() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Subtotal ({realTimeTotals.totalItems} items):</span>
-              <span className="font-medium">${realTimeTotals.totalAmount.toFixed(2)}</span>
+              <span className="font-medium">₹{realTimeTotals.totalAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Shipping:</span>
@@ -392,7 +405,7 @@ export default function Cart() {
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold">Total:</span>
                 <span className="text-2xl font-bold text-gray-900">
-                  ${realTimeTotals.totalAmount.toFixed(2)}
+                  ₹{realTimeTotals.totalAmount.toFixed(2)}
                 </span>
               </div>
             </div>

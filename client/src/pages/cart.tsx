@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/layout/header";
 import MobileNav from "@/components/layout/mobile-nav";
 import Cart from "@/components/cart/cart";
+import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { ShoppingCart } from "lucide-react";
@@ -59,7 +60,23 @@ export default function CartPage() {
         </div>
 
         {/* Cart Component */}
-        <Cart />
+        {user?.role === 'manufacturer' ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShoppingCart className="h-8 w-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Cart Not Available</h3>
+            <p className="text-gray-600 mb-6">
+              Manufacturers can only add products and manage inventory. 
+              Cart functionality is available for Distributors and Retailers only.
+            </p>
+            <Button onClick={() => window.location.href = "/products"}>
+              Manage Products
+            </Button>
+          </div>
+        ) : (
+          <Cart />
+        )}
       </div>
       
       <MobileNav />

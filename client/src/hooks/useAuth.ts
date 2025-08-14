@@ -42,11 +42,18 @@ export function useAuth() {
     enabled: !!localStorage.getItem('authToken'),
     staleTime: 5 * 60 * 1000, // 5 minutes
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/auth/user');
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
+      try {
+        const response = await apiRequest('GET', '/api/auth/user');
+        if (!response.ok) {
+          throw new Error('Failed to fetch user data');
+        }
+        return response.json();
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        // If auth check fails, clear the token and return null
+        localStorage.removeItem('authToken');
+        return null;
       }
-      return response.json();
     },
   });
 
@@ -123,7 +130,7 @@ export function useAuth() {
     user: user as User | null,
     isLoading: isLoading || loginMutation.isPending,
     error,
-    isAuthenticated: !!user && !isLoading,
+    isAuthenticated: !!user,
     login,
     register,
     logout: logoutMutation.mutate,

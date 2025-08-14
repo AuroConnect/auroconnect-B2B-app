@@ -64,7 +64,8 @@ const ENDPOINTS_NEEDING_TRAILING_SLASH = [
   'api/orders', 
   'api/favorites',
   'api/notifications',
-  'api/partnerships'
+  'api/partnerships',
+  'api/cart'
 ];
 
 export async function apiRequest(
