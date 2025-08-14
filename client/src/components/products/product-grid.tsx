@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ShoppingCart, Eye, Package, Edit, Trash2, CheckCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ProductGridProps {
   products: any[];
@@ -21,6 +22,7 @@ interface ProductGridProps {
 
 export default function ProductGrid({ products, isLoading, userRole, categories = [] }: ProductGridProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -199,10 +201,11 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
           </Button>
         );
       case 'distributor':
-        return (
-          <div className="flex gap-2 w-full">
+        // Distributors can only add allocated manufacturer products to cart
+        if (product.isAllocated) {
+          return (
             <Button 
-              className="flex-1 action-button-primary"
+              className="w-full action-button-primary"
               onClick={() => handleAddToCart(product.id)}
               disabled={addToCartMutation.isPending}
               data-testid={`button-add-to-cart-${product.id}`}
@@ -226,28 +229,45 @@ export default function ProductGrid({ products, isLoading, userRole, categories 
                 )}
               </div>
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              data-testid={`button-manage-stock-${product.id}`}
-            >
-              <Package className="h-4 w-4" />
-            </Button>
-          </div>
-        );
+          );
+        } else {
+          // Own products - no action button in catalog
+          return null;
+        }
       case 'manufacturer':
-        return (
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => handleEditProduct(product)}
-            data-testid={`button-edit-product-${product.id}`}
-            className="w-full"
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Product
-          </Button>
-        );
+        // Manufacturers can only add other manufacturer products to cart (for demo)
+        if (product.manufacturerId !== (user as any)?.id) {
+          return (
+            <Button 
+              className="w-full action-button-primary"
+              onClick={() => handleAddToCart(product.id)}
+              disabled={addToCartMutation.isPending}
+              data-testid={`button-add-to-cart-${product.id}`}
+            >
+              <div className="flex items-center justify-center">
+                {addToCartMutation.isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Adding...
+                  </>
+                ) : addedToCartProducts.has(product.id) ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Added!
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to Cart
+                  </>
+                )}
+              </div>
+            </Button>
+          );
+        } else {
+          // Own products - no action button in catalog
+          return null;
+        }
       default:
         return (
           <Button 

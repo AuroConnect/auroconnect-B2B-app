@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
+import MyProducts from "@/pages/my-products";
 import Orders from "@/pages/orders";
 import Reports from "@/pages/reports";
 import Partnerships from "@/pages/partnerships";
@@ -49,6 +50,7 @@ function Router() {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/products" component={Products} />
+          <Route path="/my-products" component={MyProducts} />
           <Route path="/inventory" component={Inventory} />
           <Route path="/cart" component={Cart} />
           <Route path="/orders" component={Orders} />

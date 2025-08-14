@@ -69,6 +69,9 @@ export default function Products() {
   const [selectedManufacturer, setSelectedManufacturer] = useState("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkUploadRef = useRef<HTMLInputElement>(null);
+  
+  // Get user role early to avoid hoisting issues
+  const userRole = (user as User)?.role || 'retailer';
 
   // Add Product Form State
   const [newProduct, setNewProduct] = useState({
@@ -332,8 +335,6 @@ export default function Products() {
       </div>
     );
   }
-
-  const userRole = (user as User)?.role || 'retailer';
 
   return (
     <div className="min-h-screen">

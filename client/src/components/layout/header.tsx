@@ -115,8 +115,21 @@ export default function Header() {
               }`}
               data-testid="nav-products"
             >
-              Products
+              Catalog
             </Link>
+            {(typedUser.role === 'manufacturer' || typedUser.role === 'distributor') && (
+              <Link 
+                href="/my-products" 
+                className={`nav-link ${
+                  location === '/my-products' 
+                    ? 'text-primary bg-primary/10' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                data-testid="nav-my-products"
+              >
+                My Products
+              </Link>
+            )}
             <Link 
               href="/partners" 
               className={`nav-link ${

@@ -54,14 +54,14 @@ def get_cart():
                     if allocation:
                         # This is an allocated manufacturer product
                         inventory = Inventory.query.filter_by(
-                            owner_id=current_user_id,
+                            distributor_id=current_user_id,
                             product_id=product.id
                         ).first()
                         unit_price = float(allocation.selling_price)
                     else:
                         # This is the distributor's own product
                         inventory = Inventory.query.filter_by(
-                            owner_id=current_user_id,
+                            distributor_id=current_user_id,
                             product_id=product.id
                         ).first()
                         unit_price = product.base_price
@@ -70,14 +70,14 @@ def get_cart():
                     # Retailer sees their linked distributor's inventory
                     from app.models.partnership import Partnership
                     partnership = Partnership.query.filter_by(
-                        retailer_id=current_user_id,
+                        partner_id=current_user_id,
                         partnership_type='DISTRIBUTOR_RETAILER',
-                        status='ACTIVE'
+                        status='active'
                     ).first()
                     
-                    if partnership and product.manufacturer_id == partnership.distributor_id:
+                    if partnership and product.manufacturer_id == partnership.requester_id:
                         inventory = Inventory.query.filter_by(
-                            owner_id=partnership.distributor_id,
+                            distributor_id=partnership.requester_id,
                             product_id=product.id
                         ).first()
                         unit_price = inventory.selling_price if inventory else product.base_price
@@ -140,9 +140,10 @@ def add_to_cart():
             # This would need partnership validation
             pass
         elif user.role == 'distributor':
-            # Distributor can buy from manufacturers
+            # Distributor can buy from manufacturers (but not their own products)
             if product.manufacturer_id == current_user_id:
                 return jsonify({'message': 'You cannot buy your own products'}), 400
+            # Allow distributors to buy manufacturer products for demo purposes
         elif user.role == 'manufacturer':
             # Manufacturers can add any product to cart (for testing/demo purposes)
             pass

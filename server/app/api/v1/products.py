@@ -34,9 +34,7 @@ def get_products():
                 is_active=True
             )
         elif user.role == 'distributor':
-            # Distributors see:
-            # 1. Products allocated to them by manufacturers
-            # 2. Their own products
+            # Distributors see only products allocated to them by manufacturers
             from app.models.product_allocation import ProductAllocation
             
             # Get allocated product IDs
@@ -46,10 +44,7 @@ def get_products():
             ).subquery()
             
             query = Product.query.filter(
-                db.or_(
-                    Product.id.in_(allocated_products),
-                    Product.manufacturer_id == current_user_id
-                ),
+                Product.id.in_(allocated_products),
                 Product.is_active == True
             )
         elif user.role == 'retailer':
@@ -99,18 +94,8 @@ def get_products():
                     product_dict['manufacturerName'] = product.manufacturer.business_name if product.manufacturer else "Unknown"
                     products_with_inventory.append(product_dict)
                     
-                elif product.manufacturer_id == current_user_id:
-                    # This is the distributor's own product
-                    inventory = Inventory.query.filter_by(
-                        distributor_id=current_user_id,
-                        product_id=product.id
-                    ).first()
-                    
-                    product_dict['availableStock'] = inventory.quantity if inventory else 0
-                    product_dict['sellingPrice'] = float(product.base_price) if product.base_price else 0
-                    product_dict['isAllocated'] = False
-                    product_dict['manufacturerName'] = user.business_name
-                    products_with_inventory.append(product_dict)
+                # All products in catalog are allocated manufacturer products
+                products_with_inventory.append(product_dict)
                     
             elif user.role == 'retailer':
                 # Retailers see distributor's inventory and pricing (simplified)

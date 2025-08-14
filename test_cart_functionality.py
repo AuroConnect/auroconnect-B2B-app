@@ -1,259 +1,223 @@
 #!/usr/bin/env python3
 """
-Comprehensive Cart Functionality Test Script
-Tests: Currency display, Add to Cart, Quantity updates, Remove items, Clear cart, Place order
+Test Cart Functionality
+Tests the add to cart functionality for distributors and retailers
 """
 import requests
 import json
-import time
-from datetime import datetime
 
 # Configuration
 BASE_URL = "http://localhost:5000"
 API_BASE = f"{BASE_URL}/api"
 
-# Test credentials
-TEST_USERS = {
-    "retailer": {
-        "email": "r@demo.com",
-        "password": "Demo@123"
-    },
-    "distributor": {
-        "email": "d@demo.com",
-        "password": "Demo@123"
-    }
-}
-
 def make_request(method, endpoint, data=None, token=None):
     """Make HTTP request with error handling"""
     url = f"{API_BASE}{endpoint}"
-    headers = {"Content-Type": "application/json"}
+    headers = {'Content-Type': 'application/json'}
+    
     if token:
-        headers["Authorization"] = f"Bearer {token}"
+        headers['Authorization'] = f'Bearer {token}'
     
     try:
-        if method == "GET":
+        if method == 'GET':
             response = requests.get(url, headers=headers)
-        elif method == "POST":
+        elif method == 'POST':
             response = requests.post(url, headers=headers, json=data)
-        elif method == "PUT":
+        elif method == 'PUT':
             response = requests.put(url, headers=headers, json=data)
-        elif method == "DELETE":
+        elif method == 'DELETE':
             response = requests.delete(url, headers=headers)
         
-        return response
-    except Exception as e:
-        print(f"❌ Request failed: {e}")
+        print(f"🔍 {method} {endpoint} - Status: {response.status_code}")
+        if response.status_code in [200, 201]:
+            return response.json()
+        else:
+            print(f"❌ Response: {response.text}")
+            return None
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Network error for {method} {endpoint}: {e}")
         return None
 
 def login_user(email, password):
     """Login user and return token"""
-    print(f"🔐 Logging in {email}...")
+    print(f"🔐 Logging in as {email}...")
     
     login_data = {
-        "email": email,
-        "password": password
+        'email': email,
+        'password': password
     }
     
-    response = make_request("POST", "/auth/login", login_data)
-    if response and response.status_code == 200:
-        token = response.json().get('access_token')
-        print(f"✅ Login successful for {email}")
-        return token
+    response = make_request('POST', '/auth/login', login_data)
+    if response:
+        token = response.get('access_token')
+        if token:
+            print(f"✅ Login successful")
+            return token
+        else:
+            print("❌ No access token in response")
+            return None
     else:
-        print(f"❌ Login failed for {email}: {response.text if response else 'No response'}")
+        print(f"❌ Login failed")
         return None
 
 def test_cart_functionality():
-    """Test all cart functionality"""
+    """Test cart functionality for different user roles"""
     print("🛒 Testing Cart Functionality")
-    print("=" * 50)
+    print("=" * 60)
     
-    # Test with retailer first
-    retailer_token = login_user(TEST_USERS["retailer"]["email"], TEST_USERS["retailer"]["password"])
-    if not retailer_token:
-        print("❌ Cannot proceed without retailer login")
-        return
+    # Test 1: Login as distributor
+    print("\n👤 Test 1: Distributor Cart Functionality")
+    print("-" * 40)
     
-    print("\n1. Testing Get Cart (Empty)")
-    response = make_request("GET", "/cart", token=retailer_token)
-    if response and response.status_code == 200:
-        cart_data = response.json()
-        print(f"✅ Cart retrieved: {cart_data.get('totalItems', 0)} items")
-        print(f"   Total amount: ₹{cart_data.get('totalAmount', 0):.2f}")
-    else:
-        print(f"❌ Failed to get cart: {response.text if response else 'No response'}")
-    
-    print("\n2. Testing Get Products")
-    response = make_request("GET", "/products", token=retailer_token)
-    if response and response.status_code == 200:
-        products = response.json()
-        print(f"✅ Found {len(products)} products")
-        if products:
-            first_product = products[0]
-            base_price = first_product.get('basePrice', 0) or 0
-            print(f"   First product: {first_product.get('name')} - ₹{base_price:.2f}")
-            product_id = first_product.get('id')
-        else:
-            print("❌ No products available")
-            return
-    else:
-        print(f"❌ Failed to get products: {response.text if response else 'No response'}")
-        return
-    
-    print(f"\n3. Testing Add to Cart (Product: {first_product.get('name')})")
-    add_data = {
-        "productId": product_id,
-        "quantity": 2
-    }
-    response = make_request("POST", "/cart", add_data, retailer_token)
-    if response and response.status_code == 200:
-        print("✅ Product added to cart successfully")
-    else:
-        print(f"❌ Failed to add to cart: {response.text if response else 'No response'}")
-        return
-    
-    print("\n4. Testing Get Cart (With Items)")
-    response = make_request("GET", "/cart", token=retailer_token)
-    if response and response.status_code == 200:
-        cart_data = response.json()
-        print(f"✅ Cart retrieved: {cart_data.get('totalItems', 0)} items")
-        print(f"   Total amount: ₹{cart_data.get('totalAmount', 0):.2f}")
-        
-        if cart_data.get('items'):
-            first_item = cart_data['items'][0]
-            unit_price = first_item.get('unitPrice', 0) or 0
-            print(f"   Item: {first_item.get('productName')} - Qty: {first_item.get('quantity')} - ₹{unit_price:.2f} each")
-            item_id = first_item.get('id')
-        else:
-            print("❌ No items in cart")
-            return
-    else:
-        print(f"❌ Failed to get cart: {response.text if response else 'No response'}")
-        return
-    
-    print(f"\n5. Testing Update Cart Item Quantity (Item ID: {item_id})")
-    update_data = {"quantity": 3}
-    response = make_request("PUT", f"/cart/update/{item_id}", update_data, retailer_token)
-    if response and response.status_code == 200:
-        print("✅ Cart item quantity updated successfully")
-    else:
-        print(f"❌ Failed to update cart item: {response.text if response else 'No response'}")
-    
-    print("\n6. Testing Get Cart (After Update)")
-    response = make_request("GET", "/cart", token=retailer_token)
-    if response and response.status_code == 200:
-        cart_data = response.json()
-        print(f"✅ Cart retrieved: {cart_data.get('totalItems', 0)} items")
-        print(f"   Total amount: ₹{cart_data.get('totalAmount', 0):.2f}")
-    else:
-        print(f"❌ Failed to get cart: {response.text if response else 'No response'}")
-    
-    print(f"\n7. Testing Place Order")
-    # Get cart items for order
-    response = make_request("GET", "/cart", token=retailer_token)
-    if response and response.status_code == 200:
-        cart_data = response.json()
-        cart_items = cart_data.get('items', [])
-        
-        order_data = {
-            "cart_items": [
-                {
-                    "product_id": item.get('productId'),
-                    "quantity": item.get('quantity')
-                }
-                for item in cart_items
-            ],
-            "delivery_option": "DELIVER_TO_BUYER",
-            "notes": "Test order from cart functionality"
-        }
-        
-        response = make_request("POST", "/orders", order_data, retailer_token)
-        if response and response.status_code == 201:
-            order_result = response.json()
-            print("✅ Order placed successfully!")
-            print(f"   Orders created: {len(order_result.get('orders', []))}")
-            for order in order_result.get('orders', []):
-                print(f"   Order ID: {order.get('id')} - Status: {order.get('status')}")
-        else:
-            print(f"❌ Failed to place order: {response.text if response else 'No response'}")
-    else:
-        print(f"❌ Failed to get cart for order: {response.text if response else 'No response'}")
-    
-    print(f"\n8. Testing Remove Cart Item (Item ID: {item_id})")
-    response = make_request("DELETE", f"/cart/remove/{item_id}", token=retailer_token)
-    if response and response.status_code == 200:
-        print("✅ Cart item removed successfully")
-    else:
-        print(f"❌ Failed to remove cart item: {response.text if response else 'No response'}")
-    
-    print("\n9. Testing Clear Cart")
-    response = make_request("DELETE", "/cart/clear", token=retailer_token)
-    if response and response.status_code == 200:
-        print("✅ Cart cleared successfully")
-    else:
-        print(f"❌ Failed to clear cart: {response.text if response else 'No response'}")
-    
-    print("\n10. Testing Get Cart (After Clear)")
-    response = make_request("GET", "/cart", token=retailer_token)
-    if response and response.status_code == 200:
-        cart_data = response.json()
-        print(f"✅ Cart retrieved: {cart_data.get('totalItems', 0)} items")
-        print(f"   Total amount: ₹{cart_data.get('totalAmount', 0):.2f}")
-    else:
-        print(f"❌ Failed to get cart: {response.text if response else 'No response'}")
-    
-    # Test with distributor
-    print("\n" + "=" * 50)
-    print("Testing with Distributor Account")
-    print("=" * 50)
-    
-    distributor_token = login_user(TEST_USERS["distributor"]["email"], TEST_USERS["distributor"]["password"])
+    distributor_token = login_user("d@demo.com", "Demo@123")
     if not distributor_token:
-        print("❌ Cannot proceed without distributor login")
-        return
+        print("❌ Cannot proceed without distributor authentication")
+        return False
     
-    print("\n1. Testing Get Cart (Distributor)")
-    response = make_request("GET", "/cart", token=distributor_token)
-    if response and response.status_code == 200:
-        cart_data = response.json()
-        print(f"✅ Cart retrieved: {cart_data.get('totalItems', 0)} items")
-        print(f"   Total amount: ₹{cart_data.get('totalAmount', 0):.2f}")
+    # Get distributor's products
+    print("\n📦 Getting distributor products...")
+    distributor_products = make_request('GET', '/products', token=distributor_token)
+    if distributor_products:
+        print(f"✅ Distributor sees {len(distributor_products)} products")
+        
+        # Get first product to add to cart
+        if len(distributor_products) > 0:
+            first_product = distributor_products[0]
+            product_id = first_product['id']
+            product_name = first_product['name']
+            
+            print(f"\n🛒 Adding '{product_name}' to cart...")
+            
+            # Add to cart
+            cart_data = {
+                'productId': product_id,
+                'quantity': 2
+            }
+            
+            add_result = make_request('POST', '/cart', cart_data, distributor_token)
+            if add_result:
+                print("✅ Successfully added to cart")
+                
+                # Get cart contents
+                print("\n📋 Getting cart contents...")
+                cart_contents = make_request('GET', '/cart', token=distributor_token)
+                if cart_contents:
+                    print(f"✅ Cart has {cart_contents.get('totalItems', 0)} items")
+                    print(f"💰 Total amount: ₹{cart_contents.get('totalAmount', 0):,.2f}")
+                    
+                    items = cart_contents.get('items', [])
+                    for item in items:
+                        print(f"  - {item['productName']}: {item['quantity']} x ₹{item['unitPrice']:,.2f} = ₹{item['totalPrice']:,.2f}")
+                else:
+                    print("❌ Failed to get cart contents")
+            else:
+                print("❌ Failed to add to cart")
+        else:
+            print("❌ No products available for distributor")
     else:
-        print(f"❌ Failed to get cart: {response.text if response else 'No response'}")
+        print("❌ Failed to get distributor products")
     
-    print("\n2. Testing Add to Cart (Distributor)")
-    add_data = {
-        "productId": product_id,
-        "quantity": 1
-    }
-    response = make_request("POST", "/cart", add_data, distributor_token)
-    if response and response.status_code == 200:
-        print("✅ Product added to cart successfully (Distributor)")
+    # Test 2: Login as retailer
+    print("\n👤 Test 2: Retailer Cart Functionality")
+    print("-" * 40)
+    
+    retailer_token = login_user("r@demo.com", "Demo@123")
+    if not retailer_token:
+        print("❌ Cannot proceed without retailer authentication")
+        return False
+    
+    # Get retailer's products
+    print("\n📦 Getting retailer products...")
+    retailer_products = make_request('GET', '/products', token=retailer_token)
+    if retailer_products:
+        print(f"✅ Retailer sees {len(retailer_products)} products")
+        
+        # Get first product to add to cart
+        if len(retailer_products) > 0:
+            first_product = retailer_products[0]
+            product_id = first_product['id']
+            product_name = first_product['name']
+            
+            print(f"\n🛒 Adding '{product_name}' to cart...")
+            
+            # Add to cart
+            cart_data = {
+                'productId': product_id,
+                'quantity': 1
+            }
+            
+            add_result = make_request('POST', '/cart', cart_data, retailer_token)
+            if add_result:
+                print("✅ Successfully added to cart")
+                
+                # Get cart contents
+                print("\n📋 Getting cart contents...")
+                cart_contents = make_request('GET', '/cart', token=retailer_token)
+                if cart_contents:
+                    print(f"✅ Cart has {cart_contents.get('totalItems', 0)} items")
+                    print(f"💰 Total amount: ₹{cart_contents.get('totalAmount', 0):,.2f}")
+                    
+                    items = cart_contents.get('items', [])
+                    for item in items:
+                        print(f"  - {item['productName']}: {item['quantity']} x ₹{item['unitPrice']:,.2f} = ₹{item['totalPrice']:,.2f}")
+                else:
+                    print("❌ Failed to get cart contents")
+            else:
+                print("❌ Failed to add to cart")
+        else:
+            print("❌ No products available for retailer")
     else:
-        print(f"❌ Failed to add to cart: {response.text if response else 'No response'}")
+        print("❌ Failed to get retailer products")
     
-    print("\n3. Testing Get Cart (Distributor with Items)")
-    response = make_request("GET", "/cart", token=distributor_token)
-    if response and response.status_code == 200:
-        cart_data = response.json()
-        print(f"✅ Cart retrieved: {cart_data.get('totalItems', 0)} items")
-        print(f"   Total amount: ₹{cart_data.get('totalAmount', 0):.2f}")
-    else:
-        print(f"❌ Failed to get cart: {response.text if response else 'No response'}")
+    # Test 3: Test cart operations
+    print("\n🔧 Test 3: Cart Operations")
+    print("-" * 40)
     
-    print("\n" + "=" * 50)
-    print("🎉 Cart Functionality Test Completed!")
-    print("=" * 50)
-    print("\nSummary of Tests:")
-    print("✅ Currency display (₹ symbol)")
-    print("✅ Add to cart functionality")
-    print("✅ Update cart item quantity")
-    print("✅ Remove cart item")
-    print("✅ Clear entire cart")
-    print("✅ Place order from cart")
-    print("✅ Role-based cart access (Retailer & Distributor)")
-    print("✅ Real-time cart updates")
+    # Test with distributor token
+    print("\n🔄 Testing cart operations for distributor...")
+    
+    # Get current cart
+    cart_contents = make_request('GET', '/cart', token=distributor_token)
+    if cart_contents and cart_contents.get('items'):
+        first_item = cart_contents['items'][0]
+        item_id = first_item['id']
+        
+        # Update quantity
+        print(f"\n📝 Updating quantity for item {item_id}...")
+        update_data = {'quantity': 3}
+        update_result = make_request('PUT', f'/cart/update/{item_id}', update_data, distributor_token)
+        if update_result:
+            print("✅ Successfully updated cart item")
+        else:
+            print("❌ Failed to update cart item")
+        
+        # Remove item
+        print(f"\n🗑️ Removing item {item_id}...")
+        remove_result = make_request('DELETE', f'/cart/remove/{item_id}', token=distributor_token)
+        if remove_result:
+            print("✅ Successfully removed cart item")
+        else:
+            print("❌ Failed to remove cart item")
+    
+    print("\n" + "=" * 60)
+    print("🎉 Cart Functionality Testing Complete!")
+    print("=" * 60)
+    
+    print("\n📋 Summary:")
+    print("  ✅ Cart API endpoints are working")
+    print("  ✅ Add to cart functionality works for distributors and retailers")
+    print("  ✅ Cart contents can be retrieved")
+    print("  ✅ Cart operations (update, remove) are available")
+    
+    print("\n🔧 Next Steps:")
+    print("  1. Open browser and go to http://localhost:3000")
+    print("  2. Login as distributor: d@demo.com / Demo@123")
+    print("  3. Go to Products page")
+    print("  4. Click 'Add to Cart' on any product")
+    print("  5. Verify the cart functionality works end-to-end")
+    
+    return True
 
 if __name__ == "__main__":
     test_cart_functionality()

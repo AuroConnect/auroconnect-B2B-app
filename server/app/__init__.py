@@ -44,6 +44,7 @@ def create_app(config_class=Config):
     from app.api.v1.whatsapp import whatsapp_bp
     from app.api.v1.invoices import invoices_bp
     from app.api.v1.cart import cart_bp
+    from app.api.v1.my_products import my_products_bp
     from app.api.v1.reports import reports_bp
     from app.api.v1.inventory import inventory_bp
     from app.api.v1.product_allocations import product_allocations_bp
@@ -61,6 +62,7 @@ def create_app(config_class=Config):
     app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')
     app.register_blueprint(invoices_bp, url_prefix='/api/invoices')
     app.register_blueprint(cart_bp, url_prefix='/api/cart')
+    app.register_blueprint(my_products_bp, url_prefix='/api/my-products')
     app.register_blueprint(reports_bp, url_prefix='/api/reports')
     app.register_blueprint(inventory_bp, url_prefix='/api/inventory')
     app.register_blueprint(product_allocations_bp, url_prefix='/api/product-allocations')

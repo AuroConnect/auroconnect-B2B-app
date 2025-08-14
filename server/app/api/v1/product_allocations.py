@@ -75,10 +75,10 @@ def create_product_allocation():
         
         # Verify partnership exists
         partnership = Partnership.query.filter_by(
-            manufacturer_id=current_user_id,
-            distributor_id=distributor_id,
+            requester_id=current_user_id,
+            partner_id=distributor_id,
             partnership_type='MANUFACTURER_DISTRIBUTOR',
-            status='ACTIVE'
+            status='active'
         ).first()
         
         if not partnership:
