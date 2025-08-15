@@ -27,38 +27,13 @@ def get_stats():
         
         # Calculate stats based on user role
         if current_user.role == 'manufacturer':
-            # Manufacturer stats
-            current_month_orders = Order.query.filter(
-                and_(
-                    Order.manufacturer_id == current_user_id,
-                    Order.created_at >= current_month_start
-                )
-            ).count()
+            # Manufacturer stats - manufacturers don't have direct orders in this schema
+            # They sell to distributors who then sell to retailers
+            current_month_orders = 0
+            last_month_orders = 0
             
-            last_month_orders = Order.query.filter(
-                and_(
-                    Order.manufacturer_id == current_user_id,
-                    Order.created_at >= last_month_start,
-                    Order.created_at < current_month_start
-                )
-            ).count()
-            
-            current_month_revenue = db.session.query(func.sum(OrderItem.quantity * OrderItem.unit_price)).join(Order).filter(
-                and_(
-                    Order.manufacturer_id == current_user_id,
-                    Order.created_at >= current_month_start,
-                    Order.status.in_(['completed', 'delivered'])
-                )
-            ).scalar() or 0
-            
-            last_month_revenue = db.session.query(func.sum(OrderItem.quantity * OrderItem.unit_price)).join(Order).filter(
-                and_(
-                    Order.manufacturer_id == current_user_id,
-                    Order.created_at >= last_month_start,
-                    Order.created_at < current_month_start,
-                    Order.status.in_(['completed', 'delivered'])
-                )
-            ).scalar() or 0
+            current_month_revenue = 0
+            last_month_revenue = 0
             
             total_products = Product.query.filter_by(manufacturer_id=current_user_id, is_active=True).count()
             

@@ -6,6 +6,8 @@ from app.models.product import Product
 from app.models.user import User
 from app.models.cart import CartItem
 from app.models.inventory import Inventory
+from app.models.product_allocation import ProductAllocation
+from app.models.whatsapp import WhatsAppNotification
 from app.utils.decorators import role_required, roles_required
 from datetime import datetime
 import uuid
@@ -28,25 +30,23 @@ def get_orders():
         
         # Enhanced role-based order filtering
         if current_user.role == 'manufacturer':
-            # Manufacturer sees orders where they are the seller (to distributors)
-            query = Order.query.filter_by(seller_id=current_user_id)
+            # Manufacturer doesn't have direct orders in this schema
+            query = Order.query.filter_by(id=None)  # Return no results
             
         elif current_user.role == 'distributor':
             if order_type == 'buying':
-                # Orders to manufacturer (for restocking)
-                query = Order.query.filter_by(buyer_id=current_user_id)
+                # Orders to manufacturer (for restocking) - not implemented in this schema
+                query = Order.query.filter_by(id=None)  # Return no results
             elif order_type == 'selling':
                 # Orders from retailers (fulfilling retailer orders)
-                query = Order.query.filter_by(seller_id=current_user_id)
+                query = Order.query.filter_by(distributor_id=current_user_id)
             else:
-                # All orders (buying from manufacturer + selling to retailers)
-                query = Order.query.filter(
-                    (Order.buyer_id == current_user_id) | (Order.seller_id == current_user_id)
-                )
+                # All orders (selling to retailers)
+                query = Order.query.filter_by(distributor_id=current_user_id)
                 
         elif current_user.role == 'retailer':
             # Retailer sees orders where they are the buyer (from distributor)
-            query = Order.query.filter_by(buyer_id=current_user_id)
+            query = Order.query.filter_by(retailer_id=current_user_id)
             
         else:
             return jsonify({'message': 'Invalid user role'}), 400
@@ -65,6 +65,38 @@ def get_orders():
     except Exception as e:
         return jsonify({'message': 'Failed to fetch orders', 'error': str(e)}), 500
 
+@orders_bp.route('/recent', methods=['GET'])
+@jwt_required()
+def get_recent_orders():
+    """Get recent orders for dashboard"""
+    try:
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        # Get recent orders (last 10) based on user role
+        if current_user.role == 'manufacturer':
+            # Manufacturer doesn't have direct orders in this schema
+            query = Order.query.filter_by(id=None)  # Return no results
+        elif current_user.role == 'distributor':
+            # Distributor sees recent orders where they are the seller (to retailers)
+            query = Order.query.filter_by(distributor_id=current_user_id)
+        elif current_user.role == 'retailer':
+            # Retailer sees their recent orders
+            query = Order.query.filter_by(retailer_id=current_user_id)
+        else:
+            return jsonify({'message': 'Invalid user role'}), 400
+        
+        # Get last 10 orders, ordered by creation date
+        recent_orders = query.order_by(Order.created_at.desc()).limit(10).all()
+        
+        return jsonify([order.to_dict() for order in recent_orders]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch recent orders', 'error': str(e)}), 500
+
 @orders_bp.route('/<order_id>', methods=['GET'])
 @jwt_required()
 def get_order(order_id):
@@ -81,13 +113,129 @@ def get_order(order_id):
             return jsonify({'message': 'Order not found'}), 404
         
         # Check if user has access to this order
-        if order.buyer_id != current_user_id and order.seller_id != current_user_id:
+        if order.retailer_id != current_user_id and order.distributor_id != current_user_id:
                 return jsonify({'message': 'Access denied'}), 403
         
         return jsonify(order.to_dict()), 200
         
     except Exception as e:
         return jsonify({'message': 'Failed to fetch order', 'error': str(e)}), 500
+
+@orders_bp.route('/<order_id>/approve', methods=['POST'])
+@jwt_required()
+@role_required('manufacturer')
+def approve_order(order_id):
+    """Approve an order (manufacturer only)"""
+    try:
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        order = Order.query.get(order_id)
+        if not order:
+            return jsonify({'message': 'Order not found'}), 404
+        
+        # Check if this manufacturer owns the products in this order
+        # (orders are from distributor to manufacturer)
+        if order.distributor_id != current_user_id:
+            return jsonify({'message': 'Access denied - you can only approve orders for your products'}), 403
+        
+        if order.status != 'pending':
+            return jsonify({'message': 'Order is not in pending status'}), 400
+        
+        # Update order status
+        order.status = 'approved'
+        order.approved_at = datetime.utcnow()
+        
+        # Update inventory (deduct stock)
+        for item in order.items:
+            # Find the product allocation for this manufacturer
+            allocation = ProductAllocation.query.filter_by(
+                manufacturer_id=current_user_id,
+                product_id=item.product_id,
+                is_active=True
+            ).first()
+            
+            if allocation:
+                # Update inventory
+                inventory = Inventory.query.filter_by(
+                    distributor_id=current_user_id,
+                    product_id=item.product_id
+                ).first()
+                
+                if inventory and inventory.quantity >= item.quantity:
+                    inventory.quantity -= item.quantity
+                else:
+                    return jsonify({'message': f'Insufficient stock for product {item.product.name}'}), 400
+        
+        db.session.commit()
+        
+        # Create notification for distributor
+        notification = WhatsAppNotification(
+            user_id=order.retailer_id,
+            message=f'Your order #{order.order_number} has been approved by {current_user.business_name}',
+            type='order_status'
+        )
+        db.session.add(notification)
+        db.session.commit()
+        
+        return jsonify({'message': 'Order approved successfully', 'order': order.to_dict()}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': 'Failed to approve order', 'error': str(e)}), 500
+
+@orders_bp.route('/<order_id>/decline', methods=['POST'])
+@jwt_required()
+@role_required('manufacturer')
+def decline_order(order_id):
+    """Decline an order (manufacturer only)"""
+    try:
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        
+        if not current_user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        order = Order.query.get(order_id)
+        if not order:
+            return jsonify({'message': 'Order not found'}), 404
+        
+        # Check if this manufacturer owns the products in this order
+        if order.distributor_id != current_user_id:
+            return jsonify({'message': 'Access denied - you can only decline orders for your products'}), 403
+        
+        if order.status != 'pending':
+            return jsonify({'message': 'Order is not in pending status'}), 400
+        
+        data = request.get_json()
+        decline_reason = data.get('reason', 'Order declined by manufacturer')
+        
+        # Update order status
+        order.status = 'declined'
+        order.declined_at = datetime.utcnow()
+        order.decline_reason = decline_reason
+        
+        db.session.commit()
+        
+        # Create notification for distributor
+        notification = WhatsAppNotification(
+            user_id=order.retailer_id,
+            message=f'Your order #{order.order_number} has been declined by {current_user.business_name}. Reason: {decline_reason}',
+            type='order_status'
+        )
+        db.session.add(notification)
+        db.session.commit()
+        
+        return jsonify({'message': 'Order declined successfully', 'order': order.to_dict()}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': 'Failed to decline order', 'error': str(e)}), 500
+
+
 
 @orders_bp.route('/', methods=['POST'])
 @jwt_required()

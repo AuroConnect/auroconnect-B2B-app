@@ -10,6 +10,7 @@ class WhatsAppNotification(db.Model):
     message = db.Column(db.Text, nullable=False)
     type = db.Column(db.String(50), nullable=False)  # 'order_status', 'new_order', 'system'
     is_read = db.Column(db.Boolean, default=False)
+    is_delivered = db.Column(db.Boolean, default=False)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='whatsapp_notifications')
@@ -21,6 +22,7 @@ class WhatsAppNotification(db.Model):
             'message': self.message,
             'type': self.type,
             'isRead': self.is_read,
+            'isDelivered': self.is_delivered,
             'sentAt': self.sent_at.isoformat() if self.sent_at else None
         }
 

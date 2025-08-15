@@ -86,6 +86,9 @@ export default function Orders() {
   const [newStatus, setNewStatus] = useState("");
   const [statusNotes, setStatusNotes] = useState("");
   const [showStatusHistory, setShowStatusHistory] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
+  const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
+  const [selectedOrderForAction, setSelectedOrderForAction] = useState<Order | null>(null);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -135,6 +138,57 @@ export default function Orders() {
     },
   });
 
+  // Approve order mutation
+  const approveOrderMutation = useMutation({
+    mutationFn: async ({ orderId }: { orderId: string }) => {
+      const response = await apiRequest("POST", `/api/orders/${orderId}/approve`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Order Approved",
+        description: "Order has been successfully approved.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["api", "orders"] });
+      queryClient.invalidateQueries({ queryKey: ["api", "analytics", "stats"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve order.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Decline order mutation
+  const declineOrderMutation = useMutation({
+    mutationFn: async (data: { orderId: string; reason: string }) => {
+      const response = await apiRequest("POST", `/api/orders/${data.orderId}/decline`, {
+        reason: data.reason
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Order Declined",
+        description: "Order has been successfully declined.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["api", "orders"] });
+      queryClient.invalidateQueries({ queryKey: ["api", "analytics", "stats"] });
+      setIsDeclineDialogOpen(false);
+      setDeclineReason("");
+      setSelectedOrderForAction(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to decline order.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter orders based on search term
   const filteredOrders = orders.filter((order) =>
     order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -149,6 +203,7 @@ export default function Orders() {
       case 'pending': return <Clock className="h-4 w-4" />;
       case 'confirmed': return <CheckCircle className="h-4 w-4" />;
       case 'accepted': return <CheckCircle className="h-4 w-4" />;
+      case 'approved': return <CheckCircle className="h-4 w-4" />;
       case 'processing': return <AlertCircle className="h-4 w-4" />;
       case 'packed': return <Package className="h-4 w-4" />;
       case 'shipped': return <Truck className="h-4 w-4" />;
@@ -156,6 +211,7 @@ export default function Orders() {
       case 'delivered': return <Check className="h-4 w-4" />;
       case 'cancelled': return <X className="h-4 w-4" />;
       case 'rejected': return <XCircle className="h-4 w-4" />;
+      case 'declined': return <XCircle className="h-4 w-4" />;
       default: return <Package className="h-4 w-4" />;
     }
   };
@@ -165,6 +221,7 @@ export default function Orders() {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'confirmed': return 'bg-blue-100 text-blue-800';
       case 'accepted': return 'bg-green-100 text-green-800';
+      case 'approved': return 'bg-green-100 text-green-800';
       case 'processing': return 'bg-orange-100 text-orange-800';
       case 'packed': return 'bg-purple-100 text-purple-800';
       case 'shipped': return 'bg-indigo-100 text-indigo-800';
@@ -172,6 +229,7 @@ export default function Orders() {
       case 'delivered': return 'bg-emerald-100 text-emerald-800';
       case 'cancelled': return 'bg-gray-100 text-gray-800';
       case 'rejected': return 'bg-red-100 text-red-800';
+      case 'declined': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -193,6 +251,36 @@ export default function Orders() {
     });
   };
 
+  const handleApproveOrder = (order: Order) => {
+    approveOrderMutation.mutate({ orderId: order.id });
+  };
+
+  const handleDeclineOrder = (order: Order) => {
+    setSelectedOrderForAction(order);
+    setIsDeclineDialogOpen(true);
+  };
+
+  const handleDeclineConfirm = () => {
+    if (!selectedOrderForAction || !declineReason.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide a reason for declining the order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    declineOrderMutation.mutate({
+      orderId: selectedOrderForAction.id,
+      reason: declineReason.trim()
+    });
+  };
+
+  const canApproveDecline = (order: Order) => {
+    if (!user) return false;
+    return user.role === 'manufacturer' && order.status === 'pending';
+  };
+
   const canUpdateStatus = (order: Order) => {
     if (!user) return false;
     return user.role === 'distributor' || user.role === 'manufacturer';
@@ -200,16 +288,14 @@ export default function Orders() {
 
   const getNextStatusOptions = (currentStatus: string) => {
     const statusFlow = {
-      'pending': ['confirmed', 'accepted', 'rejected', 'cancelled'],
-      'confirmed': ['accepted', 'processing', 'rejected', 'cancelled'],
-      'accepted': ['processing', 'packed', 'rejected', 'cancelled'],
-      'processing': ['packed', 'shipped', 'rejected', 'cancelled'],
-      'packed': ['shipped', 'out_for_delivery', 'rejected', 'cancelled'],
-      'shipped': ['out_for_delivery', 'delivered', 'rejected', 'cancelled'],
-      'out_for_delivery': ['delivered', 'rejected', 'cancelled'],
+      'pending': ['approved', 'declined'],
+      'approved': ['packed', 'shipped', 'delivered'],
+      'packed': ['shipped', 'delivered'],
+      'shipped': ['delivered'],
       'delivered': [],
-      'rejected': [],
-      'cancelled': []
+      'declined': [],
+      'cancelled': [],
+      'rejected': []
     };
     return statusFlow[currentStatus] || [];
   };
@@ -276,15 +362,12 @@ export default function Orders() {
                 <SelectContent className="bg-white border border-gray-200 shadow-lg">
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="confirmed">Confirmed</SelectItem>
-                  <SelectItem value="accepted">Accepted</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="packed">Packed</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
-                  <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
                   <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="declined">Declined</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -384,6 +467,39 @@ export default function Orders() {
                         >
                           Update Status
                         </Button>
+                      )}
+                      
+                      {canApproveDecline(order) && (
+                        <>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleApproveOrder(order)}
+                            disabled={approveOrderMutation.isPending}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            {approveOrderMutation.isPending ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                            ) : (
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                            )}
+                            Approve
+                          </Button>
+                          
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeclineOrder(order)}
+                            disabled={declineOrderMutation.isPending}
+                          >
+                            {declineOrderMutation.isPending ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                            ) : (
+                              <XCircle className="h-4 w-4 mr-1" />
+                            )}
+                            Decline
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -537,6 +653,61 @@ export default function Orders() {
                 </>
               ) : (
                 "Update Status"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Decline Order Dialog */}
+      <Dialog open={isDeclineDialogOpen} onOpenChange={setIsDeclineDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Decline Order</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for declining this order.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="decline-reason" className="text-sm font-medium">
+                Reason for Decline *
+              </Label>
+              <Textarea
+                id="decline-reason"
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                placeholder="Enter reason for declining this order..."
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDeclineDialogOpen(false);
+                setDeclineReason("");
+                setSelectedOrderForAction(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeclineConfirm}
+              disabled={declineOrderMutation.isPending || !declineReason.trim()}
+            >
+              {declineOrderMutation.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Declining...
+                </>
+              ) : (
+                "Decline Order"
               )}
             </Button>
           </div>

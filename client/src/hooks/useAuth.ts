@@ -38,7 +38,7 @@ export function useAuth() {
 
   const { data: user, isLoading, error } = useQuery({
     queryKey: ["api", "auth", "user"],
-    retry: false,
+    retry: 1,
     enabled: !!localStorage.getItem('authToken'),
     staleTime: 5 * 60 * 1000, // 5 minutes
     queryFn: async () => {
@@ -47,15 +47,22 @@ export function useAuth() {
         if (!response.ok) {
           throw new Error('Failed to fetch user data');
         }
-        return response.json();
+        const userData = await response.json();
+        return userData;
       } catch (error) {
         console.error('Auth check failed:', error);
         // If auth check fails, clear the token and return null
         localStorage.removeItem('authToken');
         return null;
       }
-    },
+    }
   });
+
+  // Handle auth errors separately
+  if (error) {
+    console.error('Auth query error:', error);
+    localStorage.removeItem('authToken');
+  }
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginData) => {
@@ -130,7 +137,7 @@ export function useAuth() {
     user: user as User | null,
     isLoading: isLoading || loginMutation.isPending,
     error,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !!localStorage.getItem('authToken'),
     login,
     register,
     logout: logoutMutation.mutate,

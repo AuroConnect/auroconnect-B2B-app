@@ -67,6 +67,12 @@ CREATE TABLE IF NOT EXISTS orders (
     delivery_mode VARCHAR(50) DEFAULT 'delivery',
     total_amount DECIMAL(10,2),
     notes TEXT,
+    decline_reason TEXT,
+    approved_at TIMESTAMP NULL,
+    declined_at TIMESTAMP NULL,
+    packed_at TIMESTAMP NULL,
+    shipped_at TIMESTAMP NULL,
+    delivered_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (retailer_id) REFERENCES users(id),
@@ -94,6 +100,20 @@ CREATE TABLE IF NOT EXISTS partnerships (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (requester_id) REFERENCES users(id),
     FOREIGN KEY (partner_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS product_allocations (
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    manufacturer_id VARCHAR(36) NOT NULL,
+    distributor_id VARCHAR(36) NOT NULL,
+    product_id VARCHAR(36) NOT NULL,
+    selling_price DECIMAL(10,2),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (manufacturer_id) REFERENCES users(id),
+    FOREIGN KEY (distributor_id) REFERENCES users(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
 CREATE TABLE IF NOT EXISTS favorites (
@@ -166,6 +186,9 @@ CREATE INDEX idx_orders_retailer ON orders(retailer_id);
 CREATE INDEX idx_orders_distributor ON orders(distributor_id);
 CREATE INDEX idx_partnerships_requester ON partnerships(requester_id);
 CREATE INDEX idx_partnerships_partner ON partnerships(partner_id);
+CREATE INDEX idx_product_allocations_manufacturer ON product_allocations(manufacturer_id);
+CREATE INDEX idx_product_allocations_distributor ON product_allocations(distributor_id);
+CREATE INDEX idx_product_allocations_product ON product_allocations(product_id);
 CREATE INDEX idx_favorites_user ON favorites(user_id);
 CREATE INDEX idx_favorites_favorite_user ON favorites(favorite_user_id);
 CREATE INDEX idx_search_history_user ON search_history(user_id);

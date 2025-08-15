@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models import Product, Category, User, ProductAllocation
+from app.models import Product, Category, User, ProductAllocation, Inventory
 from app.utils.decorators import roles_required, role_required
 from sqlalchemy import or_
 import openpyxl
@@ -49,8 +49,8 @@ def get_products():
                 Product.is_active == True
             )
         elif user.role == 'retailer':
-            # Retailers see products from distributors (simplified for now)
-            # In a real implementation, this would check partnerships
+            # Retailers see all active products (simplified for now)
+            # In a real implementation, this would filter by partnerships
             query = Product.query.filter_by(is_active=True)
         else:
             return jsonify({'message': 'Invalid user role'}), 400
@@ -99,14 +99,12 @@ def get_products():
                 products_with_inventory.append(product_dict)
                     
             elif user.role == 'retailer':
-                # Retailers see distributor's inventory and pricing (simplified)
-                # Find any distributor inventory for this product
-                inventory = Inventory.query.filter_by(product_id=product.id).first()
-                
-                product_dict['availableStock'] = inventory.quantity if inventory else 0
-                product_dict['sellingPrice'] = float(inventory.selling_price) if inventory and inventory.selling_price else float(product.base_price) if product.base_price else 0
+                # Retailers see products from distributors they have partnerships with
+                # For now, show all products with basic info (simplified)
+                product_dict['availableStock'] = 0  # Will be updated when partnerships are established
+                product_dict['sellingPrice'] = float(product.base_price) if product.base_price else 0
                 product_dict['isAllocated'] = False
-                product_dict['distributorName'] = inventory.distributor.business_name if inventory and inventory.distributor else "Unknown"
+                product_dict['distributorName'] = "Available from Distributors"
                 products_with_inventory.append(product_dict)
         
         return jsonify(products_with_inventory), 200
@@ -143,10 +141,13 @@ def create_product():
             if not data.get(field):
                 return jsonify({'message': f'Missing required field: {field}'}), 400
         
-        # Check if SKU already exists
-        existing_product = Product.query.filter_by(sku=data['sku']).first()
+        # Check if SKU already exists for this manufacturer
+        existing_product = Product.query.filter_by(
+            sku=data['sku'],
+            manufacturer_id=current_user_id
+        ).first()
         if existing_product:
-            return jsonify({'message': 'Product with this SKU already exists'}), 409
+            return jsonify({'message': 'Product with this SKU already exists for your company'}), 409
         
         new_product = Product(
             name=data['name'],
@@ -164,7 +165,7 @@ def create_product():
         
         # Handle distributor assignments for manufacturers
         if data.get('assignedDistributors') and isinstance(data['assignedDistributors'], list):
-            from app.models import ProductAllocation
+            from app.models.product_allocation import ProductAllocation
             
             for distributor_id in data['assignedDistributors']:
                 # Check if distributor exists and is actually a distributor
@@ -174,6 +175,7 @@ def create_product():
                         manufacturer_id=current_user_id,
                         distributor_id=distributor_id,
                         product_id=new_product.id,
+                        selling_price=data.get('basePrice'),  # Use base price as selling price
                         is_active=True
                     )
                     db.session.add(allocation)
