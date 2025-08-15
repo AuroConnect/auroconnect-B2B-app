@@ -12,12 +12,20 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: '0.0.0.0',
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
       },
     },
+    // Enable hot reload
+    hmr: {
+      port: 3000,
+      host: 'localhost'
+    },
+    // Disable caching for development
+    force: true
   },
   build: {
     outDir: 'dist',

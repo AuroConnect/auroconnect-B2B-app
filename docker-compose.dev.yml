@@ -1,0 +1,59 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - DATABASE_URL=mysql+pymysql://admin:123%40Hrushi@3.249.132.231:3306/wa?charset=utf8mb4
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=auromart-secret-key-2024-super-secure
+      - JWT_SECRET_KEY=auromart-jwt-secret-key-2024-super-secure
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://frontend:3000
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: python run.py
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    environment:
+      - VITE_API_URL=http://localhost:5000
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
