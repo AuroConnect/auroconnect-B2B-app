@@ -4,29 +4,29 @@ import uuid
 
 class WhatsAppNotification(db.Model):
     __tablename__ = 'whatsapp_notifications'
-    
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    type = db.Column(db.String(50), nullable=False)  # order_update, invoice_sent, etc.
-    sent_at = db.Column(db.DateTime, nullable=True)
-    is_delivered = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
+    type = db.Column(db.String(50), nullable=False)  # 'order_status', 'new_order', 'system'
+    is_read = db.Column(db.Boolean, default=False)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+
     user = db.relationship('User', backref='whatsapp_notifications')
-    
+
     def to_dict(self):
-        """Convert to dictionary"""
         return {
             'id': str(self.id),
             'userId': str(self.user_id),
             'message': self.message,
             'type': self.type,
-            'sentAt': self.sent_at.isoformat() if self.sent_at else None,
-            'isDelivered': self.is_delivered,
-            'createdAt': self.created_at.isoformat() if self.created_at else None
+            'isRead': self.is_read,
+            'sentAt': self.sent_at.isoformat() if self.sent_at else None
         }
-    
+
+    def mark_as_read(self):
+        self.is_read = True
+        db.session.commit()
+
     def __repr__(self):
-        return f'<WhatsAppNotification {self.type} to {self.user_id}>' 
+        return f'<WhatsAppNotification {self.id} for {self.user_id}>' 

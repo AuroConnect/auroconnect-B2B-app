@@ -62,10 +62,21 @@ export default function RecentOrders() {
     refetchOnWindowFocus: false,
   });
 
-  // For manufacturers, filter orders from distributors only
-  const filteredOrders = userRole === 'manufacturer' 
-    ? orders?.filter(order => order.distributor) || []
-    : orders || [];
+  // Filter orders based on user role
+  const filteredOrders = (() => {
+    if (!orders) return [];
+    
+    if (userRole === 'manufacturer') {
+      // Manufacturers see orders from distributors
+      return orders.filter(order => order.distributor);
+    } else if (userRole === 'distributor') {
+      // Distributors see orders from retailers
+      return orders.filter(order => order.retailer);
+    } else {
+      // Retailers see their own orders
+      return orders;
+    }
+  })();
 
   // Sort by most recent first
   const sortedOrders = filteredOrders.sort((a, b) => 

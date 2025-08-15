@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -14,8 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Plus, Grid, List, Upload, Download, Edit, Trash2, Package, Eye, ShoppingCart, Heart, X } from "lucide-react";
-import { useRef } from "react";
+import { Search, Filter, Plus, Grid, List, Upload, Download, Edit, Trash2, Package, Eye, ShoppingCart, Heart, X, FileSpreadsheet, Settings, Bell, FileText, AlertTriangle, TrendingUp, TrendingDown, BarChart3, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 import type { User } from "@/hooks/useAuth";
 import React from "react";
 
@@ -84,8 +83,18 @@ export default function Products() {
     imageUrl: "",
     brand: "",
     unit: "pcs",
-    assignedDistributors: [] as string[]
+    assignedDistributors: [] as string[],
+    assignedRetailers: [] as string[]
   });
+
+  // Bulk Upload State
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkUploadResults, setBulkUploadResults] = useState<any[]>([]);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const [showBulkResults, setShowBulkResults] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -117,6 +126,14 @@ export default function Products() {
     staleTime: 30000,
   });
 
+  // Get retailers for distributor assignment
+  const { data: retailers = [], isLoading: retailersLoading } = useQuery<any[]>({
+    queryKey: ["api", "partners", "retailers"],
+    enabled: !!isAuthenticated && !!user && userRole === 'distributor',
+    retry: 3,
+    staleTime: 30000,
+  });
+
   // Get manufacturers for distributor filter
   const { data: manufacturers, isLoading: manufacturersLoading } = useQuery<any[]>({
     queryKey: ["api", "manufacturers"],
@@ -137,7 +154,7 @@ export default function Products() {
     enabled: !!isAuthenticated && !!user,
   });
 
-  // Add Product Mutation
+  // Add Product mutation
   const addProductMutation = useMutation({
     mutationFn: async (productData: any) => {
       const response = await apiRequest("POST", "/api/products", productData);
@@ -160,7 +177,8 @@ export default function Products() {
         imageUrl: "",
         brand: "",
         unit: "pcs",
-        assignedDistributors: []
+        assignedDistributors: [],
+        assignedRetailers: []
       });
     },
     onError: (error: any) => {
@@ -179,81 +197,193 @@ export default function Products() {
       formData.append('file', file);
       
       const response = await apiRequest("POST", "/api/products/bulk-upload", formData, true);
-      return response.json();
+      return response.json ? await response.json() : response;
     },
     onSuccess: (data) => {
+      setBulkUploadResults(data.results || []);
+      setShowBulkResults(true);
+      setIsBulkUploading(false);
+      queryClient.invalidateQueries({ queryKey: ["api", "products"] });
       toast({
         title: "Bulk Upload Complete",
-        description: `${data.added} products added, ${data.failed} failed.`,
+        description: `Processed ${data.results?.length || 0} products`,
+        variant: "default",
       });
-      queryClient.invalidateQueries({ queryKey: ["api", "products"] });
     },
     onError: (error: any) => {
+      setIsBulkUploading(false);
       toast({
         title: "Bulk Upload Failed",
-        description: error.message || "Failed to upload products.",
+        description: error.message || "Failed to upload products",
         variant: "destructive",
       });
-    },
+    }
   });
 
+  // Download Sample CSV
+  const downloadSampleCSV = () => {
+    const sampleData = [
+      {
+        name: "Premium Laptop",
+        description: "High-performance laptop with latest specifications",
+        sku: "LAPTOP001",
+        categoryId: "",
+        basePrice: "45000.00",
+        imageUrl: "https://example.com/laptop1.jpg",
+        assignedDistributors: ""
+      },
+      {
+        name: "Wireless Mouse",
+        description: "Ergonomic wireless mouse with precision tracking",
+        sku: "MOUSE002",
+        categoryId: "",
+        basePrice: "1200.00",
+        imageUrl: "https://example.com/mouse1.jpg",
+        assignedDistributors: ""
+      },
+      {
+        name: "Mechanical Keyboard",
+        description: "RGB mechanical keyboard with customizable switches",
+        sku: "KEYBOARD003",
+        categoryId: "",
+        basePrice: "3500.00",
+        imageUrl: "https://example.com/keyboard1.jpg",
+        assignedDistributors: ""
+      },
+      {
+        name: "USB-C Hub",
+        description: "Multi-port USB-C hub for laptop connectivity",
+        sku: "HUB004",
+        categoryId: "",
+        basePrice: "2500.00",
+        imageUrl: "https://example.com/hub1.jpg",
+        assignedDistributors: ""
+      }
+    ];
+
+    const csvContent = [
+      "name,description,sku,categoryId,basePrice,imageUrl,assignedDistributors",
+      ...sampleData.map(row => 
+        `"${row.name}","${row.description}","${row.sku}","${row.categoryId}","${row.basePrice}","${row.imageUrl}","${row.assignedDistributors}"`
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sample_products.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Download Error CSV
+  const downloadErrorCSV = () => {
+    const errorData = bulkUploadResults
+      .filter(result => result.status === 'error')
+      .map(result => ({
+        row: result.row,
+        name: result.name || 'N/A',
+        error: result.error,
+        status: 'ERROR'
+      }));
+
+    if (errorData.length === 0) {
+      toast({
+        title: "No Errors",
+        description: "There are no errors to download.",
+        variant: "default",
+      });
+      return;
+    }
+
+    const csvContent = [
+      "row,name,error,status",
+      ...errorData.map(row => 
+        `"${row.row}","${row.name}","${row.error}","${row.status}"`
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bulk_upload_errors.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleBulkUpload = () => {
+    if (!bulkFile) {
+      toast({
+        title: "No File Selected",
+        description: "Please select a CSV or Excel file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsBulkUploading(true);
+    bulkUploadMutation.mutate(bulkFile);
+  };
+
   // Filter and sort products
-  const filteredAndSortedProducts = React.useMemo(() => {
+  const filteredAndSortedProducts = useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
     
-    // First filter by category
     let filtered = products;
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(product => 
+        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply category filter
     if (selectedCategory !== "all") {
-      filtered = products.filter((product: Product) => 
-        product.categoryId === selectedCategory
-      );
+      filtered = filtered.filter(product => product.categoryId === selectedCategory);
     }
     
-    // Filter by manufacturer (for distributors)
+    // Apply manufacturer filter for distributors
     if (userRole === 'distributor' && selectedManufacturer !== "all") {
-      filtered = filtered.filter((product: Product) => 
-        product.manufacturerId === selectedManufacturer
-      );
+      filtered = filtered.filter(product => product.manufacturerId === selectedManufacturer);
     }
     
-    // Then filter by search term
-    filtered = filtered.filter((product: Product) =>
-      product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    // Then sort
-    filtered.sort((a: Product, b: Product) => {
-      let aValue: any, bValue: any;
-      
+    // Sort products
+    filtered.sort((a, b) => {
       switch (sortBy) {
         case "name":
-          aValue = a.name?.toLowerCase() || "";
-          bValue = b.name?.toLowerCase() || "";
-          break;
+          return sortOrder === "asc" 
+            ? (a.name || "").localeCompare(b.name || "")
+            : (b.name || "").localeCompare(a.name || "");
         case "price":
-          aValue = a.basePrice || 0;
-          bValue = b.basePrice || 0;
-          break;
-                 case "createdAt":
-           aValue = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-           bValue = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-           break;
+          return sortOrder === "asc" 
+            ? (a.basePrice || 0) - (b.basePrice || 0)
+            : (b.basePrice || 0) - (a.basePrice || 0);
+        case "sku":
+          return sortOrder === "asc" 
+            ? (a.sku || "").localeCompare(b.sku || "")
+            : (b.sku || "").localeCompare(a.sku || "");
         default:
-          aValue = a.name?.toLowerCase() || "";
-          bValue = b.name?.toLowerCase() || "";
-      }
-      
-      if (sortOrder === "asc") {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
+          return 0;
       }
     });
     
     return filtered;
-  }, [products, searchTerm, selectedCategory, sortBy, sortOrder]);
+  }, [products, searchTerm, selectedCategory, selectedManufacturer, sortBy, sortOrder, userRole]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
 
   const handleAddProduct = () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.basePrice) {
@@ -269,32 +399,16 @@ export default function Products() {
       name: newProduct.name,
       description: newProduct.description,
       sku: newProduct.sku,
-      categoryId: newProduct.categoryId || null,
       basePrice: parseFloat(newProduct.basePrice),
-      stockQuantity: parseInt(newProduct.stockQuantity) || 0,
+      categoryId: newProduct.categoryId || null,
       imageUrl: newProduct.imageUrl || null,
-      brand: newProduct.brand,
+      brand: newProduct.brand || null,
       unit: newProduct.unit,
-      assignedDistributors: newProduct.assignedDistributors || []
+      assignedDistributors: userRole === 'manufacturer' ? newProduct.assignedDistributors : [],
+      assignedRetailers: userRole === 'distributor' ? newProduct.assignedRetailers : []
     };
 
     addProductMutation.mutate(productData);
-  };
-
-  const handleBulkUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-          file.type === 'application/vnd.ms-excel') {
-        bulkUploadMutation.mutate(file);
-      } else {
-        toast({
-          title: "Invalid File",
-          description: "Please upload an Excel file (.xlsx or .xls).",
-          variant: "destructive",
-        });
-      }
-    }
   };
 
   // Show loading state while checking authentication
@@ -381,7 +495,12 @@ export default function Products() {
                 type="file"
                 accept=".xlsx,.xls"
                 className="hidden"
-                onChange={handleBulkUpload}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setBulkFile(file);
+                  }
+                }}
               />
             </div>
           )}
@@ -480,11 +599,56 @@ export default function Products() {
 
         {/* Products Display */}
         <ProductGrid 
-          products={filteredAndSortedProducts} 
+          products={paginatedProducts} 
           isLoading={productsLoading || categoriesLoading}
           userRole={userRole}
           categories={categories || []}
         />
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-8">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-700">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredAndSortedProducts.length)} of {filteredAndSortedProducts.length} products
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="w-8 h-8 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Product Dialog */}
@@ -739,6 +903,45 @@ export default function Products() {
                 </p>
               </div>
             )}
+
+            {userRole === 'distributor' && (
+              <div className="space-y-2">
+                <Label htmlFor="retailers" className="text-sm font-medium">
+                  Assign to Retailers
+                </Label>
+                <div className="space-y-2">
+                  {retailers?.map((retailer: any) => (
+                    <div key={retailer.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`ret-${retailer.id}`}
+                        checked={newProduct.assignedRetailers.includes(retailer.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewProduct(prev => ({
+                              ...prev,
+                              assignedRetailers: [...prev.assignedRetailers, retailer.id]
+                            }));
+                          } else {
+                            setNewProduct(prev => ({
+                              ...prev,
+                              assignedRetailers: prev.assignedRetailers.filter(id => id !== retailer.id)
+                            }));
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <Label htmlFor={`ret-${retailer.id}`} className="text-sm">
+                        {retailer.businessName || `${retailer.firstName} ${retailer.lastName}`}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  Product will be visible only to selected retailers
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -760,6 +963,176 @@ export default function Products() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Bulk Upload Dialog */}
+      <Dialog open={isBulkUploadOpen} onOpenChange={setIsBulkUploadOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Products</DialogTitle>
+            <DialogDescription>
+              Upload multiple products using CSV or Excel file
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <h4 className="font-medium">Download Sample File</h4>
+                <p className="text-sm text-gray-500">Get the correct format for bulk upload</p>
+              </div>
+              <Button onClick={downloadSampleCSV} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Download Sample CSV
+              </Button>
+            </div>
+            
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600">
+                  {bulkFile ? bulkFile.name : "Drop your CSV or Excel file here, or click to browse"}
+                </p>
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={(e) => setBulkFile(e.target.files?.[0] || null)}
+                  className="hidden"
+                  id="bulk-upload"
+                />
+                <label htmlFor="bulk-upload" className="cursor-pointer">
+                  <Button variant="outline" size="sm">
+                    Choose File
+                  </Button>
+                </label>
+              </div>
+            </div>
+            
+            {bulkFile && (
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <FileSpreadsheet className="h-5 w-5 text-blue-500" />
+                  <span className="text-sm font-medium">{bulkFile.name}</span>
+                  <span className="text-xs text-gray-500">
+                    ({(bulkFile.size / 1024).toFixed(1)} KB)
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setBulkFile(null)}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setIsBulkUploadOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleBulkUpload}
+              disabled={!bulkFile || isBulkUploading}
+            >
+              {isBulkUploading ? "Uploading..." : "Upload Products"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Upload Results Dialog */}
+      <Dialog open={showBulkResults} onOpenChange={setShowBulkResults}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Results</DialogTitle>
+            <DialogDescription>
+              Results of your bulk product upload
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span className="text-sm">
+                      {bulkUploadResults.filter(r => r.status === 'success').length} Successful
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <XCircle className="h-4 w-4 text-red-500" />
+                    <span className="text-sm">
+                      {bulkUploadResults.filter(r => r.status === 'error').length} Failed
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {bulkUploadResults.filter(r => r.status === 'error').length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadErrorCSV}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Errors
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowBulkResults(false);
+                      setBulkUploadResults([]);
+                      setBulkFile(null);
+                      setIsBulkUploadOpen(false);
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {bulkUploadResults.map((result, index) => (
+                <div
+                  key={index}
+                  className={`p-3 rounded-lg border ${
+                    result.status === 'success' 
+                      ? 'bg-green-50 border-green-200' 
+                      : 'bg-red-50 border-red-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        {result.status === 'success' ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        )}
+                        <span className="font-medium">
+                          {result.name || `Row ${index + 1}`}
+                        </span>
+                      </div>
+                      {result.status === 'error' && (
+                        <p className="text-sm text-red-600 mt-1">
+                          {result.error}
+                        </p>
+                      )}
+                      {result.status === 'success' && (
+                        <p className="text-sm text-green-600 mt-1">
+                          Product created successfully
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
       

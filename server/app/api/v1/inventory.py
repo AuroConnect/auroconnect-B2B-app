@@ -1,379 +1,226 @@
+import pandas as pd
+import uuid
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models.user import User
-from app.models.product import Product
-from app.models.inventory import Inventory
-from app.models.order import Order, OrderItem
-from app.utils.decorators import roles_required
 from app import db
-from sqlalchemy import and_, or_
-import openpyxl
-from io import BytesIO
-from datetime import datetime
-import uuid
+from app.models import Inventory, Product, User
+from app.utils.decorators import role_required
 
 inventory_bp = Blueprint('inventory', __name__)
 
 @inventory_bp.route('/', methods=['GET'])
 @jwt_required()
+@role_required('distributor')
 def get_inventory():
-    """Get inventory items for current user"""
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
-    
-    if not user:
-        return jsonify({'message': 'User not found'}), 404
-    
-    # Get inventory based on user role
-    if user.role == 'manufacturer':
-        # Manufacturers see their products' inventory across distributors
-        inventory_items = db.session.query(Inventory).join(Product).filter(
-            Product.manufacturer_id == current_user_id
-        ).all()
-    elif user.role == 'distributor':
-        # Distributors see their own inventory
-        inventory_items = Inventory.query.filter_by(distributor_id=current_user_id).all()
-    else:
-        # Retailers don't manage inventory directly
-        return jsonify({'message': 'Access denied'}), 403
-    
-    return jsonify({
-        'inventory': [item.to_dict() for item in inventory_items],
-        'summary': {
-            'totalItems': len(inventory_items),
-            'lowStockItems': len([item for item in inventory_items if item.is_low_stock]),
-            'outOfStockItems': len([item for item in inventory_items if item.available_quantity == 0])
-        }
-    })
-
-@inventory_bp.route('/<inventory_id>', methods=['GET'])
-@jwt_required()
-def get_inventory_item(inventory_id):
-    """Get specific inventory item"""
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
-    
-    inventory_item = Inventory.query.get(inventory_id)
-    if not inventory_item:
-        return jsonify({'message': 'Inventory item not found'}), 404
-    
-    # Check access permissions
-    if user.role == 'manufacturer':
-        product = Product.query.get(inventory_item.product_id)
-        if not product or product.manufacturer_id != current_user_id:
-            return jsonify({'message': 'Access denied'}), 403
-    elif user.role == 'distributor':
-        if inventory_item.distributor_id != current_user_id:
-            return jsonify({'message': 'Access denied'}), 403
-    else:
-        return jsonify({'message': 'Access denied'}), 403
-    
-    return jsonify(inventory_item.to_dict())
-
-@inventory_bp.route('/<inventory_id>', methods=['PUT'])
-@jwt_required()
-@roles_required(['distributor'])
-def update_inventory_item(inventory_id):
-    """Update inventory item (distributors only)"""
-    current_user_id = get_jwt_identity()
-    
-    inventory_item = Inventory.query.get(inventory_id)
-    if not inventory_item:
-        return jsonify({'message': 'Inventory item not found'}), 404
-    
-    if inventory_item.distributor_id != current_user_id:
-        return jsonify({'message': 'Access denied'}), 403
-    
-    data = request.get_json()
-    
-    # Update fields
-    if 'quantity' in data:
-        inventory_item.quantity = int(data['quantity'])
-    if 'lowStockThreshold' in data:
-        inventory_item.low_stock_threshold = int(data['lowStockThreshold'])
-    if 'autoRestockQuantity' in data:
-        inventory_item.auto_restock_quantity = int(data['autoRestockQuantity'])
-    if 'sellingPrice' in data:
-        inventory_item.selling_price = float(data['sellingPrice'])
-    if 'isAvailable' in data:
-        inventory_item.is_available = bool(data['isAvailable'])
-    
-    inventory_item.updated_at = datetime.utcnow()
-    
+    """Get inventory for current distributor"""
     try:
-        db.session.commit()
-        return jsonify({
-            'message': 'Inventory updated successfully',
-            'inventory': inventory_item.to_dict()
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': 'Failed to update inventory', 'error': str(e)}), 500
-
-@inventory_bp.route('/low-stock', methods=['GET'])
-@jwt_required()
-def get_low_stock_items():
-    """Get low stock items"""
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
-    
-    if not user:
-        return jsonify({'message': 'User not found'}), 404
-    
-    # Get low stock items based on user role
-    if user.role == 'manufacturer':
-        low_stock_items = db.session.query(Inventory).join(Product).filter(
-            and_(
-                Product.manufacturer_id == current_user_id,
-                Inventory.available_quantity <= Inventory.low_stock_threshold
-            )
-        ).all()
-    elif user.role == 'distributor':
-        low_stock_items = Inventory.query.filter(
-            and_(
-                Inventory.distributor_id == current_user_id,
-                Inventory.available_quantity <= Inventory.low_stock_threshold
-            )
-        ).all()
-    else:
-        return jsonify({'message': 'Access denied'}), 403
-    
-    return jsonify({
-        'lowStockItems': [item.to_dict() for item in low_stock_items],
-        'count': len(low_stock_items)
-    })
-
-@inventory_bp.route('/auto-restock', methods=['POST'])
-@jwt_required()
-@roles_required(['distributor'])
-def auto_restock():
-    """Perform auto-restock for low stock items"""
-    current_user_id = get_jwt_identity()
-    
-    # Get all low stock items for this distributor
-    low_stock_items = Inventory.query.filter(
-        and_(
-            Inventory.distributor_id == current_user_id,
-            Inventory.needs_restock == True
-        )
-    ).all()
-    
-    restocked_items = []
-    for item in low_stock_items:
-        if item.auto_restock():
-            restocked_items.append(item)
-    
-    try:
-        db.session.commit()
-        return jsonify({
-            'message': f'Auto-restocked {len(restocked_items)} items',
-            'restockedItems': [item.to_dict() for item in restocked_items]
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'message': 'Failed to auto-restock', 'error': str(e)}), 500
-
-@inventory_bp.route('/bulk-update', methods=['POST'])
-@jwt_required()
-@roles_required(['distributor'])
-def bulk_update_inventory():
-    """Bulk update inventory via Excel file"""
-    current_user_id = get_jwt_identity()
-    
-    if 'file' not in request.files:
-        return jsonify({'message': 'No file provided'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'message': 'No file selected'}), 400
-    
-    if not file.filename.endswith(('.xlsx', '.xls')):
-        return jsonify({'message': 'Invalid file format. Please upload Excel file'}), 400
-    
-    try:
-        # Read Excel file
-        workbook = openpyxl.load_workbook(file)
-        sheet = workbook.active
+        current_user_id = get_jwt_identity()
         
-        results = {
-            'success': 0,
-            'failed': 0,
-            'errors': []
+        # Get inventory items for the distributor
+        inventory_items = db.session.query(Inventory).filter_by(
+            distributor_id=current_user_id
+        ).all()
+        
+        # Get analytics
+        total_items = len(inventory_items)
+        total_quantity = sum(item.quantity for item in inventory_items)
+        low_stock_count = len([item for item in inventory_items if item.quantity <= item.low_stock_threshold])
+        total_value = sum(item.quantity * item.selling_price for item in inventory_items if item.selling_price)
+        
+        analytics = {
+            'totalItems': total_items,
+            'totalQuantity': total_quantity,
+            'lowStockCount': low_stock_count,
+            'totalValue': total_value
         }
         
-        # Skip header row
-        for row in sheet.iter_rows(min_row=2, values_only=True):
-            if not row[0]:  # Skip empty rows
-                continue
-                
+        # Format inventory items
+        formatted_items = []
+        for item in inventory_items:
+            product = Product.query.get(item.product_id)
+            if product:
+                formatted_items.append({
+                    'id': str(item.id),
+                    'productId': str(item.product_id),
+                    'productName': product.name,
+                    'sku': product.sku,
+                    'quantity': item.quantity,
+                    'reservedQuantity': item.reserved_quantity or 0,
+                    'availableQuantity': item.quantity - (item.reserved_quantity or 0),
+                    'lowStockThreshold': item.low_stock_threshold or 10,
+                    'autoRestockQuantity': item.auto_restock_quantity or 50,
+                    'isLowStock': item.quantity <= (item.low_stock_threshold or 10),
+                    'needsRestock': item.quantity <= (item.low_stock_threshold or 10),
+                    'sellingPrice': float(item.selling_price) if item.selling_price else 0,
+                    'isAvailable': item.is_available,
+                    'lastRestockDate': item.last_restock_date.isoformat() if item.last_restock_date else None,
+                    'createdAt': item.created_at.isoformat() if item.created_at else None,
+                    'updatedAt': item.updated_at.isoformat() if item.updated_at else None
+                })
+        
+        return jsonify({
+            'inventory': formatted_items,
+            'analytics': analytics
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'message': f'Failed to fetch inventory: {str(e)}'}), 500
+
+@inventory_bp.route('/bulk-upload', methods=['POST'])
+@jwt_required()
+@role_required('distributor')
+def bulk_upload_inventory():
+    """Bulk upload inventory from CSV/Excel file"""
+    try:
+        current_user_id = get_jwt_identity()
+        
+        if 'file' not in request.files:
+            return jsonify({'message': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'message': 'No file selected'}), 400
+        
+        # Check file extension
+        allowed_extensions = {'.csv', '.xlsx', '.xls'}
+        file_ext = '.' + file.filename.rsplit('.', 1)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'message': 'Invalid file type. Please upload CSV or Excel file.'}), 400
+        
+        # Read file based on extension
+        try:
+            if file_ext == '.csv':
+                df = pd.read_csv(file)
+            else:
+                df = pd.read_excel(file)
+        except Exception as e:
+            return jsonify({'message': f'Error reading file: {str(e)}'}), 400
+        
+        # Validate required columns
+        required_columns = ['productId', 'quantity', 'sellingPrice']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return jsonify({'message': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+        
+        results = []
+        
+        for index, row in df.iterrows():
             try:
-                product_sku = str(row[0]).strip()
-                quantity = int(row[1]) if row[1] else 0
-                low_stock_threshold = int(row[2]) if row[2] else 10
-                auto_restock_quantity = int(row[3]) if row[3] else 50
-                selling_price = float(row[4]) if row[4] else None
-                
-                # Find product by SKU
-                product = Product.query.filter_by(sku=product_sku).first()
-                if not product:
-                    results['errors'].append(f'Product with SKU {product_sku} not found')
-                    results['failed'] += 1
+                # Validate required fields
+                if pd.isna(row['productId']) or pd.isna(row['quantity']) or pd.isna(row['sellingPrice']):
+                    results.append({
+                        'row': index + 1,
+                        'productName': 'N/A',
+                        'status': 'error',
+                        'error': 'Missing required fields (productId, quantity, sellingPrice)'
+                    })
                     continue
                 
-                # Find or create inventory item
-                inventory_item = Inventory.query.filter_by(
+                # Check if product exists
+                product = Product.query.get(str(row['productId']))
+                if not product:
+                    results.append({
+                        'row': index + 1,
+                        'productName': 'N/A',
+                        'status': 'error',
+                        'error': f'Product with ID {row["productId"]} not found'
+                    })
+                    continue
+                
+                # Check if inventory item already exists
+                existing_inventory = Inventory.query.filter_by(
                     distributor_id=current_user_id,
-                    product_id=product.id
+                    product_id=str(row['productId'])
                 ).first()
                 
-                if not inventory_item:
-                    inventory_item = Inventory(
-                        distributor_id=current_user_id,
-                        product_id=product.id,
-                        quantity=quantity,
-                        low_stock_threshold=low_stock_threshold,
-                        auto_restock_quantity=auto_restock_quantity,
-                        selling_price=selling_price
-                    )
-                    db.session.add(inventory_item)
+                if existing_inventory:
+                    # Update existing inventory
+                    existing_inventory.quantity = int(row['quantity'])
+                    existing_inventory.selling_price = float(row['sellingPrice'])
+                    if 'lowStockThreshold' in df.columns and not pd.isna(row['lowStockThreshold']):
+                        existing_inventory.low_stock_threshold = int(row['lowStockThreshold'])
+                    if 'autoRestockQuantity' in df.columns and not pd.isna(row['autoRestockQuantity']):
+                        existing_inventory.auto_restock_quantity = int(row['autoRestockQuantity'])
+                    existing_inventory.updated_at = datetime.utcnow()
                 else:
-                    inventory_item.quantity = quantity
-                    inventory_item.low_stock_threshold = low_stock_threshold
-                    inventory_item.auto_restock_quantity = auto_restock_quantity
-                    if selling_price:
-                        inventory_item.selling_price = selling_price
-                    inventory_item.updated_at = datetime.utcnow()
+                    # Create new inventory item
+                    new_inventory = Inventory(
+                        id=str(uuid.uuid4()),
+                        distributor_id=current_user_id,
+                        product_id=str(row['productId']),
+                        quantity=int(row['quantity']),
+                        selling_price=float(row['sellingPrice']),
+                        low_stock_threshold=int(row.get('lowStockThreshold', 10)),
+                        auto_restock_quantity=int(row.get('autoRestockQuantity', 50)),
+                        is_available=True
+                    )
+                    db.session.add(new_inventory)
                 
-                results['success'] += 1
+                results.append({
+                    'row': index + 1,
+                    'productName': product.name,
+                    'status': 'success',
+                    'productId': str(row['productId'])
+                })
                 
             except Exception as e:
-                results['errors'].append(f'Row error: {str(e)}')
-                results['failed'] += 1
+                results.append({
+                    'row': index + 1,
+                    'productName': 'N/A',
+                    'status': 'error',
+                    'error': str(e)
+                })
         
+        # Commit all successful updates
         db.session.commit()
+        
         return jsonify({
-            'message': 'Bulk update completed',
-            'results': results
-        })
+            'message': 'Bulk upload completed',
+            'results': results,
+            'total': len(results),
+            'successful': len([r for r in results if r['status'] == 'success']),
+            'failed': len([r for r in results if r['status'] == 'error'])
+        }), 200
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': 'Failed to process file', 'error': str(e)}), 500
+        return jsonify({'message': f'Bulk upload failed: {str(e)}'}), 500
 
-@inventory_bp.route('/reserve-stock', methods=['POST'])
+@inventory_bp.route('/<inventory_id>/update', methods=['PATCH'])
 @jwt_required()
-def reserve_stock():
-    """Reserve stock for pending orders"""
-    current_user_id = get_jwt_identity()
-    data = request.get_json()
-    
-    product_id = data.get('productId')
-    quantity = int(data.get('quantity', 0))
-    distributor_id = data.get('distributorId')
-    
-    if not product_id or not quantity or not distributor_id:
-        return jsonify({'message': 'Missing required fields'}), 400
-    
-    # Find inventory item
-    inventory_item = Inventory.query.filter_by(
-        distributor_id=distributor_id,
-        product_id=product_id
-    ).first()
-    
-    if not inventory_item:
-        return jsonify({'message': 'Inventory item not found'}), 404
-    
-    if inventory_item.reserve_stock(quantity):
-        try:
-            db.session.commit()
-            return jsonify({
-                'message': 'Stock reserved successfully',
-                'inventory': inventory_item.to_dict()
-            })
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'message': 'Failed to reserve stock', 'error': str(e)}), 500
-    else:
-        return jsonify({'message': 'Insufficient available stock'}), 400
-
-@inventory_bp.route('/release-stock', methods=['POST'])
-@jwt_required()
-def release_stock():
-    """Release reserved stock"""
-    current_user_id = get_jwt_identity()
-    data = request.get_json()
-    
-    product_id = data.get('productId')
-    quantity = int(data.get('quantity', 0))
-    distributor_id = data.get('distributorId')
-    
-    if not product_id or not quantity or not distributor_id:
-        return jsonify({'message': 'Missing required fields'}), 400
-    
-    # Find inventory item
-    inventory_item = Inventory.query.filter_by(
-        distributor_id=distributor_id,
-        product_id=product_id
-    ).first()
-    
-    if not inventory_item:
-        return jsonify({'message': 'Inventory item not found'}), 404
-    
-    inventory_item.release_reserved_stock(quantity)
-    
+@role_required('distributor')
+def update_inventory_item(inventory_id):
+    """Update a specific inventory item"""
     try:
+        current_user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        inventory_item = Inventory.query.filter_by(
+            id=inventory_id,
+            distributor_id=current_user_id
+        ).first()
+        
+        if not inventory_item:
+            return jsonify({'message': 'Inventory item not found'}), 404
+        
+        # Update fields
+        if 'quantity' in data:
+            inventory_item.quantity = int(data['quantity'])
+        if 'sellingPrice' in data:
+            inventory_item.selling_price = float(data['sellingPrice'])
+        if 'lowStockThreshold' in data:
+            inventory_item.low_stock_threshold = int(data['lowStockThreshold'])
+        if 'autoRestockQuantity' in data:
+            inventory_item.auto_restock_quantity = int(data['autoRestockQuantity'])
+        if 'isAvailable' in data:
+            inventory_item.is_available = bool(data['isAvailable'])
+        
+        inventory_item.updated_at = datetime.utcnow()
         db.session.commit()
-        return jsonify({
-            'message': 'Stock released successfully',
-            'inventory': inventory_item.to_dict()
-        })
+        
+        return jsonify({'message': 'Inventory updated successfully'}), 200
+        
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': 'Failed to release stock', 'error': str(e)}), 500
-
-@inventory_bp.route('/analytics', methods=['GET'])
-@jwt_required()
-def get_inventory_analytics():
-    """Get inventory analytics"""
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
-    
-    if not user:
-        return jsonify({'message': 'User not found'}), 404
-    
-    # Get inventory based on user role
-    if user.role == 'manufacturer':
-        inventory_items = db.session.query(Inventory).join(Product).filter(
-            Product.manufacturer_id == current_user_id
-        ).all()
-    elif user.role == 'distributor':
-        inventory_items = Inventory.query.filter_by(distributor_id=current_user_id).all()
-    else:
-        return jsonify({'message': 'Access denied'}), 403
-    
-    # Calculate analytics
-    total_quantity = sum(item.quantity for item in inventory_items)
-    total_reserved = sum(item.reserved_quantity for item in inventory_items)
-    total_available = sum(item.available_quantity for item in inventory_items)
-    low_stock_count = len([item for item in inventory_items if item.is_low_stock])
-    out_of_stock_count = len([item for item in inventory_items if item.available_quantity == 0])
-    
-    # Calculate total value
-    total_value = sum(
-        item.quantity * (item.selling_price or 0) 
-        for item in inventory_items 
-        if item.selling_price
-    )
-    
-    return jsonify({
-        'analytics': {
-            'totalItems': len(inventory_items),
-            'totalQuantity': total_quantity,
-            'totalReserved': total_reserved,
-            'totalAvailable': total_available,
-            'lowStockCount': low_stock_count,
-            'outOfStockCount': out_of_stock_count,
-            'totalValue': float(total_value),
-            'averageStockLevel': total_quantity / len(inventory_items) if inventory_items else 0
-        }
-    })
+        return jsonify({'message': f'Failed to update inventory: {str(e)}'}), 500

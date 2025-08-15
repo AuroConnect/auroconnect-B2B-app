@@ -34,98 +34,105 @@ export default function StatsCards({ stats, isLoading, userRole }: StatsCardsPro
     );
   }
 
-  const getStatsForRole = (): StatItem[] => {
-    const baseStats: StatItem[] = [
-      {
-        title: "Total Orders",
-        value: stats?.totalOrders || 0,
-        change: "+12%",
-        trend: "up",
-        description: "from last month"
-      },
-      {
-        title: "Revenue",
-        value: `₹${(stats?.totalRevenue || 0).toLocaleString()}`,
-        change: "+8%",
-        trend: "up",
-        description: "from last month"
-      }
-    ];
-
-    switch (userRole) {
-      case 'retailer':
-        return [
-          ...baseStats,
-          {
-            title: "Pending Orders",
-            value: stats?.pendingOrders || 0,
-            change: "0%",
-            trend: "neutral",
-            description: "awaiting fulfillment"
-          },
-          {
-            title: "Suppliers",
-            value: stats?.activeSuppliers || 5,
-            change: "+2",
-            trend: "up",
-            description: "active partnerships"
-          }
-        ];
-      case 'distributor':
-        return [
-          ...baseStats,
-          {
-            title: "Inventory Items",
-            value: stats?.inventoryCount || 0,
-            change: "+15%",
-            trend: "up",
-            description: "from last month"
-          },
-          {
-            title: "Active Retailers",
-            value: stats?.activeRetailers || 8,
-            change: "+3",
-            trend: "up",
-            description: "new connections"
-          }
-        ];
-      case 'manufacturer':
-        return [
-          {
-            title: "Total Orders",
-            value: stats?.totalOrders || 0,
-            change: "+12%",
-            trend: "up",
-            description: "from last month"
-          },
-          {
-            title: "Total Revenue",
-            value: `₹${(stats?.totalRevenue || 0).toLocaleString()}`,
-            change: "+8%",
-            trend: "up",
-            description: "from last month"
-          },
-          {
-            title: "Total Products",
-            value: stats?.productsCount || 0,
-            change: "+5%",
-            trend: "up",
-            description: "in catalog"
-          },
-          {
-            title: "Active Distributors",
-            value: stats?.activePartners || 0,
-            change: "+2",
-            trend: "up",
-            description: "ordering partners"
-          }
-        ];
-      default:
-        return baseStats;
+  const getStatsForRole = (role: string, stats: any): StatItem[] => {
+    if (role === 'manufacturer') {
+      return [
+        {
+          title: "Total Orders",
+          value: stats.totalOrders || 0,
+          change: `${stats.orderTrend || 0}% from last month`,
+          trend: stats.orderTrend > 0 ? "up" : stats.orderTrend < 0 ? "down" : "neutral",
+          description: "Orders from distributors"
+        },
+        {
+          title: "Total Revenue",
+          value: `₹${(stats.totalRevenue || 0).toLocaleString()}`,
+          change: `${stats.revenueTrend || 0}% from last month`,
+          trend: stats.revenueTrend > 0 ? "up" : stats.revenueTrend < 0 ? "down" : "neutral",
+          description: "Revenue from orders"
+        },
+        {
+          title: "Total Products",
+          value: stats.productsCount || 0,
+          change: "Active products",
+          trend: "neutral",
+          description: "Products in catalog"
+        },
+        {
+          title: "Active Partners",
+          value: stats.activePartners || 0,
+          change: "Distributors",
+          trend: "neutral",
+          description: "Active distributors"
+        }
+      ];
+    } else if (role === 'distributor') {
+      return [
+        {
+          title: "Total Orders",
+          value: stats.totalOrders || 0,
+          change: `${stats.orderTrend || 0}% from last month`,
+          trend: stats.orderTrend > 0 ? "up" : stats.orderTrend < 0 ? "down" : "neutral",
+          description: "Orders from retailers"
+        },
+        {
+          title: "Total Revenue",
+          value: `₹${(stats.totalRevenue || 0).toLocaleString()}`,
+          change: `${stats.revenueTrend || 0}% from last month`,
+          trend: stats.revenueTrend > 0 ? "up" : stats.revenueTrend < 0 ? "down" : "neutral",
+          description: "Revenue from orders"
+        },
+        {
+          title: "Total Products",
+          value: stats.productsCount || 0,
+          change: "Available products",
+          trend: "neutral",
+          description: "Products in inventory"
+        },
+        {
+          title: "Active Retailers",
+          value: stats.activeRetailers || 0,
+          change: "Retail partners",
+          trend: "neutral",
+          description: "Active retailers"
+        }
+      ];
+    } else {
+      // Retailer stats
+      return [
+        {
+          title: "Total Orders",
+          value: stats.totalOrders || 0,
+          change: `${stats.orderTrend || 0}% from last month`,
+          trend: stats.orderTrend > 0 ? "up" : stats.orderTrend < 0 ? "down" : "neutral",
+          description: "Orders placed"
+        },
+        {
+          title: "Total Revenue",
+          value: `₹${(stats.totalRevenue || 0).toLocaleString()}`,
+          change: `${stats.revenueTrend || 0}% from last month`,
+          trend: stats.revenueTrend > 0 ? "up" : stats.revenueTrend < 0 ? "down" : "neutral",
+          description: "Revenue generated"
+        },
+        {
+          title: "Pending Orders",
+          value: stats.pendingOrders || 0,
+          change: "Awaiting fulfillment",
+          trend: "neutral",
+          description: "Orders in progress"
+        },
+        {
+          title: "Suppliers",
+          value: stats.suppliers || 0,
+          change: "Active partnerships",
+          trend: "neutral",
+          description: "Distributor partners"
+        }
+      ];
     }
   };
 
-  const statsData = getStatsForRole();
+  const statsData = getStatsForRole(userRole, stats);
 
   const getTrendIcon = (trend: "up" | "down" | "neutral") => {
     switch (trend) {

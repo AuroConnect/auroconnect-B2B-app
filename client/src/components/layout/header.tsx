@@ -55,21 +55,21 @@ export default function Header() {
   });
 
   // Fetch notifications for manufacturers
-  const { data: notifications = [] } = useQuery<any[]>({
+  const { data: notifications = [], isLoading: notificationsLoading } = useQuery<any[]>({
     queryKey: ["api", "notifications"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: !!user && typedUser.role === 'manufacturer',
-    refetchInterval: 10000, // Refresh every 10 seconds
-    staleTime: 5000,
+    enabled: !!isAuthenticated && !!user && user.role === 'manufacturer',
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Filter recent notifications (last 24 hours)
-  const recentNotifications = notifications.filter((notification: any) => {
-    const notificationTime = new Date(notification.createdAt);
-    const now = new Date();
-    const hoursDiff = (now.getTime() - notificationTime.getTime()) / (1000 * 60 * 60);
-    return hoursDiff <= 24;
+  const recentNotifications = notifications.filter(notification => {
+    const notificationTime = new Date(notification.sentAt);
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    return notificationTime > twentyFourHoursAgo;
   });
+
+  // Count unread notifications
+  const unreadCount = recentNotifications.filter(n => !n.isRead).length;
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || 'U';
@@ -257,20 +257,22 @@ export default function Header() {
             {/* Notifications */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="relative">
-                  <Bell className="h-5 w-5" />
-                  {recentNotifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-3 h-3 auromart-gradient-secondary rounded-full"></span>
-                  )}
-                </Button>
+                                  <Button variant="ghost" size="sm" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center text-white font-medium border-2 border-white">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80">
                 <DropdownMenuLabel>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Notifications</span>
-                    {recentNotifications.length > 0 && (
+                    {unreadCount > 0 && (
                       <Badge variant="secondary" className="text-xs">
-                        {recentNotifications.length}
+                        {unreadCount}
                       </Badge>
                     )}
                   </div>
@@ -295,7 +297,7 @@ export default function Header() {
                               {notification.message || 'A distributor has placed an order'}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
-                              {new Date(notification.createdAt).toLocaleTimeString()}
+                              {new Date(notification.sentAt).toLocaleTimeString()}
                             </p>
                           </div>
                         </div>

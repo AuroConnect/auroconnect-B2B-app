@@ -6,6 +6,7 @@ from app.models.cart import Cart, CartItem
 from app.models.inventory import Inventory
 from app import db
 from sqlalchemy import and_
+from datetime import datetime
 
 cart_bp = Blueprint('cart', __name__)
 
@@ -114,60 +115,63 @@ def get_cart():
 @cart_bp.route('/', methods=['POST'])
 @jwt_required()
 def add_to_cart():
-    """Add item to cart"""
+    """Add product to cart"""
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        current_user = User.query.get(current_user_id)
         
-        if not user:
+        if not current_user:
             return jsonify({'message': 'User not found'}), 404
         
+        # Prevent manufacturers from adding products to cart
+        if current_user.role == 'manufacturer':
+            return jsonify({'message': 'Manufacturers cannot add products to cart'}), 403
+        
         data = request.get_json()
+        if not data:
+            return jsonify({'message': 'No data provided'}), 400
+        
         product_id = data.get('productId')
-        quantity = data.get('quantity', 1)
+        quantity = int(data.get('quantity', 1))
         
         if not product_id:
             return jsonify({'message': 'Product ID is required'}), 400
         
-        # Validate product exists
+        # Check if product exists and is available
         product = Product.query.get(product_id)
         if not product:
             return jsonify({'message': 'Product not found'}), 404
         
-        # Check if user can access this product based on role and partnerships
-        if user.role == 'retailer':
-            # Retailer can only buy from their linked distributor
-            # This would need partnership validation
-            pass
-        elif user.role == 'distributor':
-            # Distributor can buy from manufacturers (but not their own products)
-            if product.manufacturer_id == current_user_id:
-                return jsonify({'message': 'You cannot buy your own products'}), 400
-            # Allow distributors to buy manufacturer products for demo purposes
-        elif user.role == 'manufacturer':
-            # Manufacturers can add any product to cart (for testing/demo purposes)
-            pass
+        if not product.is_active:
+            return jsonify({'message': 'Product is not available'}), 400
         
-        # Get or create cart
-        cart = Cart.query.filter_by(user_id=current_user_id).first()
-        if not cart:
-            cart = Cart(user_id=current_user_id)
-            db.session.add(cart)
-            db.session.flush()
+        # For distributors, check if product is allocated to them
+        if current_user.role == 'distributor':
+            from app.models.product_allocation import ProductAllocation
+            allocation = ProductAllocation.query.filter_by(
+                manufacturer_id=product.manufacturer_id,
+                distributor_id=current_user_id,
+                product_id=product_id,
+                is_active=True
+            ).first()
+            
+            if not allocation:
+                return jsonify({'message': 'Product is not available to you'}), 403
         
-        # Check if item already in cart
+        # Check if item already exists in cart
         existing_item = CartItem.query.filter_by(
-            cart_id=cart.id,
+            user_id=current_user_id,
             product_id=product_id
         ).first()
         
         if existing_item:
             # Update quantity
             existing_item.quantity += quantity
+            existing_item.updated_at = datetime.utcnow()
         else:
-            # Add new item
+            # Create new cart item
             new_item = CartItem(
-                cart_id=cart.id,
+                user_id=current_user_id,
                 product_id=product_id,
                 quantity=quantity
             )
@@ -175,11 +179,11 @@ def add_to_cart():
         
         db.session.commit()
         
-        return jsonify({'message': 'Item added to cart successfully'}), 200
+        return jsonify({'message': 'Product added to cart successfully'}), 200
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': 'Failed to add item to cart', 'error': str(e)}), 500
+        return jsonify({'message': f'Failed to add product to cart: {str(e)}'}), 500
 
 @cart_bp.route('/update/<item_id>', methods=['PUT'])
 @jwt_required()

@@ -1,80 +1,211 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import User, Order, Product, OrderItem
 from app import db
+from app.models import User, Order, OrderItem, Product, ProductAllocation
+from app.utils.decorators import role_required
+from sqlalchemy import func, and_, extract
 from datetime import datetime, timedelta
-import random
+import calendar
 
 analytics_bp = Blueprint('analytics', __name__)
 
 @analytics_bp.route('/stats', methods=['GET'])
 @jwt_required()
 def get_stats():
-    """Get analytics stats for the current user"""
+    """Get analytics stats for current user"""
     try:
         current_user_id = get_jwt_identity()
-        user = User.query.get(current_user_id)
+        current_user = User.query.get(current_user_id)
         
-        if not user:
+        if not current_user:
             return jsonify({'message': 'User not found'}), 404
         
-        # Get basic stats based on user role
-        stats = {
-            'totalOrders': 0,
-            'totalRevenue': 0,
-            'pendingOrders': 0,
-            'completedOrders': 0,
-            'productsCount': 0,
-            'activePartners': 0,
-            'productionVolume': 0
-        }
+        # Get current month and last month dates
+        now = datetime.utcnow()
+        current_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
         
-        if user.role == 'retailer':
-            # For retailers, get their orders
-            orders = Order.query.filter_by(retailer_id=current_user_id).all()
-            stats['totalOrders'] = len(orders)
-            stats['totalRevenue'] = sum(order.total_amount or 0 for order in orders)
-            stats['pendingOrders'] = len([o for o in orders if o.status == 'pending'])
-            stats['completedOrders'] = len([o for o in orders if o.status == 'delivered'])
+        # Calculate stats based on user role
+        if current_user.role == 'manufacturer':
+            # Manufacturer stats
+            current_month_orders = Order.query.filter(
+                and_(
+                    Order.manufacturer_id == current_user_id,
+                    Order.created_at >= current_month_start
+                )
+            ).count()
             
-        elif user.role == 'distributor':
-            # For distributors, get orders they're fulfilling
-            orders = Order.query.filter_by(distributor_id=current_user_id).all()
-            stats['totalOrders'] = len(orders)
-            stats['pendingOrders'] = len([o for o in orders if o.status == 'pending'])
-            stats['completedOrders'] = len([o for o in orders if o.status == 'delivered'])
+            last_month_orders = Order.query.filter(
+                and_(
+                    Order.manufacturer_id == current_user_id,
+                    Order.created_at >= last_month_start,
+                    Order.created_at < current_month_start
+                )
+            ).count()
             
-        elif user.role == 'manufacturer':
-            # For manufacturers, get their products and related orders
-            products = Product.query.filter_by(manufacturer_id=current_user_id).all()
-            stats['productsCount'] = len(products)
+            current_month_revenue = db.session.query(func.sum(OrderItem.quantity * OrderItem.unit_price)).join(Order).filter(
+                and_(
+                    Order.manufacturer_id == current_user_id,
+                    Order.created_at >= current_month_start,
+                    Order.status.in_(['completed', 'delivered'])
+                )
+            ).scalar() or 0
             
-            # Get orders for manufacturer's products
-            manufacturer_orders = Order.query.join(OrderItem).join(Product).filter(
-                Product.manufacturer_id == current_user_id
-            ).all()
+            last_month_revenue = db.session.query(func.sum(OrderItem.quantity * OrderItem.unit_price)).join(Order).filter(
+                and_(
+                    Order.manufacturer_id == current_user_id,
+                    Order.created_at >= last_month_start,
+                    Order.created_at < current_month_start,
+                    Order.status.in_(['completed', 'delivered'])
+                )
+            ).scalar() or 0
             
-            stats['totalOrders'] = len(manufacturer_orders)
-            stats['totalRevenue'] = sum(order.total_amount or 0 for order in manufacturer_orders)
-            stats['pendingOrders'] = len([o for o in manufacturer_orders if o.status == 'pending'])
-            stats['completedOrders'] = len([o for o in manufacturer_orders if o.status == 'delivered'])
+            total_products = Product.query.filter_by(manufacturer_id=current_user_id, is_active=True).count()
             
-            # Calculate production volume (simulated data for demo)
-            if stats['productsCount'] > 0:
-                # Simulate production volume based on products and orders
-                base_volume = stats['productsCount'] * 250  # Base volume per product
-                order_volume = stats['totalOrders'] * 50    # Volume from orders
-                stats['productionVolume'] = base_volume + order_volume + random.randint(100, 500)
-            else:
-                stats['productionVolume'] = 1250  # Default demo value
+            active_distributors = db.session.query(func.count(func.distinct(ProductAllocation.distributor_id))).filter(
+                and_(
+                    ProductAllocation.manufacturer_id == current_user_id,
+                    ProductAllocation.is_active == True
+                )
+            ).scalar() or 0
             
-            # Count active partners (distributors who have ordered manufacturer's products)
-            active_partners = db.session.query(Order.distributor_id).join(OrderItem).join(Product).filter(
-                Product.manufacturer_id == current_user_id
-            ).distinct().count()
-            stats['activePartners'] = active_partners
+            # Calculate trends
+            order_trend = ((current_month_orders - last_month_orders) / max(last_month_orders, 1)) * 100 if last_month_orders > 0 else 0
+            revenue_trend = ((current_month_revenue - last_month_revenue) / max(last_month_revenue, 1)) * 100 if last_month_revenue > 0 else 0
             
+            stats = {
+                'totalOrders': current_month_orders,
+                'totalRevenue': float(current_month_revenue),
+                'productsCount': total_products,
+                'activePartners': active_distributors,
+                'orderTrend': round(order_trend, 1),
+                'revenueTrend': round(revenue_trend, 1),
+                'currentMonth': now.strftime('%B %Y'),
+                'lastMonth': last_month_start.strftime('%B %Y')
+            }
+            
+        elif current_user.role == 'distributor':
+            # Distributor stats
+            current_month_orders = Order.query.filter(
+                and_(
+                    Order.distributor_id == current_user_id,
+                    Order.created_at >= current_month_start
+                )
+            ).count()
+            
+            last_month_orders = Order.query.filter(
+                and_(
+                    Order.distributor_id == current_user_id,
+                    Order.created_at >= last_month_start,
+                    Order.created_at < current_month_start
+                )
+            ).count()
+            
+            current_month_revenue = db.session.query(func.sum(OrderItem.quantity * OrderItem.unit_price)).join(Order).filter(
+                and_(
+                    Order.distributor_id == current_user_id,
+                    Order.created_at >= current_month_start,
+                    Order.status.in_(['completed', 'delivered'])
+                )
+            ).scalar() or 0
+            
+            last_month_revenue = db.session.query(func.sum(OrderItem.quantity * OrderItem.unit_price)).join(Order).filter(
+                and_(
+                    Order.distributor_id == current_user_id,
+                    Order.created_at >= last_month_start,
+                    Order.created_at < current_month_start,
+                    Order.status.in_(['completed', 'delivered'])
+                )
+            ).scalar() or 0
+            
+            # Count products in inventory
+            total_products = db.session.query(func.count(func.distinct(Product.id))).join(ProductAllocation).filter(
+                and_(
+                    ProductAllocation.distributor_id == current_user_id,
+                    ProductAllocation.is_active == True,
+                    Product.is_active == True
+                )
+            ).scalar() or 0
+            
+            # Count active retailers (those who have placed orders)
+            active_retailers = db.session.query(func.count(func.distinct(Order.retailer_id))).filter(
+                and_(
+                    Order.distributor_id == current_user_id,
+                    Order.created_at >= current_month_start
+                )
+            ).scalar() or 0
+            
+            # Calculate trends
+            order_trend = ((current_month_orders - last_month_orders) / max(last_month_orders, 1)) * 100 if last_month_orders > 0 else 0
+            revenue_trend = ((current_month_revenue - last_month_revenue) / max(last_month_revenue, 1)) * 100 if last_month_revenue > 0 else 0
+            
+            stats = {
+                'totalOrders': current_month_orders,
+                'totalRevenue': float(current_month_revenue),
+                'productsCount': total_products,
+                'activeRetailers': active_retailers,
+                'orderTrend': round(order_trend, 1),
+                'revenueTrend': round(revenue_trend, 1),
+                'currentMonth': now.strftime('%B %Y'),
+                'lastMonth': last_month_start.strftime('%B %Y')
+            }
+            
+        else:
+            # Retailer stats
+            current_month_orders = Order.query.filter(
+                and_(
+                    Order.retailer_id == current_user_id,
+                    Order.created_at >= current_month_start
+                )
+            ).count()
+            
+            last_month_orders = Order.query.filter(
+                and_(
+                    Order.retailer_id == current_user_id,
+                    Order.created_at >= last_month_start,
+                    Order.created_at < current_month_start
+                )
+            ).count()
+            
+            current_month_revenue = db.session.query(func.sum(OrderItem.quantity * OrderItem.unit_price)).join(Order).filter(
+                and_(
+                    Order.retailer_id == current_user_id,
+                    Order.created_at >= current_month_start,
+                    Order.status.in_(['completed', 'delivered'])
+                )
+            ).scalar() or 0
+            
+            last_month_revenue = db.session.query(func.sum(OrderItem.quantity * OrderItem.unit_price)).join(Order).filter(
+                and_(
+                    Order.retailer_id == current_user_id,
+                    Order.created_at >= last_month_start,
+                    Order.created_at < current_month_start,
+                    Order.status.in_(['completed', 'delivered'])
+                )
+            ).scalar() or 0
+            
+            pending_orders = Order.query.filter(
+                and_(
+                    Order.retailer_id == current_user_id,
+                    Order.status.in_(['pending', 'accepted'])
+                )
+            ).count()
+            
+            # Calculate trends
+            order_trend = ((current_month_orders - last_month_orders) / max(last_month_orders, 1)) * 100 if last_month_orders > 0 else 0
+            revenue_trend = ((current_month_revenue - last_month_revenue) / max(last_month_revenue, 1)) * 100 if last_month_revenue > 0 else 0
+            
+            stats = {
+                'totalOrders': current_month_orders,
+                'totalRevenue': float(current_month_revenue),
+                'pendingOrders': pending_orders,
+                'orderTrend': round(order_trend, 1),
+                'revenueTrend': round(revenue_trend, 1),
+                'currentMonth': now.strftime('%B %Y'),
+                'lastMonth': last_month_start.strftime('%B %Y')
+            }
+        
         return jsonify(stats), 200
         
     except Exception as e:
-        return jsonify({'message': 'Error fetching stats', 'error': str(e)}), 500 
+        return jsonify({'message': f'Failed to fetch analytics: {str(e)}'}), 500 

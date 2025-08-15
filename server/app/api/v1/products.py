@@ -1,11 +1,12 @@
+import pandas as pd
+import io
+import uuid
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models.product import Product
-from app.models.category import Category
-from app.models.user import User
-from app.models.inventory import Inventory
-from app.utils.decorators import role_required, roles_required
+from app.models import Product, Category, User, ProductAllocation
+from app.utils.decorators import roles_required, role_required
 from sqlalchemy import or_
 import openpyxl
 from werkzeug.utils import secure_filename
@@ -390,9 +391,9 @@ def search_products():
 
 @products_bp.route('/bulk-upload', methods=['POST'])
 @jwt_required()
-@roles_required(['manufacturer', 'distributor'])
+@role_required('manufacturer')
 def bulk_upload_products():
-    """Bulk upload products from Excel file"""
+    """Bulk upload products from CSV/Excel file"""
     try:
         current_user_id = get_jwt_identity()
         
@@ -403,85 +404,123 @@ def bulk_upload_products():
         if file.filename == '':
             return jsonify({'message': 'No file selected'}), 400
         
-        if not file.filename.endswith(('.xlsx', '.xls')):
-            return jsonify({'message': 'Please upload an Excel file (.xlsx or .xls)'}), 400
+        # Check file extension
+        allowed_extensions = {'.csv', '.xlsx', '.xls'}
+        file_ext = '.' + file.filename.rsplit('.', 1)[1].lower()
+        if file_ext not in allowed_extensions:
+            return jsonify({'message': 'Invalid file type. Please upload CSV or Excel file.'}), 400
         
-        # Read Excel file
+        # Read file based on extension
         try:
-            workbook = openpyxl.load_workbook(file, data_only=True)
-            worksheet = workbook.active
-            
-            # Get headers from first row
-            headers = []
-            for cell in worksheet[1]:
-                headers.append(cell.value.lower() if cell.value else '')
-            
-            # Validate required columns
-            required_columns = ['name', 'sku', 'base_price']
-            missing_columns = [col for col in required_columns if col not in headers]
-            if missing_columns:
-                return jsonify({'message': f'Missing required columns: {", ".join(missing_columns)}'}), 400
-            
-            added_count = 0
-            failed_count = 0
-            errors = []
-            
-            # Process each row starting from row 2
-            for row_num in range(2, worksheet.max_row + 1):
-                try:
-                    row_data = {}
-                    for col_num, header in enumerate(headers, 1):
-                        cell_value = worksheet.cell(row=row_num, column=col_num).value
-                        row_data[header] = cell_value
-                    
-                    # Validate required fields
-                    if not row_data.get('name') or not row_data.get('sku') or not row_data.get('base_price'):
-                        errors.append(f"Row {row_num}: Missing required fields")
-                        failed_count += 1
-                        continue
-                    
-                    # Check if SKU already exists
-                    existing_product = Product.query.filter_by(sku=str(row_data['sku'])).first()
-                    if existing_product:
-                        errors.append(f"Row {row_num}: SKU '{row_data['sku']}' already exists")
-                        failed_count += 1
-                        continue
-                    
-                    # Create new product
-                    new_product = Product(
-                        name=str(row_data['name']),
-                        description=str(row_data.get('description', '')),
-                        sku=str(row_data['sku']),
-                        category_id=row_data.get('category_id'),
-                        manufacturer_id=current_user_id,
-                        image_url=row_data.get('image_url'),
-                        base_price=float(row_data['base_price']),
-                        is_active=True
-                    )
-                    
-                    db.session.add(new_product)
-                    added_count += 1
-                    
-                except Exception as e:
-                    errors.append(f"Row {row_num}: {str(e)}")
-                    failed_count += 1
-            
-            if added_count > 0:
-                db.session.commit()
-            
-            return jsonify({
-                'message': 'Bulk upload completed',
-                'added': added_count,
-                'failed': failed_count,
-                'errors': errors
-            }), 200
-            
+            if file_ext == '.csv':
+                df = pd.read_csv(file)
+            else:
+                df = pd.read_excel(file)
         except Exception as e:
-            return jsonify({'message': f'Error reading Excel file: {str(e)}'}), 400
+            return jsonify({'message': f'Error reading file: {str(e)}'}), 400
+        
+        # Validate required columns
+        required_columns = ['name', 'sku', 'basePrice']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return jsonify({'message': f'Missing required columns: {", ".join(missing_columns)}'}), 400
+        
+        results = []
+        
+        for index, row in df.iterrows():
+            try:
+                # Validate required fields
+                if pd.isna(row['name']) or pd.isna(row['sku']) or pd.isna(row['basePrice']):
+                    results.append({
+                        'row': index + 1,
+                        'name': row.get('name', 'N/A'),
+                        'status': 'error',
+                        'error': 'Missing required fields (name, sku, basePrice)'
+                    })
+                    continue
+                
+                # Check if SKU already exists for this manufacturer
+                existing_product = Product.query.filter_by(
+                    sku=str(row['sku']),
+                    manufacturer_id=current_user_id
+                ).first()
+                if existing_product:
+                    results.append({
+                        'row': index + 1,
+                        'name': row['name'],
+                        'status': 'error',
+                        'error': f'SKU {row["sku"]} already exists for your company'
+                    })
+                    continue
+                
+                # Get category if provided
+                category_id = None
+                if 'categoryId' in df.columns and not pd.isna(row['categoryId']):
+                    category = Category.query.get(str(row['categoryId']))
+                    if category:
+                        category_id = category.id
+                
+                # Create product
+                new_product = Product(
+                    id=str(uuid.uuid4()),
+                    name=str(row['name']),
+                    description=str(row.get('description', '')),
+                    sku=str(row['sku']),
+                    category_id=category_id,
+                    manufacturer_id=current_user_id,
+                    image_url=str(row.get('imageUrl', '')) if not pd.isna(row.get('imageUrl', '')) else None,
+                    base_price=float(row['basePrice']),
+                    is_active=True
+                )
+                
+                db.session.add(new_product)
+                db.session.flush()  # Get the ID without committing
+                
+                # Handle distributor assignments if provided
+                if 'assignedDistributors' in df.columns and not pd.isna(row['assignedDistributors']):
+                    distributor_ids = str(row['assignedDistributors']).split(',')
+                    for distributor_id in distributor_ids:
+                        distributor_id = distributor_id.strip()
+                        if distributor_id:
+                            distributor = User.query.filter_by(id=distributor_id, role='distributor').first()
+                            if distributor:
+                                allocation = ProductAllocation(
+                                    manufacturer_id=current_user_id,
+                                    distributor_id=distributor_id,
+                                    product_id=new_product.id,
+                                    is_active=True
+                                )
+                                db.session.add(allocation)
+                
+                results.append({
+                    'row': index + 1,
+                    'name': row['name'],
+                    'status': 'success',
+                    'productId': new_product.id
+                })
+                
+            except Exception as e:
+                results.append({
+                    'row': index + 1,
+                    'name': row.get('name', 'N/A'),
+                    'status': 'error',
+                    'error': str(e)
+                })
+        
+        # Commit all successful products
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Bulk upload completed',
+            'results': results,
+            'total': len(results),
+            'successful': len([r for r in results if r['status'] == 'success']),
+            'failed': len([r for r in results if r['status'] == 'error'])
+        }), 200
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': 'Failed to process bulk upload', 'error': str(e)}), 500
+        return jsonify({'message': f'Bulk upload failed: {str(e)}'}), 500
 
 @products_bp.route('/manufacturers', methods=['GET'])
 @jwt_required()

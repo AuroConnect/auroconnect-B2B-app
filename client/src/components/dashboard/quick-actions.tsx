@@ -14,108 +14,86 @@ export default function QuickActions({ userRole }: QuickActionsProps) {
     setLocation(path);
   };
 
-  const getActionsForRole = () => {
-    switch (userRole) {
-      case 'retailer':
+  const getActionsForRole = (role: string) => {
+    switch (role) {
+      case 'manufacturer':
         return [
           {
-            icon: ShoppingCart,
-            label: "New Order",
-            description: "Place a new order",
-            href: "/products",
-            testId: "action-new-order"
+            title: 'Add Product',
+            description: 'Create a new product in your catalog',
+            icon: Plus,
+            href: '/products',
+            color: 'bg-blue-500 hover:bg-blue-600'
           },
           {
-            icon: FileText,
-            label: "View Invoices",
-            description: "Check invoices",
-            href: "/invoices", 
-            testId: "action-view-invoices"
+            title: 'Orders from Distributors',
+            description: 'View orders placed by distributors',
+            icon: Package,
+            href: '/orders',
+            color: 'bg-green-500 hover:bg-green-600'
           },
           {
+            title: 'Assigned Distributors',
+            description: 'Manage your distributor partnerships',
             icon: Users,
-            label: "Suppliers",
-            description: "Manage suppliers",
-            href: "/suppliers",
-            testId: "action-suppliers"
+            href: '/partners',
+            color: 'bg-purple-500 hover:bg-purple-600'
           }
         ];
       case 'distributor':
         return [
           {
+            title: 'Add Product',
+            description: 'Add products to your inventory',
+            icon: Plus,
+            href: '/products',
+            color: 'bg-blue-500 hover:bg-blue-600'
+          },
+          {
+            title: 'Orders from Retailers',
+            description: 'View orders placed by retailers',
             icon: Package,
-            label: "Manage Inventory",
-            description: "Update stock levels",
-            href: "/inventory",
-            testId: "action-manage-inventory"
+            href: '/orders',
+            color: 'bg-green-500 hover:bg-green-600'
           },
           {
-            icon: ShoppingCart,
-            label: "Process Orders",
-            description: "Review pending orders",
-            href: "/orders",
-            testId: "action-process-orders"
-          },
-          {
+            title: 'Assigned Partners',
+            description: 'Manage manufacturers and retailers',
             icon: Users,
-            label: "Retailers",
-            description: "Manage retailer network",
-            href: "/retailers",
-            testId: "action-retailers"
+            href: '/partners',
+            color: 'bg-purple-500 hover:bg-purple-600'
           }
         ];
-      case 'manufacturer':
+      case 'retailer':
         return [
           {
+            title: 'New Order',
+            description: 'Place a new order with suppliers',
             icon: Plus,
-            label: "Add Product",
-            description: "Create new product",
-            href: "/products",
-            testId: "action-add-product"
+            href: '/products',
+            color: 'bg-blue-500 hover:bg-blue-600'
           },
           {
-            icon: Package,
-            label: "Orders from Distributors",
-            description: "View distributor orders",
-            href: "/orders",
-            testId: "action-distributor-orders"
+            title: 'View Invoices',
+            description: 'Check your order invoices',
+            icon: FileText,
+            href: '/orders',
+            color: 'bg-green-500 hover:bg-green-600'
           },
           {
+            title: 'Suppliers',
+            description: 'Manage your supplier partnerships',
             icon: Users,
-            label: "Assigned Distributors",
-            description: "Manage distribution network",
-            href: "/partners",
-            testId: "action-assigned-distributors"
+            href: '/partners',
+            color: 'bg-purple-500 hover:bg-purple-600'
           }
         ];
       default:
-        return [
-          {
-            icon: Users,
-            label: "Manage Users",
-            description: "User administration",
-            href: "/admin/users",
-            testId: "action-manage-users"
-          },
-          {
-            icon: FileText,
-            label: "System Reports",
-            description: "View system reports",
-            href: "/admin/reports",
-            testId: "action-system-reports"
-          },
-          {
-            icon: Package,
-            label: "Platform Overview",
-            description: "Monitor platform health",
-            href: "/admin",
-            testId: "action-platform-overview"
-          }
-        ];
+        return [];
     }
   };
 
-  const actions = getActionsForRole();
+  const actions = getActionsForRole(userRole);
 
   return (
     <Card>
@@ -135,12 +113,11 @@ export default function QuickActions({ userRole }: QuickActionsProps) {
               variant="outline"
               className="w-full justify-start h-auto p-3"
               onClick={() => navigate(action.href)}
-              data-testid={action.testId}
             >
               <div className="flex items-center gap-3">
                 <action.icon className="h-5 w-5 text-gray-600" />
                 <div className="text-left">
-                  <div className="font-medium text-sm">{action.label}</div>
+                  <div className="font-medium text-sm">{action.title}</div>
                   <div className="text-xs text-gray-500">{action.description}</div>
                 </div>
               </div>

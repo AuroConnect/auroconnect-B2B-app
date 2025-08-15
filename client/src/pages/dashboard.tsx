@@ -8,7 +8,7 @@ import QuickActions from "@/components/dashboard/quick-actions";
 import WhatsAppNotifications from "@/components/whatsapp/notifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageCircle, TrendingUp, Users, Package } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { User } from "@/hooks/useAuth";
 
@@ -42,6 +42,32 @@ export default function Dashboard() {
     enabled: !!isAuthenticated && !!user,
     staleTime: 30000, // 30 seconds
   });
+
+  // Fetch recent orders based on user role
+  const { data: recentOrders = [], isLoading: ordersLoading } = useQuery<any[]>({
+    queryKey: ["api", "orders", "recent"],
+    enabled: !!user && !isLoading,
+    retry: 3,
+    staleTime: 30000,
+  });
+
+  // Filter orders based on user role
+  const filteredOrders = useMemo(() => {
+    if (!recentOrders || !Array.isArray(recentOrders)) return [];
+    
+    const currentUserRole = (user as User)?.role || 'retailer';
+    
+    if (currentUserRole === 'manufacturer') {
+      // Manufacturers see orders from distributors
+      return recentOrders.filter(order => order.distributor);
+    } else if (currentUserRole === 'distributor') {
+      // Distributors see orders from retailers
+      return recentOrders.filter(order => order.retailer);
+    } else {
+      // Retailers see their own orders
+      return recentOrders;
+    }
+  }, [recentOrders, user]);
 
   // Show loading state while checking authentication or loading user data
   if (isLoading || !isAuthenticated || !user) {

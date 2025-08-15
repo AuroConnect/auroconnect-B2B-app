@@ -8,6 +8,7 @@ from app.utils.decorators import roles_required
 from app import db
 from datetime import datetime, timedelta
 from sqlalchemy import and_, or_
+from app.models.whatsapp import WhatsAppNotification
 
 notifications_bp = Blueprint('notifications', __name__)
 
@@ -216,21 +217,50 @@ def get_backorder_notifications(user):
     
     return notifications
 
-@notifications_bp.route('/mark-read', methods=['POST'])
+@notifications_bp.route('/<notification_id>/read', methods=['PATCH'])
 @jwt_required()
-def mark_notification_read():
-    """Mark notification as read (placeholder for future implementation)"""
+def mark_notification_read(notification_id):
+    """Mark a notification as read"""
     try:
         current_user_id = get_jwt_identity()
-        data = request.get_json()
-        notification_id = data.get('notification_id')
         
-        # This would typically update a notification read status in the database
-        # For now, just return success
+        notification = WhatsAppNotification.query.filter_by(
+            id=notification_id,
+            user_id=current_user_id
+        ).first()
+        
+        if not notification:
+            return jsonify({'message': 'Notification not found'}), 404
+        
+        notification.mark_as_read()
+        
         return jsonify({'message': 'Notification marked as read'}), 200
         
     except Exception as e:
-        return jsonify({'message': 'Error marking notification as read', 'error': str(e)}), 500
+        return jsonify({'message': f'Failed to mark notification as read: {str(e)}'}), 500
+
+@notifications_bp.route('/mark-all-read', methods=['PATCH'])
+@jwt_required()
+def mark_all_notifications_read():
+    """Mark all notifications as read for current user"""
+    try:
+        current_user_id = get_jwt_identity()
+        
+        notifications = WhatsAppNotification.query.filter_by(
+            user_id=current_user_id,
+            is_read=False
+        ).all()
+        
+        for notification in notifications:
+            notification.is_read = True
+        
+        db.session.commit()
+        
+        return jsonify({'message': f'Marked {len(notifications)} notifications as read'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Failed to mark notifications as read: {str(e)}'}), 500
 
 @notifications_bp.route('/order-chat/<order_id>', methods=['GET'])
 @jwt_required()
