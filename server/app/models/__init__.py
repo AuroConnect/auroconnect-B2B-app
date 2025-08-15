@@ -9,6 +9,7 @@ from .search_history import SearchHistory
 from .whatsapp import WhatsAppNotification
 from .invoice import Invoice
 from .cart import Cart, CartItem
+from .product_allocation import ProductAllocation
 
 __all__ = [
     'User',
@@ -23,5 +24,6 @@ __all__ = [
     'WhatsAppNotification',
     'Invoice',
     'Cart',
-    'CartItem'
+    'CartItem',
+    'ProductAllocation'
 ] 

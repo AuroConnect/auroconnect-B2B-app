@@ -83,7 +83,8 @@ export default function Products() {
     stockQuantity: "",
     imageUrl: "",
     brand: "",
-    unit: "pcs"
+    unit: "pcs",
+    assignedDistributors: [] as string[]
   });
 
   // Redirect to login if not authenticated
@@ -104,6 +105,14 @@ export default function Products() {
   const { data: categories, isLoading: categoriesLoading, error: categoriesError } = useQuery<Category[]>({
     queryKey: ["api", "products", "categories"],
     enabled: !!isAuthenticated && !!user,
+    retry: 3,
+    staleTime: 30000,
+  });
+
+  // Get distributors for manufacturer assignment
+  const { data: distributors = [], isLoading: distributorsLoading } = useQuery<any[]>({
+    queryKey: ["api", "partners", "distributors"],
+    enabled: !!isAuthenticated && !!user && userRole === 'manufacturer',
     retry: 3,
     staleTime: 30000,
   });
@@ -150,7 +159,8 @@ export default function Products() {
         stockQuantity: "",
         imageUrl: "",
         brand: "",
-        unit: "pcs"
+        unit: "pcs",
+        assignedDistributors: []
       });
     },
     onError: (error: any) => {
@@ -264,7 +274,8 @@ export default function Products() {
       stockQuantity: parseInt(newProduct.stockQuantity) || 0,
       imageUrl: newProduct.imageUrl || null,
       brand: newProduct.brand,
-      unit: newProduct.unit
+      unit: newProduct.unit,
+      assignedDistributors: newProduct.assignedDistributors || []
     };
 
     addProductMutation.mutate(productData);
@@ -688,6 +699,46 @@ export default function Products() {
                 )}
               </div>
             </div>
+
+            {/* Distributor Assignment (for manufacturers) */}
+            {userRole === 'manufacturer' && (
+              <div className="space-y-2">
+                <Label htmlFor="distributors" className="text-sm font-medium">
+                  Assign to Distributors
+                </Label>
+                <div className="space-y-2">
+                  {distributors?.map((distributor: any) => (
+                    <div key={distributor.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`dist-${distributor.id}`}
+                        checked={newProduct.assignedDistributors.includes(distributor.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setNewProduct(prev => ({
+                              ...prev,
+                              assignedDistributors: [...prev.assignedDistributors, distributor.id]
+                            }));
+                          } else {
+                            setNewProduct(prev => ({
+                              ...prev,
+                              assignedDistributors: prev.assignedDistributors.filter(id => id !== distributor.id)
+                            }));
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <Label htmlFor={`dist-${distributor.id}`} className="text-sm">
+                        {distributor.businessName || `${distributor.firstName} ${distributor.lastName}`}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  Product will be visible only to selected distributors
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

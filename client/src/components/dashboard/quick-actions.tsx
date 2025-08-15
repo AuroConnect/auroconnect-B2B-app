@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ShoppingCart, Package, FileText, Users } from "lucide-react";
 import { useLocation } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus, Package, Users, ShoppingCart, FileText, Building2 } from "lucide-react";
 
 interface QuickActionsProps {
   userRole: string;
@@ -75,17 +75,17 @@ export default function QuickActions({ userRole }: QuickActionsProps) {
           },
           {
             icon: Package,
-            label: "Production",
-            description: "Track production",
-            href: "/production",
-            testId: "action-production"
+            label: "Orders from Distributors",
+            description: "View distributor orders",
+            href: "/orders",
+            testId: "action-distributor-orders"
           },
           {
             icon: Users,
-            label: "Distributors",
+            label: "Assigned Distributors",
             description: "Manage distribution network",
-            href: "/distributors",
-            testId: "action-distributors"
+            href: "/partners",
+            testId: "action-assigned-distributors"
           }
         ];
       default:
@@ -120,32 +120,32 @@ export default function QuickActions({ userRole }: QuickActionsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quick Actions</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <div className="w-8 h-8 auromart-gradient-accent rounded-lg flex items-center justify-center">
+            <Plus className="h-4 w-4 text-white" />
+          </div>
+          Quick Actions
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {actions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <Button
-                key={index}
-                variant="outline"
-                className="w-full justify-start h-auto p-4"
-                data-testid={action.testId}
-                onClick={() => {
-                  setLocation(action.href);
-                }}
-              >
-                <div className="flex items-center space-x-3 text-left">
-                  <Icon className="h-5 w-5 text-primary flex-shrink-0" />
-                  <div>
-                    <div className="font-medium">{action.label}</div>
-                    <div className="text-xs text-gray-500">{action.description}</div>
-                  </div>
+          {actions.map((action, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              className="w-full justify-start h-auto p-3"
+              onClick={() => navigate(action.href)}
+              data-testid={action.testId}
+            >
+              <div className="flex items-center gap-3">
+                <action.icon className="h-5 w-5 text-gray-600" />
+                <div className="text-left">
+                  <div className="font-medium text-sm">{action.label}</div>
+                  <div className="text-xs text-gray-500">{action.description}</div>
                 </div>
-              </Button>
-            );
-          })}
+              </div>
+            </Button>
+          ))}
         </div>
       </CardContent>
     </Card>

@@ -161,6 +161,24 @@ def create_product():
         db.session.add(new_product)
         db.session.commit()
         
+        # Handle distributor assignments for manufacturers
+        if data.get('assignedDistributors') and isinstance(data['assignedDistributors'], list):
+            from app.models import ProductAllocation
+            
+            for distributor_id in data['assignedDistributors']:
+                # Check if distributor exists and is actually a distributor
+                distributor = User.query.filter_by(id=distributor_id, role='distributor').first()
+                if distributor:
+                    allocation = ProductAllocation(
+                        manufacturer_id=current_user_id,
+                        distributor_id=distributor_id,
+                        product_id=new_product.id,
+                        is_active=True
+                    )
+                    db.session.add(allocation)
+            
+            db.session.commit()
+        
         return jsonify(new_product.to_dict()), 201
         
     except Exception as e:

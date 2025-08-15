@@ -27,7 +27,8 @@ import {
   X,
   History,
   Calendar,
-  DollarSign
+  DollarSign,
+  Users
 } from "lucide-react";
 import OrderStatus from "@/components/orders/order-status";
 
@@ -44,15 +45,22 @@ interface Order {
     name: string;
     email: string;
     phone: string;
+    businessName?: string;
+    firstName?: string;
+    lastName?: string;
   };
   distributor?: {
     id: string;
     name: string;
     email: string;
     phone: string;
+    businessName?: string;
+    firstName?: string;
+    lastName?: string;
   };
   items?: Array<{
     id: string;
+    productId: string;
     productName: string;
     quantity: number;
     unitPrice: number;
@@ -131,7 +139,9 @@ export default function Orders() {
   const filteredOrders = orders.filter((order) =>
     order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.retailer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.distributor?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    order.distributor?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.distributor?.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.retailer?.businessName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusIcon = (status: string) => {
@@ -327,6 +337,21 @@ export default function Orders() {
                           <span>Updated: {formatDate(order.updatedAt)}</span>
                         </div>
                       </div>
+                      
+                      {/* Show distributor/retailer information based on user role */}
+                      {user.role === 'manufacturer' && order.distributor && (
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                          <Users className="h-4 w-4" />
+                          <span>Distributor: {order.distributor.businessName || `${order.distributor.firstName} ${order.distributor.lastName}`}</span>
+                        </div>
+                      )}
+                      
+                      {user.role === 'distributor' && order.retailer && (
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                          <Users className="h-4 w-4" />
+                          <span>Retailer: {order.retailer.businessName || `${order.retailer.firstName} ${order.retailer.lastName}`}</span>
+                        </div>
+                      )}
                       
                       <div className="flex items-center gap-2 text-sm text-gray-500">
                         <span>Created: {formatDate(order.createdAt)}</span>

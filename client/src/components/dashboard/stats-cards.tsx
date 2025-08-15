@@ -7,6 +7,14 @@ interface StatsCardsProps {
   userRole: string;
 }
 
+interface StatItem {
+  title: string;
+  value: string | number;
+  change: string;
+  trend: "up" | "down" | "neutral";
+  description: string;
+}
+
 export default function StatsCards({ stats, isLoading, userRole }: StatsCardsProps) {
   if (isLoading) {
     return (
@@ -26,20 +34,20 @@ export default function StatsCards({ stats, isLoading, userRole }: StatsCardsPro
     );
   }
 
-  const getStatsForRole = () => {
-    const baseStats = [
+  const getStatsForRole = (): StatItem[] => {
+    const baseStats: StatItem[] = [
       {
         title: "Total Orders",
         value: stats?.totalOrders || 0,
         change: "+12%",
-        trend: "up" as const,
+        trend: "up",
         description: "from last month"
       },
       {
         title: "Revenue",
-        value: `$${(stats?.totalRevenue || 0).toLocaleString()}`,
+        value: `₹${(stats?.totalRevenue || 0).toLocaleString()}`,
         change: "+8%",
-        trend: "up" as const,
+        trend: "up",
         description: "from last month"
       }
     ];
@@ -52,14 +60,14 @@ export default function StatsCards({ stats, isLoading, userRole }: StatsCardsPro
             title: "Pending Orders",
             value: stats?.pendingOrders || 0,
             change: "0%",
-            trend: "neutral" as const,
+            trend: "neutral",
             description: "awaiting fulfillment"
           },
           {
             title: "Suppliers",
             value: stats?.activeSuppliers || 5,
             change: "+2",
-            trend: "up" as const,
+            trend: "up",
             description: "active partnerships"
           }
         ];
@@ -70,33 +78,46 @@ export default function StatsCards({ stats, isLoading, userRole }: StatsCardsPro
             title: "Inventory Items",
             value: stats?.inventoryCount || 0,
             change: "+15%",
-            trend: "up" as const,
+            trend: "up",
             description: "from last month"
           },
           {
             title: "Active Retailers",
             value: stats?.activeRetailers || 8,
             change: "+3",
-            trend: "up" as const,
+            trend: "up",
             description: "new connections"
           }
         ];
       case 'manufacturer':
         return [
-          ...baseStats,
           {
-            title: "Products",
-            value: stats?.productsCount || 0,
-            change: "+5%",
-            trend: "up" as const,
-            description: "total catalog"
+            title: "Total Orders",
+            value: stats?.totalOrders || 0,
+            change: "+12%",
+            trend: "up",
+            description: "from last month"
           },
           {
-            title: "Production Volume",
-            value: `${(stats?.productionVolume || 1250).toLocaleString()} units`,
-            change: "+18%",
-            trend: "up" as const,
-            description: "this month"
+            title: "Total Revenue",
+            value: `₹${(stats?.totalRevenue || 0).toLocaleString()}`,
+            change: "+8%",
+            trend: "up",
+            description: "from last month"
+          },
+          {
+            title: "Total Products",
+            value: stats?.productsCount || 0,
+            change: "+5%",
+            trend: "up",
+            description: "in catalog"
+          },
+          {
+            title: "Active Distributors",
+            value: stats?.activePartners || 0,
+            change: "+2",
+            trend: "up",
+            description: "ordering partners"
           }
         ];
       default:
@@ -112,26 +133,17 @@ export default function StatsCards({ stats, isLoading, userRole }: StatsCardsPro
         return <TrendingUp className="h-4 w-4 text-green-600" />;
       case "down":
         return <TrendingDown className="h-4 w-4 text-red-600" />;
+      case "neutral":
+        return <Minus className="h-4 w-4 text-gray-600" />;
       default:
         return <Minus className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  const getTrendColor = (trend: "up" | "down" | "neutral") => {
-    switch (trend) {
-      case "up":
-        return "text-green-600";
-      case "down":
-        return "text-red-600";
-      default:
-        return "text-gray-600";
     }
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {statsData.map((stat, index) => (
-        <Card key={index} data-testid={`stat-card-${index}`}>
+        <Card key={index} className="dashboard-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
               {stat.title}
@@ -139,15 +151,15 @@ export default function StatsCards({ stats, isLoading, userRole }: StatsCardsPro
             {getTrendIcon(stat.trend)}
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900" data-testid={`stat-value-${index}`}>
+            <div className="text-2xl font-bold text-gray-900">
               {stat.value}
             </div>
-            <div className="flex items-center space-x-1 text-xs">
-              <span className={getTrendColor(stat.trend)}>
+            <p className="text-xs text-gray-500 flex items-center gap-1">
+              <span className={stat.trend === "up" ? "text-green-600" : stat.trend === "down" ? "text-red-600" : "text-gray-600"}>
                 {stat.change}
               </span>
-              <span className="text-gray-500">{stat.description}</span>
-            </div>
+              <span>{stat.description}</span>
+            </p>
           </CardContent>
         </Card>
       ))}

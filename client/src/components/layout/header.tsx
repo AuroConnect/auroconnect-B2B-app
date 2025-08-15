@@ -39,6 +39,12 @@ export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const [location, setLocation] = useLocation();
 
+  if (!isAuthenticated || !user) {
+    return null;
+  }
+
+  const typedUser = user as UserType;
+
   // Fetch cart data for cart icon with real-time updates
   const { data: cart, isLoading: cartLoading } = useQuery<Cart>({
     queryKey: ["api", "cart"],
@@ -48,11 +54,22 @@ export default function Header() {
     staleTime: 2000, // Consider data stale after 2 seconds
   });
 
-  if (!isAuthenticated || !user) {
-    return null;
-  }
+  // Fetch notifications for manufacturers
+  const { data: notifications = [] } = useQuery<any[]>({
+    queryKey: ["api", "notifications"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!user && typedUser.role === 'manufacturer',
+    refetchInterval: 10000, // Refresh every 10 seconds
+    staleTime: 5000,
+  });
 
-  const typedUser = user as UserType;
+  // Filter recent notifications (last 24 hours)
+  const recentNotifications = notifications.filter((notification: any) => {
+    const notificationTime = new Date(notification.createdAt);
+    const now = new Date();
+    const hoursDiff = (now.getTime() - notificationTime.getTime()) / (1000 * 60 * 60);
+    return hoursDiff <= 24;
+  });
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || 'U';
@@ -238,10 +255,64 @@ export default function Header() {
             )}
 
             {/* Notifications */}
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 auromart-gradient-secondary rounded-full"></span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {recentNotifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 auromart-gradient-secondary rounded-full"></span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <DropdownMenuLabel>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Notifications</span>
+                    {recentNotifications.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {recentNotifications.length}
+                      </Badge>
+                    )}
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {recentNotifications.length === 0 ? (
+                  <div className="p-4 text-center">
+                    <Bell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">No new notifications</p>
+                  </div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto">
+                    {recentNotifications.slice(0, 5).map((notification: any) => (
+                      <DropdownMenuItem key={notification.id} className="p-3">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">
+                              {notification.title || 'New Order'}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {notification.message || 'A distributor has placed an order'}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(notification.createdAt).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                )}
+                {recentNotifications.length > 5 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-center text-sm text-gray-500">
+                      View all notifications
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* User Dropdown */}
             <DropdownMenu>

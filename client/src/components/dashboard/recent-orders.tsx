@@ -17,7 +17,17 @@ import {
   Calendar
 } from "lucide-react";
 import { getQueryFn } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
+
+interface OrderItem {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
 
 interface Order {
   id: string;
@@ -26,25 +36,41 @@ interface Order {
   totalAmount: number;
   createdAt: string;
   updatedAt: string;
-  retailer?: {
-    id: string;
-    name: string;
-    email: string;
-  };
+  items: OrderItem[];
   distributor?: {
     id: string;
-    name: string;
-    email: string;
+    businessName: string;
+    firstName: string;
+    lastName: string;
+  };
+  retailer?: {
+    id: string;
+    businessName: string;
+    firstName: string;
+    lastName: string;
   };
 }
 
 export default function RecentOrders() {
+  const { user } = useAuth();
+  const userRole = (user as any)?.role || 'retailer';
+
   const { data: orders, isLoading, error } = useQuery<Order[]>({
     queryKey: ["api", "orders"],
     queryFn: getQueryFn({ on401: "throw" }),
     retry: 1,
     refetchOnWindowFocus: false,
   });
+
+  // For manufacturers, filter orders from distributors only
+  const filteredOrders = userRole === 'manufacturer' 
+    ? orders?.filter(order => order.distributor) || []
+    : orders || [];
+
+  // Sort by most recent first
+  const sortedOrders = filteredOrders.sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  ).slice(0, 5); // Show only 5 most recent orders
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -101,44 +127,17 @@ export default function RecentOrders() {
         minute: '2-digit'
       });
     } catch (error) {
-      return 'Invalid Date';
+      return 'Invalid date';
     }
   };
 
   const formatCurrency = (amount: number) => {
-    try {
-      return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 0
-      }).format(amount);
-    } catch (error) {
-      return `₹${amount}`;
-    }
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
   };
-
-  const getStatusPriority = (status: string) => {
-    const priorities = {
-      'pending': 1,
-      'confirmed': 2,
-      'accepted': 3,
-      'processing': 4,
-      'packed': 5,
-      'shipped': 6,
-      'out_for_delivery': 7,
-      'delivered': 8,
-      'cancelled': 9,
-      'rejected': 10
-    };
-    return priorities[status.toLowerCase()] || 0;
-  };
-
-  // Sort orders by status priority and then by creation date
-  const sortedOrders = orders ? [...orders].sort((a, b) => {
-    const statusDiff = getStatusPriority(a.status) - getStatusPriority(b.status);
-    if (statusDiff !== 0) return statusDiff;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  }).slice(0, 5) : [];
 
   if (isLoading) {
     return (
@@ -150,9 +149,13 @@ export default function RecentOrders() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-4">
-            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-            <p className="text-sm text-gray-600">Loading orders...</p>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -184,6 +187,9 @@ export default function RecentOrders() {
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             Recent Orders
+            {userRole === 'manufacturer' && (
+              <span className="text-sm text-gray-500">(from Distributors)</span>
+            )}
           </CardTitle>
           <Link href="/orders">
             <Button variant="outline" size="sm">
@@ -196,52 +202,48 @@ export default function RecentOrders() {
         {sortedOrders.length === 0 ? (
           <div className="text-center py-6">
             <Package className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">No orders yet</p>
+            <p className="text-sm text-gray-500">
+              {userRole === 'manufacturer' 
+                ? "No orders from distributors yet" 
+                : "No recent orders"
+              }
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
             {sortedOrders.map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+              <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h4 className="font-medium text-sm">{order.orderNumber}</h4>
-                    <Badge className={`${getStatusColor(order.status)} text-xs`}>
-                      <div className="flex items-center gap-1">
-                        {getStatusIcon(order.status)}
-                        {formatStatusDisplay(order.status)}
-                      </div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-sm">#{order.orderNumber}</span>
+                    <Badge className={`text-xs ${getStatusColor(order.status)}`}>
+                      {getStatusIcon(order.status)}
+                      {formatStatusDisplay(order.status)}
                     </Badge>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="h-3 w-3" />
-                      <span>{formatCurrency(order.totalAmount)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{formatDate(order.createdAt)}</span>
-                    </div>
+                  <div className="text-sm text-gray-600">
+                    {userRole === 'manufacturer' && order.distributor ? (
+                      <span>From: {order.distributor.businessName || `${order.distributor.firstName} ${order.distributor.lastName}`}</span>
+                    ) : userRole === 'distributor' && order.retailer ? (
+                      <span>To: {order.retailer.businessName || `${order.retailer.firstName} ${order.retailer.lastName}`}</span>
+                    ) : (
+                      <span>{order.items?.length || 0} items</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {formatDate(order.createdAt)}
                   </div>
                 </div>
-                
-                <Link href={`/orders`}>
-                  <Button variant="ghost" size="sm">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </Link>
+                <div className="text-right">
+                  <div className="font-semibold text-sm">
+                    {formatCurrency(order.totalAmount)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {order.items?.length || 0} items
+                  </div>
+                </div>
               </div>
             ))}
-          </div>
-        )}
-        
-        {orders && orders.length > 5 && (
-          <div className="mt-4 pt-4 border-t">
-            <Link href="/orders">
-              <Button variant="outline" size="sm" className="w-full">
-                View All {orders.length} Orders
-              </Button>
-            </Link>
           </div>
         )}
       </CardContent>

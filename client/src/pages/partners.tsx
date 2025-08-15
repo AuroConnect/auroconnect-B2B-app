@@ -83,6 +83,13 @@ export default function Partners() {
     retry: 3,
   });
 
+  // Fetch associated distributors for manufacturers
+  const { data: associatedDistributors = [], isLoading: associatedDistributorsLoading } = useQuery<User[]>({
+    queryKey: ["api", "partners", "associated-distributors"],
+    enabled: isAuthenticated && !isLoading && user?.role === "manufacturer",
+    retry: 3,
+  });
+
   // Fetch retailers (for distributors only)
   const { data: retailers = [], isLoading: retailersLoading, error: retailersError } = useQuery<User[]>({
     queryKey: ["api", "partners", "retailers", searchTerm ? `?search=${searchTerm}` : ""],
@@ -101,6 +108,10 @@ export default function Partners() {
   const getCurrentPartners = () => {
     switch (activeTab) {
       case "distributors":
+        // For manufacturers, show only associated distributors
+        if (user?.role === "manufacturer") {
+          return associatedDistributors;
+        }
         return distributors;
       case "retailers":
         return retailers;
@@ -114,6 +125,9 @@ export default function Partners() {
   const getCurrentPartnersLoading = () => {
     switch (activeTab) {
       case "distributors":
+        if (user?.role === "manufacturer") {
+          return associatedDistributorsLoading;
+        }
         return distributorsLoading;
       case "retailers":
         return retailersLoading;

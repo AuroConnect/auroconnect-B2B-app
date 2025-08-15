@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
-from app.models import User
+from app.models import User, ProductAllocation
 from app.utils.decorators import role_required
 from sqlalchemy import or_
 
@@ -40,6 +40,39 @@ def get_partners():
         
     except Exception as e:
         return jsonify({'message': 'Failed to fetch partners', 'error': str(e)}), 500
+
+@partners_bp.route('/associated-distributors', methods=['GET'])
+@jwt_required()
+@role_required('manufacturer')
+def get_associated_distributors():
+    """Get distributors associated with the current manufacturer through product allocations"""
+    try:
+        current_user_id = get_jwt_identity()
+        search = request.args.get('search', '')
+        
+        # Get distributors who have been allocated products by this manufacturer
+        query = db.session.query(User).join(ProductAllocation).filter(
+            ProductAllocation.manufacturer_id == current_user_id,
+            ProductAllocation.is_active == True,
+            User.role == 'distributor',
+            User.is_active == True
+        ).distinct()
+        
+        if search:
+            query = query.filter(
+                or_(
+                    User.business_name.ilike(f'%{search}%'),
+                    User.email.ilike(f'%{search}%'),
+                    User.first_name.ilike(f'%{search}%'),
+                    User.last_name.ilike(f'%{search}%')
+                )
+            )
+        
+        distributors = query.all()
+        return jsonify([dist.to_public_dict() for dist in distributors]), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch associated distributors', 'error': str(e)}), 500
 
 @partners_bp.route('/distributors', methods=['GET'])
 @jwt_required()

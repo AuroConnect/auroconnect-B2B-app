@@ -12,6 +12,8 @@ import { Edit, Trash2, Eye, EyeOff, Plus, Upload, Download, Search, Package } fr
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import Header from "@/components/layout/header";
+import MobileNav from "@/components/layout/mobile-nav";
 
 export default function MyProducts() {
   const { toast } = useToast();
@@ -25,7 +27,7 @@ export default function MyProducts() {
   // State management
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -319,457 +321,549 @@ export default function MyProducts() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">My Products</h1>
-            <p className="text-gray-600 mt-2">Manage your own products</p>
+      <div className="min-h-screen">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">My Products</h1>
+              <p className="text-gray-600 mt-2">Manage your own products</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Card key={index} className="animate-pulse">
+                <div className="aspect-square bg-gray-200 rounded-t-lg"></div>
+                <CardContent className="p-4">
+                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-3"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-3"></div>
+                  <div className="flex items-center justify-between">
+                    <div className="h-6 bg-gray-200 rounded w-20"></div>
+                    <div className="h-8 bg-gray-200 rounded w-24"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <Card key={index} className="animate-pulse">
-              <div className="aspect-square bg-gray-200 rounded-t-lg"></div>
-              <CardContent className="p-4">
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded mb-3"></div>
-                <div className="h-3 bg-gray-200 rounded mb-3"></div>
-                <div className="flex items-center justify-between">
-                  <div className="h-6 bg-gray-200 rounded w-20"></div>
-                  <div className="h-8 bg-gray-200 rounded w-24"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <MobileNav />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Products</h1>
-          <p className="text-gray-600 mt-2">Manage your own products</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={downloadTemplate}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Download Template
-          </Button>
-          <Button
-            onClick={() => bulkUploadRef.current?.click()}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <Upload className="h-4 w-4" />
-            Bulk Upload
-          </Button>
-          <Button
-            onClick={() => setIsAddDialogOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Product
-          </Button>
-        </div>
-      </div>
-
-      {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+    <div className="min-h-screen">
+      <Header />
+      
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">My Products</h1>
+            <p className="text-gray-600 mt-2">Manage your own products</p>
           </div>
-        </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((category: any) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex gap-2">
-          <Button
-            variant={viewMode === "grid" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("grid")}
-          >
-            Grid
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("list")}
-          >
-            List
-          </Button>
-        </div>
-      </div>
-
-      {/* Products Grid */}
-      <div className={`grid gap-6 ${
-        viewMode === "grid" 
-          ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
-          : "grid-cols-1"
-      }`}>
-        {filteredAndSortedProducts.map((product: any) => (
-          <Card key={product.id} className="group hover:shadow-lg transition-shadow">
-            <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
-              {product.imageUrl ? (
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <span>No Image</span>
-                </div>
-              )}
-            </div>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-semibold text-lg text-gray-900 truncate">
-                  {product.name}
-                </h3>
-                <Badge variant={product.isActive ? "default" : "secondary"}>
-                  {product.isActive ? "Active" : "Hidden"}
-                </Badge>
-              </div>
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                {product.description}
-              </p>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-lg font-bold text-gray-900">
-                  ₹{product.basePrice?.toLocaleString() || "0"}
-                </span>
-                <span className="text-sm text-gray-500">SKU: {product.sku}</span>
-              </div>
-              {product.category && (
-                <Badge variant="outline" className="mb-3">
-                  {product.category.name}
-                </Badge>
-              )}
-            </CardContent>
-            <CardFooter className="p-4 pt-0">
-              <div className="flex gap-2 w-full">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEditProduct(product)}
-                  className="flex-1"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleToggleVisibility(product.id, product.isActive)}
-                >
-                  {product.isActive ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setEditingProduct(product);
-                    setIsEditDialogOpen(true);
-                  }}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
-
-      {filteredAndSortedProducts.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-gray-400 mb-4">
-            <Package className="h-16 w-16 mx-auto" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-          <p className="text-gray-600 mb-4">
-            {searchTerm || selectedCategory !== "all" 
-              ? "Try adjusting your search or filters."
-              : "Get started by adding your first product."
-            }
-          </p>
-          {!searchTerm && selectedCategory === "all" && (
-            <Button onClick={() => setIsAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Your First Product
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* Add Product Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
-            <DialogDescription>
-              Create a new product for your catalog.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="name">Product Name *</Label>
-              <Input
-                id="name"
-                value={newProduct.name}
-                onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                placeholder="Enter product name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={newProduct.description}
-                onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                placeholder="Enter product description"
-              />
-            </div>
-            <div>
-              <Label htmlFor="sku">SKU *</Label>
-              <Input
-                id="sku"
-                value={newProduct.sku}
-                onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                placeholder="Enter SKU"
-              />
-            </div>
-            <div>
-              <Label htmlFor="category">Category</Label>
-              <Select value={newProduct.categoryId} onValueChange={(value) => setNewProduct({ ...newProduct, categoryId: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category: any) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="basePrice">Base Price *</Label>
-              <Input
-                id="basePrice"
-                type="number"
-                step="0.01"
-                value={newProduct.basePrice}
-                onChange={(e) => setNewProduct({ ...newProduct, basePrice: e.target.value })}
-                placeholder="Enter base price"
-              />
-            </div>
-            <div>
-              <Label>Product Image</Label>
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={imageUploadType === "url" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setImageUploadType("url")}
-                  >
-                    Image URL
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={imageUploadType === "file" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setImageUploadType("file")}
-                  >
-                    Upload File
-                  </Button>
-                </div>
-                {imageUploadType === "url" ? (
-                  <Input
-                    value={newProduct.imageUrl}
-                    onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
-                    placeholder="Enter image URL"
-                  />
-                ) : (
-                  <div>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      ref={fileInputRef}
-                    />
-                    {imagePreview && (
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="mt-2 w-20 h-20 object-cover rounded"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={newProduct.isActive}
-                onChange={(e) => setNewProduct({ ...newProduct, isActive: e.target.checked })}
-                className="rounded"
-              />
-              <Label htmlFor="isActive">Active (visible in catalog)</Label>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddProduct} disabled={addProductMutation.isPending}>
-              {addProductMutation.isPending ? "Adding..." : "Add Product"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Product Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
-            <DialogDescription>
-              Update product information.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-name">Product Name *</Label>
-              <Input
-                id="edit-name"
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                placeholder="Enter product name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={editForm.description}
-                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                placeholder="Enter product description"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-sku">SKU *</Label>
-              <Input
-                id="edit-sku"
-                value={editForm.sku}
-                onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
-                placeholder="Enter SKU"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-category">Category</Label>
-              <Select value={editForm.categoryId} onValueChange={(value) => setEditForm({ ...editForm, categoryId: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category: any) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="edit-basePrice">Base Price *</Label>
-              <Input
-                id="edit-basePrice"
-                type="number"
-                step="0.01"
-                value={editForm.basePrice}
-                onChange={(e) => setEditForm({ ...editForm, basePrice: e.target.value })}
-                placeholder="Enter base price"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-imageUrl">Image URL</Label>
-              <Input
-                id="edit-imageUrl"
-                value={editForm.imageUrl}
-                onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
-                placeholder="Enter image URL"
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="edit-isActive"
-                checked={editForm.isActive}
-                onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })}
-                className="rounded"
-              />
-              <Label htmlFor="edit-isActive">Active (visible in catalog)</Label>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleDeleteProduct}
-              disabled={deleteProductMutation.isPending}
+          <div className="flex gap-2">
+            <Button
+              onClick={downloadTemplate}
+              variant="outline"
+              className="flex items-center gap-2"
             >
-              {deleteProductMutation.isPending ? "Deleting..." : "Delete"}
+              <Download className="h-4 w-4" />
+              Download Template
             </Button>
-            <Button onClick={handleUpdateProduct} disabled={updateProductMutation.isPending}>
-              {updateProductMutation.isPending ? "Updating..." : "Update"}
+            <Button
+              onClick={() => bulkUploadRef.current?.click()}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Bulk Upload
+            </Button>
+            <Button
+              onClick={() => setIsAddDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Product
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
 
-      {/* Hidden file input for bulk upload */}
-      <input
-        type="file"
-        ref={bulkUploadRef}
-        onChange={handleBulkUpload}
-        accept=".csv,.xlsx,.xls"
-        className="hidden"
-      />
+        {/* Filters and Search */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((category: any) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex gap-2">
+            <Button
+              variant={viewMode === "grid" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+            >
+              Grid
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+            >
+              List
+            </Button>
+          </div>
+        </div>
+
+        {/* Products Display */}
+        {viewMode === "list" ? (
+          <div className="space-y-4">
+            {filteredAndSortedProducts.map((product: any) => (
+              <Card key={product.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <Package className="h-6 w-6" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-lg text-gray-900">
+                          {product.name}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-1">
+                          SKU: {product.sku}
+                        </p>
+                        <p className="text-sm text-gray-500 line-clamp-2">
+                          {product.description}
+                        </p>
+                        {product.category && (
+                          <Badge variant="outline" className="mt-1">
+                            {product.category.name}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <div className="font-semibold text-lg text-gray-900">
+                          ₹{product.basePrice?.toLocaleString() || "0"}
+                        </div>
+                        <Badge variant={product.isActive ? "default" : "secondary"}>
+                          {product.isActive ? "Active" : "Hidden"}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditProduct(product)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleVisibility(product.id, product.isActive)}
+                        >
+                          {product.isActive ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingProduct(product);
+                            setIsEditDialogOpen(true);
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredAndSortedProducts.map((product: any) => (
+              <Card key={product.id} className="group hover:shadow-lg transition-shadow">
+                <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <span>No Image</span>
+                    </div>
+                  )}
+                </div>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold text-lg text-gray-900 truncate">
+                      {product.name}
+                    </h3>
+                    <Badge variant={product.isActive ? "default" : "secondary"}>
+                      {product.isActive ? "Active" : "Hidden"}
+                    </Badge>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                    {product.description}
+                  </p>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-lg font-bold text-gray-900">
+                      ₹{product.basePrice?.toLocaleString() || "0"}
+                    </span>
+                    <span className="text-sm text-gray-500">SKU: {product.sku}</span>
+                  </div>
+                  {product.category && (
+                    <Badge variant="outline" className="mb-3">
+                      {product.category.name}
+                    </Badge>
+                  )}
+                </CardContent>
+                <CardFooter className="p-4 pt-0">
+                  <div className="flex gap-2 w-full">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditProduct(product)}
+                      className="flex-1"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleToggleVisibility(product.id, product.isActive)}
+                    >
+                      {product.isActive ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditingProduct(product);
+                        setIsEditDialogOpen(true);
+                      }}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {filteredAndSortedProducts.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4">
+              <Package className="h-16 w-16 mx-auto" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+            <p className="text-gray-600 mb-4">
+              {searchTerm || selectedCategory !== "all" 
+                ? "Try adjusting your search or filters."
+                : "Get started by adding your first product."
+              }
+            </p>
+            {!searchTerm && selectedCategory === "all" && (
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Your First Product
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Add Product Dialog */}
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Add New Product</DialogTitle>
+              <DialogDescription>
+                Create a new product for your catalog.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Product Name *</Label>
+                <Input
+                  id="name"
+                  value={newProduct.name}
+                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                  placeholder="Enter product name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={newProduct.description}
+                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                  placeholder="Enter product description"
+                />
+              </div>
+              <div>
+                <Label htmlFor="sku">SKU *</Label>
+                <Input
+                  id="sku"
+                  value={newProduct.sku}
+                  onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
+                  placeholder="Enter SKU"
+                />
+              </div>
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select value={newProduct.categoryId} onValueChange={(value) => setNewProduct({ ...newProduct, categoryId: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category: any) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="basePrice">Base Price *</Label>
+                <Input
+                  id="basePrice"
+                  type="number"
+                  step="0.01"
+                  value={newProduct.basePrice}
+                  onChange={(e) => setNewProduct({ ...newProduct, basePrice: e.target.value })}
+                  placeholder="Enter base price"
+                />
+              </div>
+              <div>
+                <Label>Product Image</Label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={imageUploadType === "url" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setImageUploadType("url")}
+                    >
+                      Image URL
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={imageUploadType === "file" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setImageUploadType("file")}
+                    >
+                      Upload File
+                    </Button>
+                  </div>
+                  {imageUploadType === "url" ? (
+                    <Input
+                      value={newProduct.imageUrl}
+                      onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
+                      placeholder="Enter image URL"
+                    />
+                  ) : (
+                    <div>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        ref={fileInputRef}
+                      />
+                      {imagePreview && (
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="mt-2 w-20 h-20 object-cover rounded"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={newProduct.isActive}
+                  onChange={(e) => setNewProduct({ ...newProduct, isActive: e.target.checked })}
+                  className="rounded"
+                />
+                <Label htmlFor="isActive">Active (visible in catalog)</Label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddProduct} disabled={addProductMutation.isPending}>
+                {addProductMutation.isPending ? "Adding..." : "Add Product"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Product Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Product</DialogTitle>
+              <DialogDescription>
+                Update product information.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Product Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  placeholder="Enter product name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  placeholder="Enter product description"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-sku">SKU *</Label>
+                <Input
+                  id="edit-sku"
+                  value={editForm.sku}
+                  onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
+                  placeholder="Enter SKU"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-category">Category</Label>
+                <Select value={editForm.categoryId} onValueChange={(value) => setEditForm({ ...editForm, categoryId: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category: any) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-basePrice">Base Price *</Label>
+                <Input
+                  id="edit-basePrice"
+                  type="number"
+                  step="0.01"
+                  value={editForm.basePrice}
+                  onChange={(e) => setEditForm({ ...editForm, basePrice: e.target.value })}
+                  placeholder="Enter base price"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-imageUrl">Image URL</Label>
+                <Input
+                  id="edit-imageUrl"
+                  value={editForm.imageUrl}
+                  onChange={(e) => setEditForm({ ...editForm, imageUrl: e.target.value })}
+                  placeholder="Enter image URL"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="edit-isActive"
+                  checked={editForm.isActive}
+                  onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })}
+                  className="rounded"
+                />
+                <Label htmlFor="edit-isActive">Active (visible in catalog)</Label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDeleteProduct}
+                disabled={deleteProductMutation.isPending}
+              >
+                {deleteProductMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+              <Button onClick={handleUpdateProduct} disabled={updateProductMutation.isPending}>
+                {updateProductMutation.isPending ? "Updating..." : "Update"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Hidden file input for bulk upload */}
+        <input
+          type="file"
+          ref={bulkUploadRef}
+          onChange={handleBulkUpload}
+          accept=".csv,.xlsx,.xls"
+          className="hidden"
+        />
+      </div>
+      
+      <MobileNav />
     </div>
   );
 }
