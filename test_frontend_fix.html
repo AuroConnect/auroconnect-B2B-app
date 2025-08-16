@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .loading { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Frontend Test</h1>
+        <p>Testing the frontend after fixes...</p>
+        
+        <div id="status" class="status loading">Testing...</div>
+        
+        <div id="results"></div>
+        
+        <button onclick="testFrontend()">Test Frontend</button>
+        <button onclick="testBackend()">Test Backend</button>
+        <button onclick="clearCache()">Clear Cache</button>
+        <button onclick="window.open('http://localhost:3000', '_blank')">Open App</button>
+    </div>
+
+    <script>
+        async function testFrontend() {
+            const status = document.getElementById('status');
+            const results = document.getElementById('results');
+            
+            status.className = 'status loading';
+            status.textContent = 'Testing frontend...';
+            results.innerHTML = '';
+            
+            try {
+                // Test if frontend is accessible
+                const response = await fetch('http://localhost:3000');
+                if (response.ok) {
+                    status.className = 'status success';
+                    status.textContent = '✅ Frontend is running!';
+                    results.innerHTML += '<p>✅ Frontend server is responding</p>';
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ Frontend not accessible';
+                results.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testBackend() {
+            const status = document.getElementById('status');
+            const results = document.getElementById('results');
+            
+            status.className = 'status loading';
+            status.textContent = 'Testing backend...';
+            
+            try {
+                // Test backend health endpoint
+                const response = await fetch('http://localhost:5000/api/health');
+                if (response.ok) {
+                    const data = await response.json();
+                    status.className = 'status success';
+                    status.textContent = '✅ Backend is running!';
+                    results.innerHTML += `<p>✅ Backend health: ${data.status || 'OK'}</p>`;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ Backend not accessible';
+                results.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+        
+        function clearCache() {
+            const status = document.getElementById('status');
+            const results = document.getElementById('results');
+            
+            status.className = 'status loading';
+            status.textContent = 'Clearing cache...';
+            
+            // Clear browser cache
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => {
+                        caches.delete(name);
+                    });
+                });
+            }
+            
+            // Clear localStorage
+            localStorage.clear();
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            
+            status.className = 'status success';
+            status.textContent = '✅ Cache cleared!';
+            results.innerHTML += '<p>✅ Browser cache, localStorage, and sessionStorage cleared</p>';
+        }
+        
+        // Auto-test on load
+        window.onload = function() {
+            setTimeout(() => {
+                testFrontend();
+                setTimeout(testBackend, 1000);
+            }, 500);
+        };
+    </script>
+</body>
+</html>

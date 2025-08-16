@@ -20,6 +20,7 @@ import Settings from "@/pages/settings";
 import Cart from "@/pages/cart";
 import Inventory from "@/pages/inventory";
 import LoginForm from "@/components/auth/login-form";
+import ErrorBoundary from "@/components/ui/error-boundary";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -90,12 +91,14 @@ function LoginPage() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
