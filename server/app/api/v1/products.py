@@ -35,23 +35,72 @@ def get_products():
                 is_active=True
             )
         elif user.role == 'distributor':
-            # Distributors see only products allocated to them by manufacturers
-            from app.models.product_allocation import ProductAllocation
+            # Distributors see products from manufacturers they have partnerships with
+            from app.models.partnership import Partnership
             
-            # Get allocated product IDs
-            allocated_products = db.session.query(ProductAllocation.product_id).filter_by(
-                distributor_id=current_user_id,
-                is_active=True
-            ).subquery()
+            # Get connected manufacturer IDs
+            partnerships = Partnership.query.filter(
+                ((Partnership.requester_id == current_user_id) | 
+                 (Partnership.partner_id == current_user_id)) &
+                (Partnership.status == 'active') &
+                (Partnership.partnership_type == 'MANUFACTURER_DISTRIBUTOR')
+            ).all()
             
-            query = Product.query.filter(
-                Product.id.in_(allocated_products),
-                Product.is_active == True
-            )
+            connected_manufacturer_ids = []
+            for partnership in partnerships:
+                if partnership.requester_id == current_user_id:
+                    # Distributor is requester, manufacturer is partner
+                    connected_manufacturer_ids.append(partnership.partner_id)
+                else:
+                    # Manufacturer is requester, distributor is partner
+                    connected_manufacturer_ids.append(partnership.requester_id)
+            
+            if connected_manufacturer_ids:
+                query = Product.query.filter(
+                    Product.manufacturer_id.in_(connected_manufacturer_ids),
+                    Product.is_active == True
+                )
+            else:
+                # No partnerships, return empty list
+                return jsonify([]), 200
+                
         elif user.role == 'retailer':
-            # Retailers see all active products (simplified for now)
-            # In a real implementation, this would filter by partnerships
-            query = Product.query.filter_by(is_active=True)
+            # Retailers see products from distributors they have partnerships with
+            from app.models.partnership import Partnership
+            
+            # Get connected distributor IDs
+            partnerships = Partnership.query.filter(
+                ((Partnership.requester_id == current_user_id) | 
+                 (Partnership.partner_id == current_user_id)) &
+                (Partnership.status == 'active') &
+                (Partnership.partnership_type == 'DISTRIBUTOR_RETAILER')
+            ).all()
+            
+            connected_distributor_ids = []
+            for partnership in partnerships:
+                if partnership.requester_id == current_user_id:
+                    # Retailer is requester, distributor is partner
+                    connected_distributor_ids.append(partnership.partner_id)
+                else:
+                    # Distributor is requester, retailer is partner
+                    connected_distributor_ids.append(partnership.requester_id)
+            
+            if connected_distributor_ids:
+                # Get products from connected distributors (through their allocations)
+                from app.models.product_allocation import ProductAllocation
+                
+                allocated_products = db.session.query(ProductAllocation.product_id).filter(
+                    ProductAllocation.distributor_id.in_(connected_distributor_ids),
+                    ProductAllocation.is_active == True
+                ).subquery()
+                
+                query = Product.query.filter(
+                    Product.id.in_(allocated_products),
+                    Product.is_active == True
+                )
+            else:
+                # No partnerships, return empty list
+                return jsonify([]), 200
         else:
             return jsonify({'message': 'Invalid user role'}), 400
         
@@ -89,22 +138,42 @@ def get_products():
                     ).first()
                     
                     product_dict['availableStock'] = inventory.quantity if inventory else 0
-                    product_dict['sellingPrice'] = float(allocation.selling_price)
+                    product_dict['sellingPrice'] = float(allocation.selling_price) if allocation.selling_price else 0
                     product_dict['isAllocated'] = True
                     product_dict['allocationId'] = allocation.id
                     product_dict['manufacturerName'] = product.manufacturer.business_name if product.manufacturer else "Unknown"
-                    products_with_inventory.append(product_dict)
-                    
-                # All products in catalog are allocated manufacturer products
+                else:
+                    # This is a product from a connected manufacturer but not yet allocated
+                    product_dict['availableStock'] = 0
+                    product_dict['sellingPrice'] = float(product.base_price) if product.base_price else 0
+                    product_dict['isAllocated'] = False
+                    product_dict['manufacturerName'] = product.manufacturer.business_name if product.manufacturer else "Unknown"
+                
                 products_with_inventory.append(product_dict)
                     
             elif user.role == 'retailer':
-                # Retailers see products from distributors they have partnerships with
-                # For now, show all products with basic info (simplified)
-                product_dict['availableStock'] = 0  # Will be updated when partnerships are established
-                product_dict['sellingPrice'] = float(product.base_price) if product.base_price else 0
-                product_dict['isAllocated'] = False
-                product_dict['distributorName'] = "Available from Distributors"
+                # Retailers see products from connected distributors
+                # Find the distributor who has this product allocated
+                allocation = ProductAllocation.query.filter(
+                    ProductAllocation.product_id == product.id,
+                    ProductAllocation.distributor_id.in_(connected_distributor_ids),
+                    ProductAllocation.is_active == True
+                ).first()
+                
+                if allocation:
+                    distributor = User.query.get(allocation.distributor_id)
+                    product_dict['availableStock'] = 0  # Will be updated when inventory is implemented
+                    product_dict['sellingPrice'] = float(allocation.selling_price) if allocation.selling_price else 0
+                    product_dict['isAllocated'] = True
+                    product_dict['distributorName'] = distributor.business_name if distributor else "Unknown"
+                    product_dict['manufacturerName'] = product.manufacturer.business_name if product.manufacturer else "Unknown"
+                else:
+                    product_dict['availableStock'] = 0
+                    product_dict['sellingPrice'] = float(product.base_price) if product.base_price else 0
+                    product_dict['isAllocated'] = False
+                    product_dict['distributorName'] = "Available from Distributors"
+                    product_dict['manufacturerName'] = product.manufacturer.business_name if product.manufacturer else "Unknown"
+                
                 products_with_inventory.append(product_dict)
         
         return jsonify(products_with_inventory), 200

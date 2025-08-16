@@ -13,6 +13,7 @@ import Orders from "@/pages/orders";
 import Reports from "@/pages/reports";
 import Partnerships from "@/pages/partnerships";
 import Partners from "@/pages/partners";
+import InviteAccept from "@/pages/invite-accept";
 import Register from "@/pages/register";
 import Profile from "@/pages/profile";
 import Settings from "@/pages/settings";
@@ -44,6 +45,7 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/login" component={LoginPage} />
           <Route path="/register" component={Register} />
+          <Route path="/partnerships/invite/:token" component={InviteAccept} />
           <Route component={NotFound} />
         </>
       ) : (
@@ -57,6 +59,7 @@ function Router() {
           <Route path="/reports" component={Reports} />
           <Route path="/partnerships" component={Partnerships} />
           <Route path="/partners" component={Partners} />
+          <Route path="/partnerships/invite/:token" component={InviteAccept} />
           <Route path="/profile" component={Profile} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
