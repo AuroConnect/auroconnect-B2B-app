@@ -15,11 +15,18 @@ services:
       dockerfile: Dockerfile
     environment:
       - FLASK_ENV=development
-      - DATABASE_URL=mysql+pymysql://admin:123%40Hrushi@3.249.132.231:3306/wa?charset=utf8mb4
+      - FLASK_APP=run.py
+      - DATABASE_URL=mysql+pymysql://admin:123%40Hrushi@54.247.8.53:3306/wa?charset=utf8mb4
+      - MYSQL_HOST=54.247.8.53
+      - MYSQL_PORT=3306
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=123@Hrushi
+      - MYSQL_DATABASE=wa
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=auromart-secret-key-2024-super-secure
       - JWT_SECRET_KEY=auromart-jwt-secret-key-2024-super-secure
       - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://frontend:80
+      - LOG_LEVEL=DEBUG
     ports:
       - "5000:5000"
     depends_on:
@@ -30,6 +37,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
 
   frontend:
     build:
