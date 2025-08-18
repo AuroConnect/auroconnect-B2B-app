@@ -15,6 +15,8 @@ import uuid
 orders_bp = Blueprint('orders', __name__)
 
 @orders_bp.route('/', methods=['GET'])
+@orders_bp.route('/all', methods=['GET'])
+@orders_bp.route('/all/', methods=['GET'])
 @jwt_required()
 def get_orders():
     """Get orders based on user role with enhanced hierarchy support"""
@@ -30,26 +32,9 @@ def get_orders():
         
         # Enhanced role-based order filtering
         if current_user.role == 'manufacturer':
-            # Manufacturer sees orders from distributors who are ordering their products
-            # We need to find orders where the distributor has ordered products from this manufacturer
-            from app.models.product_allocation import ProductAllocation
-            
-            # Get all products from this manufacturer
-            manufacturer_products = Product.query.filter_by(manufacturer_id=current_user_id).all()
-            manufacturer_product_ids = [p.id for p in manufacturer_products]
-            
-            # Get order items that contain products from this manufacturer
-            order_items_with_manufacturer_products = OrderItem.query.filter(
-                OrderItem.product_id.in_(manufacturer_product_ids)
-            ).all()
-            
-            # Get order IDs from these order items
-            order_ids = [item.order_id for item in order_items_with_manufacturer_products]
-            
-            if order_ids:
-                query = Order.query.filter(Order.id.in_(order_ids))
-            else:
-                query = Order.query.filter_by(id=None)  # Return no results
+            # Manufacturer sees orders where they are the distributor_id (seller)
+            # For manufacturer-distributor orders: manufacturer is distributor_id (seller), distributor is retailer_id (buyer)
+            query = Order.query.filter_by(distributor_id=current_user_id)
             
         elif current_user.role == 'distributor':
             if order_type == 'buying':
@@ -84,6 +69,7 @@ def get_orders():
         return jsonify({'message': 'Failed to fetch orders', 'error': str(e)}), 500
 
 @orders_bp.route('/recent', methods=['GET'])
+@orders_bp.route('/recent/', methods=['GET'])
 @jwt_required()
 def get_recent_orders():
     """Get recent orders for dashboard"""
@@ -96,23 +82,9 @@ def get_recent_orders():
         
         # Get recent orders (last 10) based on user role
         if current_user.role == 'manufacturer':
-            # Manufacturer sees orders from distributors who are ordering their products
-            # Get all products from this manufacturer
-            manufacturer_products = Product.query.filter_by(manufacturer_id=current_user_id).all()
-            manufacturer_product_ids = [p.id for p in manufacturer_products]
-            
-            # Get order items that contain products from this manufacturer
-            order_items_with_manufacturer_products = OrderItem.query.filter(
-                OrderItem.product_id.in_(manufacturer_product_ids)
-            ).all()
-            
-            # Get order IDs from these order items
-            order_ids = [item.order_id for item in order_items_with_manufacturer_products]
-            
-            if order_ids:
-                query = Order.query.filter(Order.id.in_(order_ids))
-            else:
-                query = Order.query.filter_by(id=None)  # Return no results
+            # Manufacturer sees orders where they are the distributor_id (seller)
+            # For manufacturer-distributor orders: manufacturer is distributor_id (seller), distributor is retailer_id (buyer)
+            query = Order.query.filter_by(distributor_id=current_user_id)
         elif current_user.role == 'distributor':
             # Distributor sees recent orders where they are the seller (to retailers)
             query = Order.query.filter_by(distributor_id=current_user_id)
