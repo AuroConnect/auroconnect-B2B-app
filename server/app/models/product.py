@@ -8,11 +8,14 @@ class Product(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    sku = db.Column(db.String(255), unique=True, nullable=False)
+    sku = db.Column(db.String(255), nullable=False)
     category_id = db.Column(db.String(36), db.ForeignKey('categories.id'), nullable=True)
     manufacturer_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
     image_url = db.Column(db.Text, nullable=True)
     base_price = db.Column(db.Numeric(10, 2), nullable=True)
+    stock_quantity = db.Column(db.Integer, default=0, nullable=False)
+    brand = db.Column(db.String(255), nullable=True)
+    unit = db.Column(db.String(50), default='Pieces', nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -33,6 +36,9 @@ class Product(db.Model):
             'manufacturerId': str(self.manufacturer_id) if self.manufacturer_id else None,
             'imageUrl': self.image_url,
             'basePrice': float(self.base_price) if self.base_price else None,
+            'stockQuantity': self.stock_quantity,
+            'brand': self.brand,
+            'unit': self.unit,
             'isActive': self.is_active,
             'createdAt': self.created_at.isoformat() if self.created_at else None,
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None

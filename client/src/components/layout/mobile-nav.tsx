@@ -8,7 +8,9 @@ export default function MobileNav() {
 
   const navItems = [
     { href: "/", icon: Home, label: "Dashboard" },
-    { href: "/products", icon: Package, label: "Products" },
+    // Show Catalog for distributors, My Products for manufacturers/distributors
+    ...(user?.role === 'distributor' ? [{ href: "/products", icon: Package, label: "Catalog" }] : []),
+    ...((user?.role === 'manufacturer' || user?.role === 'distributor') ? [{ href: "/my-products", icon: Package, label: "My Products" }] : []),
     { href: "/partners", icon: Users, label: "Partners" },
     ...(user?.role !== 'manufacturer' ? [{ href: "/cart", icon: ShoppingCart, label: "Cart" }] : []),
     { href: "/orders", icon: ShoppingCart, label: "Orders" },

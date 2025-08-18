@@ -22,7 +22,7 @@ export default function QuickActions({ userRole }: QuickActionsProps) {
             title: 'Add Product',
             description: 'Create a new product in your catalog',
             icon: Plus,
-            href: '/products',
+            href: '/my-products',
             color: 'bg-blue-500 hover:bg-blue-600'
           },
           {
@@ -46,7 +46,7 @@ export default function QuickActions({ userRole }: QuickActionsProps) {
             title: 'Add Product',
             description: 'Add products to your inventory',
             icon: Plus,
-            href: '/products',
+            href: '/my-products',
             color: 'bg-blue-500 hover:bg-blue-600'
           },
           {

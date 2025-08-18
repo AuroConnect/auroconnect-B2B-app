@@ -28,8 +28,6 @@ export default function Partnerships() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedPartnershipType, setSelectedPartnershipType] = useState<string>("");
-  const [isAddPartnerOpen, setIsAddPartnerOpen] = useState(false);
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
 
@@ -40,21 +38,48 @@ export default function Partnerships() {
   });
 
   // Fetch available partners to connect with
-  const { data: availablePartners = [], isLoading: partnersLoading } = useQuery<User[]>({
-    queryKey: ["api", "partners", "available"],
+  const { data: availablePartners = [], isLoading: partnersLoading } = useQuery<Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    companyName?: string;
+    role: string;
+    allowedPartnershipType?: string;
+  }>>({
+    queryKey: ["api", "partnerships", "available"],
     enabled: isAuthenticated,
   });
 
   // Global product search
-  const { data: globalSearchResults = [], isLoading: globalSearchLoading } = useQuery<User[]>({
+  const { data: globalSearchResults = [], isLoading: globalSearchLoading } = useQuery<Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    businessName?: string;
+    role: string;
+  }>>({
     queryKey: ["api", "partners", "search", productSearchTerm],
     enabled: isAuthenticated && productSearchTerm.length > 2,
   });
 
+  // Fetch partnership rules
+  const { data: partnershipRules } = useQuery<{
+    userRole: string;
+    userRules: {
+      description: string;
+      can_partner_with: string[];
+    };
+  }>({
+    queryKey: ["api", "partnerships", "rules"],
+    enabled: isAuthenticated,
+  });
+
   // Send partnership request mutation
   const sendRequestMutation = useMutation({
-    mutationFn: async ({ partnerId, partnershipType }: { partnerId: string; partnershipType: string }) => {
-      await apiRequest("POST", "/api/partnerships/request", { partnerId, partnershipType });
+    mutationFn: async ({ partnerId }: { partnerId: string }) => {
+      await apiRequest("POST", "/api/partnerships/create-request", { partnerId });
     },
     onSuccess: () => {
       toast({
@@ -63,10 +88,8 @@ export default function Partnerships() {
       });
       queryClient.invalidateQueries({ queryKey: ["api", "partnerships"] });
       queryClient.invalidateQueries({ queryKey: ["api", "partners", "available"] });
-      setIsAddPartnerOpen(false);
-      setSelectedPartnershipType("");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -78,25 +101,18 @@ export default function Partnerships() {
         }, 500);
         return;
       }
+      
+      const errorMessage = error?.message || "Failed to send partnership request. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to send partnership request. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
   });
 
   const handleSendRequest = (partnerId: string) => {
-    if (!selectedPartnershipType) {
-      toast({
-        title: "Select Partnership Type",
-        description: "Please select a partnership type before sending the request.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    sendRequestMutation.mutate({ partnerId, partnershipType: selectedPartnershipType });
+    sendRequestMutation.mutate({ partnerId });
   };
 
   const getStatusIcon = (status: string) => {
@@ -158,6 +174,45 @@ export default function Partnerships() {
             Manage your business connections and partnerships to streamline your supply chain
           </p>
         </div>
+
+        {/* Partnership Rules Section */}
+        {partnershipRules && (
+          <div className="mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Partnership Rules
+                </CardTitle>
+                <CardDescription>
+                  Understanding how partnerships work based on your business role
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                    Your Role: {partnershipRules.userRole?.charAt(0).toUpperCase() + partnershipRules.userRole?.slice(1)}
+                  </h4>
+                  <p className="text-blue-800 dark:text-blue-200 text-sm mb-3">
+                    {partnershipRules.userRules?.description}
+                  </p>
+                  <div className="space-y-2">
+                    <p className="text-blue-800 dark:text-blue-200 text-sm font-medium">
+                      You can partner with:
+                    </p>
+                    <ul className="list-disc list-inside text-blue-700 dark:text-blue-300 text-sm space-y-1">
+                      {partnershipRules.userRules?.can_partner_with?.map((role: string) => (
+                        <li key={role}>
+                          {role.charAt(0).toUpperCase() + role.slice(1)}s
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Current Partnerships */}
@@ -281,59 +336,19 @@ export default function Partnerships() {
                             {partner.email}
                           </p>
                         </div>
-                        <Dialog open={isAddPartnerOpen} onOpenChange={setIsAddPartnerOpen}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              size="sm" 
-                              onClick={() => setIsAddPartnerOpen(true)}
-                              data-testid={`button-connect-${partner.id}`}
-                            >
-                              Connect
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Send Partnership Request</DialogTitle>
-                              <DialogDescription>
-                                Send a partnership request to {partner.companyName || `${partner.firstName} ${partner.lastName}`}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <label className="text-sm font-medium">Partnership Type</label>
-                                <Select 
-                                  value={selectedPartnershipType} 
-                                  onValueChange={setSelectedPartnershipType}
-                                >
-                                  <SelectTrigger data-testid="select-partnership-type">
-                                    <SelectValue placeholder="Select partnership type" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="supplier">Supplier Partnership</SelectItem>
-                                    <SelectItem value="distributor">Distribution Partnership</SelectItem>
-                                    <SelectItem value="retailer">Retail Partnership</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="flex justify-end gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  onClick={() => setIsAddPartnerOpen(false)}
-                                  data-testid="button-cancel-request"
-                                >
-                                  Cancel
-                                </Button>
-                                <Button 
-                                  onClick={() => handleSendRequest(partner.id)}
-                                  disabled={sendRequestMutation.isPending}
-                                  data-testid="button-send-request"
-                                >
-                                  {sendRequestMutation.isPending ? "Sending..." : "Send Request"}
-                                </Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {partner.allowedPartnershipType?.replace('_', ' ').toLowerCase()}
+                          </Badge>
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSendRequest(partner.id)}
+                            disabled={sendRequestMutation.isPending}
+                            data-testid={`button-connect-${partner.id}`}
+                          >
+                            {sendRequestMutation.isPending ? "Sending..." : "Connect"}
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -424,10 +439,7 @@ export default function Partnerships() {
                               </Button>
                               <Button 
                                 size="sm"
-                                onClick={() => {
-                                  // Add to available partners and open connection dialog
-                                  setIsAddPartnerOpen(true);
-                                }}
+                                onClick={() => handleSendRequest(partner.id)}
                                 data-testid={`button-connect-global-${partner.id}`}
                               >
                                 Connect

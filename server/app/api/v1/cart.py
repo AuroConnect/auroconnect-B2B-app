@@ -10,6 +10,7 @@ from datetime import datetime
 
 cart_bp = Blueprint('cart', __name__)
 
+@cart_bp.route('', methods=['GET'])
 @cart_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_cart():
@@ -54,10 +55,9 @@ def get_cart():
                     
                     if allocation:
                         # This is an allocated manufacturer product
-                        inventory = Inventory.query.filter_by(
-                            distributor_id=current_user_id,
-                            product_id=product.id
-                        ).first()
+                        # Use product's stock_quantity since it's from manufacturer
+                        inventory = None
+                        available_stock = product.stock_quantity or 0
                         unit_price = float(allocation.selling_price)
                     else:
                         # This is the distributor's own product
@@ -65,6 +65,7 @@ def get_cart():
                             distributor_id=current_user_id,
                             product_id=product.id
                         ).first()
+                        available_stock = inventory.quantity if inventory else 0
                         unit_price = product.base_price
                         
                 elif user.role == 'retailer':
@@ -99,7 +100,7 @@ def get_cart():
                     'quantity': item.quantity,
                     'unitPrice': unit_price_float,
                     'totalPrice': item_total,
-                    'availableStock': inventory.quantity if inventory else 0
+                    'availableStock': available_stock
                 })
         
         return jsonify({
@@ -112,6 +113,7 @@ def get_cart():
     except Exception as e:
         return jsonify({'message': 'Failed to fetch cart', 'error': str(e)}), 500
 
+@cart_bp.route('', methods=['POST'])
 @cart_bp.route('/', methods=['POST'])
 @jwt_required()
 def add_to_cart():
@@ -158,9 +160,16 @@ def add_to_cart():
             if not allocation:
                 return jsonify({'message': 'Product is not available to you'}), 403
         
+        # Get or create cart for user
+        cart = Cart.query.filter_by(user_id=current_user_id).first()
+        if not cart:
+            cart = Cart(user_id=current_user_id)
+            db.session.add(cart)
+            db.session.flush()  # Get the cart ID
+        
         # Check if item already exists in cart
         existing_item = CartItem.query.filter_by(
-            user_id=current_user_id,
+            cart_id=cart.id,
             product_id=product_id
         ).first()
         
@@ -171,7 +180,7 @@ def add_to_cart():
         else:
             # Create new cart item
             new_item = CartItem(
-                user_id=current_user_id,
+                cart_id=cart.id,
                 product_id=product_id,
                 quantity=quantity
             )
@@ -186,6 +195,7 @@ def add_to_cart():
         return jsonify({'message': f'Failed to add product to cart: {str(e)}'}), 500
 
 @cart_bp.route('/update/<item_id>', methods=['PUT'])
+@cart_bp.route('/update/<item_id>/', methods=['PUT'])
 @jwt_required()
 def update_cart_item(item_id):
     """Update cart item quantity"""
@@ -216,6 +226,7 @@ def update_cart_item(item_id):
         return jsonify({'message': 'Failed to update cart item', 'error': str(e)}), 500
 
 @cart_bp.route('/remove/<item_id>', methods=['DELETE'])
+@cart_bp.route('/remove/<item_id>/', methods=['DELETE'])
 @jwt_required()
 def remove_from_cart(item_id):
     """Remove item from cart"""
@@ -241,6 +252,7 @@ def remove_from_cart(item_id):
         return jsonify({'message': 'Failed to remove item from cart', 'error': str(e)}), 500
 
 @cart_bp.route('/clear', methods=['DELETE'])
+@cart_bp.route('/clear/', methods=['DELETE'])
 @jwt_required()
 def clear_cart():
     """Clear entire cart"""

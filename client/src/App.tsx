@@ -23,10 +23,12 @@ import LoginForm from "@/components/auth/login-form";
 import ErrorBoundary from "@/components/ui/error-boundary";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   // Show loading state only if we have a token and are checking auth
   const hasToken = !!localStorage.getItem('authToken');
+  
+  console.log('Router state:', { isAuthenticated, isLoading, user, hasToken });
   
   if (hasToken && isLoading) {
     return (

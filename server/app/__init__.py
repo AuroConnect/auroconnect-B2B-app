@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request, make_response
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -22,13 +22,15 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
     
-    # Setup CORS
+    # Setup CORS with more specific configuration
     CORS(app, 
-         origins=app.config['CORS_ORIGINS'],
+         origins=['http://localhost:3000', 'http://127.0.0.1:3000'],
          supports_credentials=True,
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
-         expose_headers=['Content-Type', 'Authorization'])
+         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+         expose_headers=['Content-Type', 'Authorization'],
+         max_age=3600,
+         automatic_options=True)
     
     # Register blueprints
     from app.api.v1.auth import auth_bp
@@ -48,6 +50,7 @@ def create_app(config_class=Config):
     from app.api.v1.reports import reports_bp
     from app.api.v1.inventory import inventory_bp
     from app.api.v1.product_allocations import product_allocations_bp
+    from app.api.v1.users import users_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(products_bp, url_prefix='/api/products')
@@ -66,6 +69,7 @@ def create_app(config_class=Config):
     app.register_blueprint(reports_bp, url_prefix='/api/reports')
     app.register_blueprint(inventory_bp, url_prefix='/api/inventory')
     app.register_blueprint(product_allocations_bp, url_prefix='/api/product-allocations')
+    app.register_blueprint(users_bp, url_prefix='/api/users')
     
     # Error handlers
     from app.errors import register_error_handlers
@@ -74,5 +78,31 @@ def create_app(config_class=Config):
     # CLI commands
     from app.cli import register_commands
     register_commands(app)
+    
+    # Add CORS headers to all responses
+    @app.before_request
+    def add_cors_headers():
+        if request.method == 'OPTIONS':
+            response = make_response()
+            response.status_code = 200
+            response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Max-Age'] = '3600'
+            return response
+    
+    # Handle OPTIONS requests for CORS preflight
+    @app.route('/api/<path:path>', methods=['OPTIONS'])
+    def handle_options(path):
+        from flask import make_response
+        response = make_response()
+        response.status_code = 200
+        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Max-Age'] = '3600'
+        return response
     
     return app 

@@ -60,7 +60,6 @@ export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [sortBy, setSortBy] = useState("name");
@@ -71,21 +70,6 @@ export default function Products() {
   
   // Get user role early to avoid hoisting issues
   const userRole = (user as User)?.role || 'retailer';
-
-  // Add Product Form State
-  const [newProduct, setNewProduct] = useState({
-    name: "",
-    description: "",
-    sku: "",
-    categoryId: "",
-    basePrice: "",
-    stockQuantity: "",
-    imageUrl: "",
-    brand: "",
-    unit: "pcs",
-    assignedDistributors: [] as string[],
-    assignedRetailers: [] as string[]
-  });
 
   // Bulk Upload State
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
@@ -118,22 +102,6 @@ export default function Products() {
     staleTime: 30000,
   });
 
-  // Get distributors for manufacturer assignment
-  const { data: distributors = [], isLoading: distributorsLoading } = useQuery<any[]>({
-    queryKey: ["api", "partners", "distributors"],
-    enabled: !!isAuthenticated && !!user && userRole === 'manufacturer',
-    retry: 3,
-    staleTime: 30000,
-  });
-
-  // Get retailers for distributor assignment
-  const { data: retailers = [], isLoading: retailersLoading } = useQuery<any[]>({
-    queryKey: ["api", "partners", "retailers"],
-    enabled: !!isAuthenticated && !!user && userRole === 'distributor',
-    retry: 3,
-    staleTime: 30000,
-  });
-
   // Get manufacturers for distributor filter
   const { data: manufacturers, isLoading: manufacturersLoading } = useQuery<any[]>({
     queryKey: ["api", "manufacturers"],
@@ -152,42 +120,6 @@ export default function Products() {
   const { data: favorites = [], isLoading: favoritesLoading } = useQuery<Favorite[]>({
     queryKey: ["api", "favorites"],
     enabled: !!isAuthenticated && !!user,
-  });
-
-  // Add Product mutation
-  const addProductMutation = useMutation({
-    mutationFn: async (productData: any) => {
-      const response = await apiRequest("POST", "/api/products", productData);
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Product Added",
-        description: "Product has been successfully added to your catalog.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["api", "products"] });
-      setIsAddDialogOpen(false);
-      setNewProduct({
-        name: "",
-        description: "",
-        sku: "",
-        categoryId: "",
-        basePrice: "",
-        stockQuantity: "",
-        imageUrl: "",
-        brand: "",
-        unit: "pcs",
-        assignedDistributors: [],
-        assignedRetailers: []
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add product.",
-        variant: "destructive",
-      });
-    },
   });
 
   // Bulk Upload Mutation
@@ -252,7 +184,7 @@ export default function Products() {
       },
       {
         name: "USB-C Hub",
-        description: "Multi-port USB-C hub for laptop connectivity",
+        description: "Multi-port USB-C hub for connectivity",
         sku: "HUB004",
         categoryId: "",
         basePrice: "2500.00",
@@ -262,154 +194,80 @@ export default function Products() {
     ];
 
     const csvContent = [
-      "name,description,sku,categoryId,basePrice,imageUrl,assignedDistributors",
-      ...sampleData.map(row => 
-        `"${row.name}","${row.description}","${row.sku}","${row.categoryId}","${row.basePrice}","${row.imageUrl}","${row.assignedDistributors}"`
-      )
-    ].join('\n');
+      ['name', 'description', 'sku', 'categoryId', 'basePrice', 'imageUrl', 'assignedDistributors'],
+      ...sampleData.map(item => [
+        item.name,
+        item.description,
+        item.sku,
+        item.categoryId,
+        item.basePrice,
+        item.imageUrl,
+        item.assignedDistributors
+      ])
+    ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'sample_products.csv';
-    document.body.appendChild(a);
+    a.download = 'product_sample.csv';
     a.click();
-    document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-  };
-
-  // Download Error CSV
-  const downloadErrorCSV = () => {
-    const errorData = bulkUploadResults
-      .filter(result => result.status === 'error')
-      .map(result => ({
-        row: result.row,
-        name: result.name || 'N/A',
-        error: result.error,
-        status: 'ERROR'
-      }));
-
-    if (errorData.length === 0) {
-      toast({
-        title: "No Errors",
-        description: "There are no errors to download.",
-        variant: "default",
-      });
-      return;
-    }
-
-    const csvContent = [
-      "row,name,error,status",
-      ...errorData.map(row => 
-        `"${row.row}","${row.name}","${row.error}","${row.status}"`
-      )
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'bulk_upload_errors.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handleBulkUpload = () => {
-    if (!bulkFile) {
-      toast({
-        title: "No File Selected",
-        description: "Please select a CSV or Excel file to upload",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsBulkUploading(true);
-    bulkUploadMutation.mutate(bulkFile);
   };
 
   // Filter and sort products
   const filteredAndSortedProducts = useMemo(() => {
-    if (!products || !Array.isArray(products)) return [];
-    
-    let filtered = products;
-    
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(product => 
-        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    // Apply category filter
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter(product => product.categoryId === selectedCategory);
-    }
-    
-    // Apply manufacturer filter for distributors
-    if (userRole === 'distributor' && selectedManufacturer !== "all") {
-      filtered = filtered.filter(product => product.manufacturerId === selectedManufacturer);
-    }
-    
+    if (!products) return [];
+
+    let filtered = products.filter((product) => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.description.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCategory = selectedCategory === "all" || product.categoryId === selectedCategory;
+      
+      const matchesManufacturer = selectedManufacturer === "all" || 
+                                 product.manufacturerId === selectedManufacturer;
+
+      return matchesSearch && matchesCategory && matchesManufacturer;
+    });
+
     // Sort products
     filtered.sort((a, b) => {
+      let aValue: any, bValue: any;
+      
       switch (sortBy) {
-        case "name":
-          return sortOrder === "asc" 
-            ? (a.name || "").localeCompare(b.name || "")
-            : (b.name || "").localeCompare(a.name || "");
-        case "price":
-          return sortOrder === "asc" 
-            ? (a.basePrice || 0) - (b.basePrice || 0)
-            : (b.basePrice || 0) - (a.basePrice || 0);
-        case "sku":
-          return sortOrder === "asc" 
-            ? (a.sku || "").localeCompare(b.sku || "")
-            : (b.sku || "").localeCompare(a.sku || "");
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'price':
+          aValue = a.basePrice;
+          bValue = b.basePrice;
+          break;
+        case 'createdAt':
+          aValue = new Date(a.createdAt || '');
+          bValue = new Date(b.createdAt || '');
+          break;
         default:
-          return 0;
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
       }
     });
-    
+
     return filtered;
-  }, [products, searchTerm, selectedCategory, selectedManufacturer, sortBy, sortOrder, userRole]);
+  }, [products, searchTerm, selectedCategory, selectedManufacturer, sortBy, sortOrder]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
-
-  const handleAddProduct = () => {
-    if (!newProduct.name || !newProduct.sku || !newProduct.basePrice) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const productData = {
-      name: newProduct.name,
-      description: newProduct.description,
-      sku: newProduct.sku,
-      basePrice: parseFloat(newProduct.basePrice),
-      categoryId: newProduct.categoryId || null,
-      imageUrl: newProduct.imageUrl || null,
-      brand: newProduct.brand || null,
-      unit: newProduct.unit,
-      assignedDistributors: userRole === 'manufacturer' ? newProduct.assignedDistributors : [],
-      assignedRetailers: userRole === 'distributor' ? newProduct.assignedRetailers : []
-    };
-
-    addProductMutation.mutate(productData);
-  };
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -480,28 +338,12 @@ export default function Products() {
           {userRole === 'manufacturer' && (
             <div className="flex gap-3 mt-4 sm:mt-0">
               <Button 
-                onClick={() => setIsAddDialogOpen(true)}
+                onClick={() => window.location.href = '/my-products'}
                 className="action-button-primary"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Product
+                Manage My Products
               </Button>
-              <Button variant="outline" onClick={() => bulkUploadRef.current?.click()}>
-                <Upload className="h-4 w-4 mr-2" />
-                Bulk Upload
-              </Button>
-              <input
-                ref={bulkUploadRef}
-                type="file"
-                accept=".xlsx,.xls"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setBulkFile(file);
-                  }
-                }}
-              />
             </div>
           )}
         </div>
@@ -597,22 +439,17 @@ export default function Products() {
           </CardContent>
         </Card>
 
-        {/* Products Display */}
-        <ProductGrid 
-          products={paginatedProducts} 
-          isLoading={productsLoading || categoriesLoading}
+        {/* Products Grid */}
+        <ProductGrid
+          products={paginatedProducts}
+          isLoading={productsLoading}
           userRole={userRole}
           categories={categories || []}
         />
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-8">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-700">
-                Showing {startIndex + 1} to {Math.min(endIndex, filteredAndSortedProducts.length)} of {filteredAndSortedProducts.length} products
-              </span>
-            </div>
+        {filteredAndSortedProducts.length > itemsPerPage && (
+          <div className="flex justify-center mt-8">
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
@@ -622,519 +459,65 @@ export default function Products() {
               >
                 Previous
               </Button>
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setCurrentPage(pageNum)}
-                      className="w-8 h-8 p-0"
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-              </div>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {Math.ceil(filteredAndSortedProducts.length / itemsPerPage)}
+              </span>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredAndSortedProducts.length / itemsPerPage), prev + 1))}
+                disabled={currentPage === Math.ceil(filteredAndSortedProducts.length / itemsPerPage)}
               >
                 Next
               </Button>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Add Product Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
-            <DialogDescription>
-              Add a new product to your catalog. Fill in the required information below.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            {/* Product Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium">
-                Product Name *
-              </Label>
-              <Input
-                id="name"
-                value={newProduct.name}
-                onChange={(e) => setNewProduct(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter product name"
-                className="w-full"
-              />
-            </div>
-
-            {/* SKU and Category */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sku" className="text-sm font-medium">
-                  SKU *
-                </Label>
-                <Input
-                  id="sku"
-                  value={newProduct.sku}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, sku: e.target.value }))}
-                  placeholder="Enter SKU"
-                  className="w-full"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category" className="text-sm font-medium">
-                  Category
-                </Label>
-                <Select value={newProduct.categoryId} onValueChange={(value) => setNewProduct(prev => ({ ...prev, categoryId: value }))}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories?.map((category: Category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Brand and Unit */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="brand" className="text-sm font-medium">
-                  Brand
-                </Label>
-                <Input
-                  id="brand"
-                  value={newProduct.brand}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, brand: e.target.value }))}
-                  placeholder="Enter brand name"
-                  className="w-full"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="unit" className="text-sm font-medium">
-                  Unit
-                </Label>
-                <Select value={newProduct.unit} onValueChange={(value) => setNewProduct(prev => ({ ...prev, unit: value }))}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pcs">Pieces</SelectItem>
-                    <SelectItem value="kg">Kilograms</SelectItem>
-                    <SelectItem value="m">Meters</SelectItem>
-                    <SelectItem value="l">Liters</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-medium">
-                Description
-              </Label>
-              <Textarea
-                id="description"
-                value={newProduct.description}
-                onChange={(e) => setNewProduct(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Enter product description"
-                className="w-full min-h-[100px]"
-              />
-            </div>
-
-            {/* Price and Stock */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="price" className="text-sm font-medium">
-                  Base Price *
-                </Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newProduct.basePrice}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, basePrice: e.target.value }))}
-                  placeholder="0.00"
-                  className="w-full"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="stock" className="text-sm font-medium">
-                  Stock Quantity
-                </Label>
-                <Input
-                  id="stock"
-                  type="number"
-                  min="0"
-                  value={newProduct.stockQuantity}
-                  onChange={(e) => setNewProduct(prev => ({ ...prev, stockQuantity: e.target.value }))}
-                  placeholder="0"
-                  className="w-full"
-                />
-              </div>
-            </div>
-
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Product Image
-              </Label>
-              <div className="space-y-3">
-                {/* Image URL Option */}
-                <div>
-                  <Label htmlFor="imageUrl" className="text-xs text-gray-600">
-                    Image URL (Google Drive, Unsplash, etc.)
-                  </Label>
-                  <Input
-                    id="imageUrl"
-                    type="url"
-                    value={newProduct.imageUrl}
-                    onChange={(e) => setNewProduct(prev => ({ ...prev, imageUrl: e.target.value }))}
-                    placeholder="https://drive.google.com/... or https://images.unsplash.com/..."
-                    className="w-full"
-                  />
-                </div>
-                
-                {/* File Upload Option */}
-                <div>
-                  <Label htmlFor="imageFile" className="text-xs text-gray-600">
-                    Or Upload Image File (JPEG, PNG, GIF)
-                  </Label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex-1"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Choose File
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          // For now, we'll create a local URL for preview
-                          // In a real app, you'd upload to a server
-                          const imageUrl = URL.createObjectURL(file);
-                          setNewProduct(prev => ({ ...prev, imageUrl }));
-                        }
-                      }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: JPEG, PNG, GIF (no size limit)
-                  </p>
-                </div>
-                
-                {/* Image Preview */}
-                {newProduct.imageUrl && (
-                  <div className="mt-2">
-                    <Label className="text-xs text-gray-600">Preview:</Label>
-                    <div className="mt-1 w-32 h-32 border rounded-lg overflow-hidden">
-                      <img
-                        src={newProduct.imageUrl}
-                        alt="Product preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Distributor Assignment (for manufacturers) */}
-            {userRole === 'manufacturer' && (
-              <div className="space-y-2">
-                <Label htmlFor="distributors" className="text-sm font-medium">
-                  Assign to Distributors
-                </Label>
-                <div className="space-y-2">
-                  {distributors?.map((distributor: any) => (
-                    <div key={distributor.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={`dist-${distributor.id}`}
-                        checked={newProduct.assignedDistributors.includes(distributor.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewProduct(prev => ({
-                              ...prev,
-                              assignedDistributors: [...prev.assignedDistributors, distributor.id]
-                            }));
-                          } else {
-                            setNewProduct(prev => ({
-                              ...prev,
-                              assignedDistributors: prev.assignedDistributors.filter(id => id !== distributor.id)
-                            }));
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <Label htmlFor={`dist-${distributor.id}`} className="text-sm">
-                        {distributor.businessName || `${distributor.firstName} ${distributor.lastName}`}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  Product will be visible only to selected distributors
-                </p>
-              </div>
-            )}
-
-            {userRole === 'distributor' && (
-              <div className="space-y-2">
-                <Label htmlFor="retailers" className="text-sm font-medium">
-                  Assign to Retailers
-                </Label>
-                <div className="space-y-2">
-                  {retailers?.map((retailer: any) => (
-                    <div key={retailer.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={`ret-${retailer.id}`}
-                        checked={newProduct.assignedRetailers.includes(retailer.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setNewProduct(prev => ({
-                              ...prev,
-                              assignedRetailers: [...prev.assignedRetailers, retailer.id]
-                            }));
-                          } else {
-                            setNewProduct(prev => ({
-                              ...prev,
-                              assignedRetailers: prev.assignedRetailers.filter(id => id !== retailer.id)
-                            }));
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <Label htmlFor={`ret-${retailer.id}`} className="text-sm">
-                        {retailer.businessName || `${retailer.firstName} ${retailer.lastName}`}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  Product will be visible only to selected retailers
-                </p>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAddProduct}
-              disabled={addProductMutation.isPending}
-              className="action-button-primary"
-            >
-              {addProductMutation.isPending ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Adding...
-                </>
-              ) : (
-                "Add Product"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Bulk Upload Dialog */}
-      <Dialog open={isBulkUploadOpen} onOpenChange={setIsBulkUploadOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Bulk Upload Products</DialogTitle>
-            <DialogDescription>
-              Upload multiple products using CSV or Excel file
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div>
-                <h4 className="font-medium">Download Sample File</h4>
-                <p className="text-sm text-gray-500">Get the correct format for bulk upload</p>
-              </div>
-              <Button onClick={downloadSampleCSV} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Download Sample CSV
-              </Button>
-            </div>
-            
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <div className="space-y-2">
-                <p className="text-sm text-gray-600">
-                  {bulkFile ? bulkFile.name : "Drop your CSV or Excel file here, or click to browse"}
-                </p>
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  onChange={(e) => setBulkFile(e.target.files?.[0] || null)}
-                  className="hidden"
-                  id="bulk-upload"
-                />
-                <label htmlFor="bulk-upload" className="cursor-pointer">
-                  <Button variant="outline" size="sm">
-                    Choose File
-                  </Button>
-                </label>
-              </div>
-            </div>
-            
-            {bulkFile && (
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <FileSpreadsheet className="h-5 w-5 text-blue-500" />
-                  <span className="text-sm font-medium">{bulkFile.name}</span>
-                  <span className="text-xs text-gray-500">
-                    ({(bulkFile.size / 1024).toFixed(1)} KB)
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setBulkFile(null)}
-                >
-                  <XCircle className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setIsBulkUploadOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleBulkUpload}
-              disabled={!bulkFile || isBulkUploading}
-            >
-              {isBulkUploading ? "Uploading..." : "Upload Products"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Bulk Upload Results Dialog */}
-      <Dialog open={showBulkResults} onOpenChange={setShowBulkResults}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Bulk Upload Results</DialogTitle>
-            <DialogDescription>
-              Results of your bulk product upload
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span className="text-sm">
-                      {bulkUploadResults.filter(r => r.status === 'success').length} Successful
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <XCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-sm">
-                      {bulkUploadResults.filter(r => r.status === 'error').length} Failed
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {bulkUploadResults.filter(r => r.status === 'error').length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={downloadErrorCSV}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Errors
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowBulkResults(false);
-                      setBulkUploadResults([]);
-                      setBulkFile(null);
-                      setIsBulkUploadOpen(false);
-                    }}
-                  >
-                    Close
-                  </Button>
-                </div>
-              </div>
-            
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {bulkUploadResults.map((result, index) => (
-                <div
-                  key={index}
-                  className={`p-3 rounded-lg border ${
-                    result.status === 'success' 
-                      ? 'bg-green-50 border-green-200' 
-                      : 'bg-red-50 border-red-200'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        {result.status === 'success' ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        )}
-                        <span className="font-medium">
-                          {result.name || `Row ${index + 1}`}
-                        </span>
+        {/* Bulk Upload Results Dialog */}
+        {showBulkResults && (
+          <Dialog open={showBulkResults} onOpenChange={setShowBulkResults}>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Bulk Upload Results</DialogTitle>
+                <DialogDescription>
+                  Results from the bulk upload operation
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                {bulkUploadResults.map((result, index) => (
+                  <div key={index} className={`p-3 rounded-lg border ${
+                    result.status === 'success' ? 'bg-green-50 border-green-200' :
+                    result.status === 'error' ? 'bg-red-50 border-red-200' :
+                    'bg-yellow-50 border-yellow-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{result.name || `Row ${result.row}`}</p>
+                        <p className="text-sm text-gray-600">{result.status}</p>
+                        {result.error && <p className="text-sm text-red-600">{result.error}</p>}
                       </div>
-                      {result.status === 'error' && (
-                        <p className="text-sm text-red-600 mt-1">
-                          {result.error}
-                        </p>
-                      )}
                       {result.status === 'success' && (
-                        <p className="text-sm text-green-600 mt-1">
-                          Product created successfully
-                        </p>
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      )}
+                      {result.status === 'error' && (
+                        <XCircle className="h-5 w-5 text-red-600" />
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+                ))}
+              </div>
+              
+              <DialogFooter>
+                <Button onClick={() => setShowBulkResults(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
       
       <MobileNav />
     </div>

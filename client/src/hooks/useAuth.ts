@@ -48,6 +48,7 @@ export function useAuth() {
           throw new Error('Failed to fetch user data');
         }
         const userData = await response.json();
+        console.log('User data fetched:', userData); // Debug log
         return userData;
       } catch (error) {
         console.error('Auth check failed:', error);
@@ -76,7 +77,10 @@ export function useAuth() {
       if (result.access_token) {
         setAuthToken(result.access_token);
         // Immediately set user data in cache
-        queryClient.setQueryData(["api", "auth", "user"], result.user);
+        if (result.user) {
+          queryClient.setQueryData(["api", "auth", "user"], result.user);
+          console.log('User data set after login:', result.user); // Debug log
+        }
       }
       
       return result;
@@ -85,6 +89,7 @@ export function useAuth() {
       // Ensure user data is set and invalidate related queries
       if (result.user) {
         queryClient.setQueryData(["api", "auth", "user"], result.user);
+        console.log('User data set in onSuccess:', result.user); // Debug log
       }
       // Invalidate all queries to refresh data
       queryClient.invalidateQueries();
@@ -131,6 +136,15 @@ export function useAuth() {
       removeAuthToken();
       queryClient.clear();
     },
+  });
+
+  // Debug logging
+  console.log('Auth state:', {
+    user,
+    isLoading,
+    error,
+    hasToken: !!localStorage.getItem('authToken'),
+    isAuthenticated: !!user && !!localStorage.getItem('authToken')
   });
 
   return {

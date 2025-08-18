@@ -58,7 +58,6 @@ async function throwIfResNotOk(res: Response) {
 
 // Endpoints that need trailing slashes
 const ENDPOINTS_NEEDING_TRAILING_SLASH = [
-  'api/products',
   'api/orders/', 
   'api/favorites',
   'api/notifications',

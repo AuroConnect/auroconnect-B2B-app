@@ -123,17 +123,19 @@ export default function Header() {
             >
               Dashboard
             </Link>
-            <Link 
-              href="/products" 
-              className={`nav-link ${
-                location === '/products' 
-                  ? 'text-primary bg-primary/10' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              data-testid="nav-products"
-            >
-              Catalog
-            </Link>
+            {typedUser.role === 'distributor' && (
+              <Link 
+                href="/products" 
+                className={`nav-link ${
+                  location === '/products' 
+                    ? 'text-primary bg-primary/10' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                data-testid="nav-products"
+              >
+                Catalog
+              </Link>
+            )}
             {(typedUser.role === 'manufacturer' || typedUser.role === 'distributor') && (
               <Link 
                 href="/my-products" 

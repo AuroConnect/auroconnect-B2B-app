@@ -35,34 +35,20 @@ def get_products():
                 is_active=True
             )
         elif user.role == 'distributor':
-            # Distributors see products from manufacturers they have partnerships with
-            from app.models.partnership import Partnership
+            # Distributors see ONLY products that are specifically allocated to them
+            from app.models.product_allocation import ProductAllocation
             
-            # Get connected manufacturer IDs
-            partnerships = Partnership.query.filter(
-                ((Partnership.requester_id == current_user_id) | 
-                 (Partnership.partner_id == current_user_id)) &
-                (Partnership.status == 'active') &
-                (Partnership.partnership_type == 'MANUFACTURER_DISTRIBUTOR')
-            ).all()
+            # Get products allocated to this distributor
+            allocated_product_ids = db.session.query(ProductAllocation.product_id).filter(
+                ProductAllocation.distributor_id == current_user_id,
+                ProductAllocation.is_active == True
+            ).subquery()
             
-            connected_manufacturer_ids = []
-            for partnership in partnerships:
-                if partnership.requester_id == current_user_id:
-                    # Distributor is requester, manufacturer is partner
-                    connected_manufacturer_ids.append(partnership.partner_id)
-                else:
-                    # Manufacturer is requester, distributor is partner
-                    connected_manufacturer_ids.append(partnership.requester_id)
-            
-            if connected_manufacturer_ids:
-                query = Product.query.filter(
-                    Product.manufacturer_id.in_(connected_manufacturer_ids),
-                    Product.is_active == True
-                )
-            else:
-                # No partnerships, return empty list
-                return jsonify([]), 200
+            # Only show allocated products
+            query = Product.query.filter(
+                Product.is_active == True,
+                Product.id.in_(allocated_product_ids)
+            )
                 
         elif user.role == 'retailer':
             # Retailers see products from distributors they have partnerships with
@@ -122,7 +108,7 @@ def get_products():
                 products_with_inventory.append(product_dict)
                     
             elif user.role == 'distributor':
-                # Check if this is an allocated product
+                # All products shown to distributors are allocated (due to filtering above)
                 allocation = ProductAllocation.query.filter_by(
                     manufacturer_id=product.manufacturer_id,
                     distributor_id=current_user_id,
@@ -137,17 +123,14 @@ def get_products():
                         product_id=product.id
                     ).first()
                     
-                    product_dict['availableStock'] = inventory.quantity if inventory else 0
+                    product_dict['availableStock'] = inventory.quantity if inventory else product.stock_quantity or 0
                     product_dict['sellingPrice'] = float(allocation.selling_price) if allocation.selling_price else 0
                     product_dict['isAllocated'] = True
                     product_dict['allocationId'] = allocation.id
                     product_dict['manufacturerName'] = product.manufacturer.business_name if product.manufacturer else "Unknown"
                 else:
-                    # This is a product from a connected manufacturer but not yet allocated
-                    product_dict['availableStock'] = 0
-                    product_dict['sellingPrice'] = float(product.base_price) if product.base_price else 0
-                    product_dict['isAllocated'] = False
-                    product_dict['manufacturerName'] = product.manufacturer.business_name if product.manufacturer else "Unknown"
+                    # This shouldn't happen since we filter for allocated products only
+                    continue
                 
                 products_with_inventory.append(product_dict)
                     
@@ -210,13 +193,29 @@ def create_product():
             if not data.get(field):
                 return jsonify({'message': f'Missing required field: {field}'}), 400
         
-        # Check if SKU already exists for this manufacturer
-        existing_product = Product.query.filter_by(
-            sku=data['sku'],
-            manufacturer_id=current_user_id
-        ).first()
-        if existing_product:
-            return jsonify({'message': 'Product with this SKU already exists for your company'}), 409
+        # Generate unique SKU if not provided or if it already exists
+        sku = data['sku']
+        if not sku:
+            # Generate a unique SKU
+            base_sku = f"PROD-{datetime.now().strftime('%Y%m%d')}-"
+            counter = 1
+            while True:
+                sku = f"{base_sku}{counter:03d}"
+                existing_product = Product.query.filter_by(
+                    sku=sku,
+                    manufacturer_id=current_user_id
+                ).first()
+                if not existing_product:
+                    break
+                counter += 1
+        else:
+            # Check if provided SKU already exists for this manufacturer
+            existing_product = Product.query.filter_by(
+                sku=sku,
+                manufacturer_id=current_user_id
+            ).first()
+            if existing_product:
+                return jsonify({'message': 'Product with this SKU already exists for your company'}), 409
         
         new_product = Product(
             name=data['name'],
@@ -226,6 +225,9 @@ def create_product():
             manufacturer_id=current_user_id,
             image_url=data.get('imageUrl'),
             base_price=data.get('basePrice'),
+            stock_quantity=data.get('stockQuantity', 0),
+            brand=data.get('brand'),
+            unit=data.get('unit', 'Pieces'),
             is_active=True
         )
         
@@ -292,10 +294,37 @@ def update_product(product_id):
             product.category_id = data['categoryId']
         if 'basePrice' in data:
             product.base_price = data['basePrice']
+        if 'stockQuantity' in data:
+            product.stock_quantity = data['stockQuantity']
+        if 'brand' in data:
+            product.brand = data['brand']
+        if 'unit' in data:
+            product.unit = data['unit']
         if 'imageUrl' in data:
             product.image_url = data['imageUrl']
         if 'isActive' in data:
             product.is_active = data['isActive']
+        
+        # Handle distributor assignments for manufacturers
+        if 'assignedDistributors' in data and isinstance(data['assignedDistributors'], list):
+            from app.models.product_allocation import ProductAllocation
+            
+            # Remove existing allocations for this product
+            ProductAllocation.query.filter_by(product_id=product_id).delete()
+            
+            # Create new allocations
+            for distributor_id in data['assignedDistributors']:
+                # Check if distributor exists and is actually a distributor
+                distributor = User.query.filter_by(id=distributor_id, role='distributor').first()
+                if distributor:
+                    allocation = ProductAllocation(
+                        manufacturer_id=current_user_id,
+                        distributor_id=distributor_id,
+                        product_id=product_id,
+                        selling_price=data.get('basePrice', product.base_price),  # Use base price as selling price
+                        is_active=True
+                    )
+                    db.session.add(allocation)
         
         db.session.commit()
         
@@ -491,7 +520,7 @@ def bulk_upload_products():
             return jsonify({'message': f'Error reading file: {str(e)}'}), 400
         
         # Validate required columns
-        required_columns = ['name', 'sku', 'basePrice']
+        required_columns = ['name', 'sku', 'basePrice', 'stockQuantity']
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             return jsonify({'message': f'Missing required columns: {", ".join(missing_columns)}'}), 400
@@ -501,12 +530,12 @@ def bulk_upload_products():
         for index, row in df.iterrows():
             try:
                 # Validate required fields
-                if pd.isna(row['name']) or pd.isna(row['sku']) or pd.isna(row['basePrice']):
+                if pd.isna(row['name']) or pd.isna(row['sku']) or pd.isna(row['basePrice']) or pd.isna(row['stockQuantity']):
                     results.append({
                         'row': index + 1,
                         'name': row.get('name', 'N/A'),
                         'status': 'error',
-                        'error': 'Missing required fields (name, sku, basePrice)'
+                        'error': 'Missing required fields (name, sku, basePrice, stockQuantity)'
                     })
                     continue
                 
@@ -541,6 +570,9 @@ def bulk_upload_products():
                     manufacturer_id=current_user_id,
                     image_url=str(row.get('imageUrl', '')) if not pd.isna(row.get('imageUrl', '')) else None,
                     base_price=float(row['basePrice']),
+                    stock_quantity=int(row.get('stockQuantity', 0)),
+                    brand=str(row.get('brand', '')) if not pd.isna(row.get('brand', '')) else None,
+                    unit=str(row.get('unit', 'Pieces')),
                     is_active=True
                 )
                 

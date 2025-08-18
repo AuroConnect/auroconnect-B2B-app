@@ -255,19 +255,29 @@ def init_db():
         db.session.commit()
         print("✅ Order items created")
         
-        # Create sample cart items
-        cart_items = [
-            CartItem(
-                user_id=users[1].id,
+        # Create sample cart items (ensure carts exist and use cart_id)
+        from app.models.cart import Cart
+        # Create carts for sample users if not exist
+        for u in [users[1], users[3]]:
+            if not Cart.query.filter_by(user_id=u.id).first():
+                db.session.add(Cart(user_id=u.id))
+        db.session.flush()
+
+        cart_items = []
+        dist_cart = Cart.query.filter_by(user_id=users[1].id).first()
+        other_cart = Cart.query.filter_by(user_id=users[3].id).first()
+        if dist_cart:
+            cart_items.append(CartItem(
+                cart_id=dist_cart.id,
                 product_id=products[1].id,
                 quantity=2
-            ),
-            CartItem(
-                user_id=users[3].id,
+            ))
+        if other_cart:
+            cart_items.append(CartItem(
+                cart_id=other_cart.id,
                 product_id=products[3].id,
                 quantity=1
-            )
-        ]
+            ))
         
         for item in cart_items:
             db.session.add(item)

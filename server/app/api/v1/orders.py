@@ -30,8 +30,26 @@ def get_orders():
         
         # Enhanced role-based order filtering
         if current_user.role == 'manufacturer':
-            # Manufacturer doesn't have direct orders in this schema
-            query = Order.query.filter_by(id=None)  # Return no results
+            # Manufacturer sees orders from distributors who are ordering their products
+            # We need to find orders where the distributor has ordered products from this manufacturer
+            from app.models.product_allocation import ProductAllocation
+            
+            # Get all products from this manufacturer
+            manufacturer_products = Product.query.filter_by(manufacturer_id=current_user_id).all()
+            manufacturer_product_ids = [p.id for p in manufacturer_products]
+            
+            # Get order items that contain products from this manufacturer
+            order_items_with_manufacturer_products = OrderItem.query.filter(
+                OrderItem.product_id.in_(manufacturer_product_ids)
+            ).all()
+            
+            # Get order IDs from these order items
+            order_ids = [item.order_id for item in order_items_with_manufacturer_products]
+            
+            if order_ids:
+                query = Order.query.filter(Order.id.in_(order_ids))
+            else:
+                query = Order.query.filter_by(id=None)  # Return no results
             
         elif current_user.role == 'distributor':
             if order_type == 'buying':
@@ -78,8 +96,23 @@ def get_recent_orders():
         
         # Get recent orders (last 10) based on user role
         if current_user.role == 'manufacturer':
-            # Manufacturer doesn't have direct orders in this schema
-            query = Order.query.filter_by(id=None)  # Return no results
+            # Manufacturer sees orders from distributors who are ordering their products
+            # Get all products from this manufacturer
+            manufacturer_products = Product.query.filter_by(manufacturer_id=current_user_id).all()
+            manufacturer_product_ids = [p.id for p in manufacturer_products]
+            
+            # Get order items that contain products from this manufacturer
+            order_items_with_manufacturer_products = OrderItem.query.filter(
+                OrderItem.product_id.in_(manufacturer_product_ids)
+            ).all()
+            
+            # Get order IDs from these order items
+            order_ids = [item.order_id for item in order_items_with_manufacturer_products]
+            
+            if order_ids:
+                query = Order.query.filter(Order.id.in_(order_ids))
+            else:
+                query = Order.query.filter_by(id=None)  # Return no results
         elif current_user.role == 'distributor':
             # Distributor sees recent orders where they are the seller (to retailers)
             query = Order.query.filter_by(distributor_id=current_user_id)
@@ -138,7 +171,7 @@ def approve_order(order_id):
             return jsonify({'message': 'Order not found'}), 404
         
         # Check if this manufacturer owns the products in this order
-        # (orders are from distributor to manufacturer)
+        # For manufacturer-distributor orders: manufacturer is distributor_id (seller), distributor is retailer_id (buyer)
         if order.distributor_id != current_user_id:
             return jsonify({'message': 'Access denied - you can only approve orders for your products'}), 403
         
@@ -147,7 +180,7 @@ def approve_order(order_id):
         
         # Update order status
         order.status = 'approved'
-        order.approved_at = datetime.utcnow()
+        # order.approved_at = datetime.utcnow()  # Column doesn't exist
         
         # Update inventory (deduct stock)
         for item in order.items:
@@ -172,7 +205,7 @@ def approve_order(order_id):
         
         db.session.commit()
         
-        # Create notification for distributor
+        # Create notification for distributor (retailer_id is the distributor who placed the order)
         notification = WhatsAppNotification(
             user_id=order.retailer_id,
             message=f'Your order #{order.order_number} has been approved by {current_user.business_name}',
@@ -204,6 +237,7 @@ def decline_order(order_id):
             return jsonify({'message': 'Order not found'}), 404
         
         # Check if this manufacturer owns the products in this order
+        # For manufacturer-distributor orders: manufacturer is distributor_id (seller), distributor is retailer_id (buyer)
         if order.distributor_id != current_user_id:
             return jsonify({'message': 'Access denied - you can only decline orders for your products'}), 403
         
@@ -215,8 +249,8 @@ def decline_order(order_id):
         
         # Update order status
         order.status = 'declined'
-        order.declined_at = datetime.utcnow()
-        order.decline_reason = decline_reason
+        # order.declined_at = datetime.utcnow()  # Column doesn't exist
+        # order.decline_reason = decline_reason   # Column doesn't exist
         
         db.session.commit()
         
@@ -237,6 +271,7 @@ def decline_order(order_id):
 
 
 
+@orders_bp.route('', methods=['POST'])
 @orders_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_order():
@@ -256,42 +291,26 @@ def create_order():
         if not cart_items:
             return jsonify({'message': 'No items in cart'}), 400
         
-        # Group cart items by seller
-        orders_by_seller = {}
+        # For now, we'll create orders based on the current schema (distributor-retailer)
+        # Distributors can order from manufacturers, but we'll need to adapt the schema
         
-        for item_data in cart_items:
-            product_id = item_data.get('product_id')
-            quantity = item_data.get('quantity', 1)
+        if current_user.role == 'distributor':
+            # Distributor ordering from manufacturer
+            # We'll create a special order type for manufacturer-distributor orders
+            # For now, let's create a simple order structure
             
-            product = Product.query.get(product_id)
-            if not product:
-                return jsonify({'message': f'Product {product_id} not found'}), 404
+            total_amount = 0
+            order_items = []
             
-            # Check stock from inventory based on user role and hierarchy
-            if current_user.role == 'retailer':
-                # Retailer ordering from distributor - check distributor's inventory
-                from app.models.partnership import Partnership
-                partnership = Partnership.query.filter_by(
-                    retailer_id=current_user_id,
-                    partnership_type='DISTRIBUTOR_RETAILER',
-                    status='ACTIVE'
-                ).first()
+            for item_data in cart_items:
+                product_id = item_data.get('product_id')
+                quantity = item_data.get('quantity', 1)
                 
-                if not partnership:
-                    return jsonify({'message': 'No active partnership with distributor'}), 400
+                product = Product.query.get(product_id)
+                if not product:
+                    return jsonify({'message': f'Product {product_id} not found'}), 404
                 
-                inventory = Inventory.query.filter_by(
-                    product_id=product_id,
-                    owner_id=partnership.distributor_id
-                ).first()
-                
-                if not inventory or inventory.quantity < quantity:
-                    return jsonify({'message': f'Insufficient stock for {product.name}. Available: {inventory.quantity if inventory else 0}, Requested: {quantity}'}), 400
-                
-                seller_id = partnership.distributor_id
-                    
-            elif current_user.role == 'distributor':
-                # Distributor ordering from manufacturer - check manufacturer's inventory
+                # Check if product is allocated to this distributor
                 from app.models.product_allocation import ProductAllocation
                 allocation = ProductAllocation.query.filter_by(
                     manufacturer_id=product.manufacturer_id,
@@ -303,69 +322,52 @@ def create_order():
                 if not allocation:
                     return jsonify({'message': f'Product {product.name} not allocated to you'}), 400
                 
-                inventory = Inventory.query.filter_by(
-                    product_id=product_id,
-                    owner_id=product.manufacturer_id
-                ).first()
-                
-                if not inventory or inventory.quantity < quantity:
-                    return jsonify({'message': f'Insufficient stock for {product.name}. Available: {inventory.quantity if inventory else 0}, Requested: {quantity}'}), 400
-                
-                seller_id = product.manufacturer_id
-            else:
-                # Manufacturer - no stock check needed
-                inventory = None
-                seller_id = product.manufacturer_id
-            
-            if seller_id not in orders_by_seller:
-                orders_by_seller[seller_id] = {
-                    'seller_id': seller_id,
-                    'buyer_id': current_user_id,
-                    'items': [],
-                    'delivery_option': delivery_option,
-                    'notes': notes
-                }
-            
-            orders_by_seller[seller_id]['items'].append({
-                'product_id': product_id,
-                'quantity': quantity,
-                'unit_price': product.base_price
-            })
-        
-        created_orders = []
-        
-        for seller_id, order_data in orders_by_seller.items():
-            # Create order
-            order = Order(
-                id=str(uuid.uuid4()),
-                buyer_id=order_data['buyer_id'],
-                seller_id=order_data['seller_id'],
-                status='PENDING',
-                delivery_option=order_data['delivery_option'],
-                notes=order_data['notes'],
-                total_amount=0
-            )
-            
-            # Create order items
-            total_amount = 0
-            for item_data in order_data['items']:
-                product = Product.query.get(item_data['product_id'])
-                item_total = item_data['quantity'] * item_data['unit_price']
+                # Use allocation price or product base price
+                unit_price = float(allocation.selling_price) if allocation.selling_price else float(product.base_price)
+                item_total = quantity * unit_price
                 total_amount += item_total
                 
+                order_items.append({
+                    'product_id': product_id,
+                    'quantity': quantity,
+                    'unit_price': unit_price,
+                    'total_price': item_total,
+                    'manufacturer_id': product.manufacturer_id
+                })
+            
+            # Create order number
+            order_number = f"ORD-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8]}"
+            
+            # Create order (distributor ordering from manufacturer)
+            # For manufacturer-distributor orders, we'll use a special approach
+            order = Order(
+                id=str(uuid.uuid4()),
+                order_number=order_number,
+                retailer_id=current_user_id,  # Distributor as buyer
+                distributor_id=product.manufacturer_id,  # Manufacturer as seller
+                status='pending',
+                delivery_mode=delivery_option,
+                total_amount=total_amount,
+                notes=notes
+            )
+            
+            db.session.add(order)
+            db.session.flush()  # Get the order ID
+            
+            # Create order items
+            for item_data in order_items:
                 order_item = OrderItem(
                     order_id=order.id,
                     product_id=item_data['product_id'],
                     quantity=item_data['quantity'],
                     unit_price=item_data['unit_price'],
-                    total_price=item_total
+                    total_price=item_data['total_price']
                 )
-                
                 db.session.add(order_item)
             
-            order.total_amount = total_amount
-            db.session.add(order)
-            created_orders.append(order)
+            created_orders = [order]
+        else:
+            return jsonify({'message': 'Order creation not supported for this role'}), 400
         
         db.session.commit()
         

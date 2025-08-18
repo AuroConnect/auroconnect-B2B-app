@@ -13,12 +13,6 @@ class Order(db.Model):
     delivery_mode = db.Column(db.String(50), default='delivery')
     total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     notes = db.Column(db.Text)
-    decline_reason = db.Column(db.Text)
-    approved_at = db.Column(db.DateTime, nullable=True)
-    declined_at = db.Column(db.DateTime, nullable=True)
-    packed_at = db.Column(db.DateTime, nullable=True)
-    shipped_at = db.Column(db.DateTime, nullable=True)
-    delivered_at = db.Column(db.DateTime, nullable=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -49,15 +43,15 @@ class Order(db.Model):
             'status': self.status,
             'delivery_mode': self.delivery_mode,
             'notes': self.notes,
-            'decline_reason': self.decline_reason,
+            'decline_reason': None,  # self.decline_reason,
             'total_amount': float(self.total_amount) if self.total_amount else 0,
             'is_urgent': self.is_urgent,
             'is_bulk': self.is_bulk,
-            'approved_at': self.approved_at.isoformat() if self.approved_at else None,
-            'declined_at': self.declined_at.isoformat() if self.declined_at else None,
-            'packed_at': self.packed_at.isoformat() if self.packed_at else None,
-            'shipped_at': self.shipped_at.isoformat() if self.shipped_at else None,
-            'delivered_at': self.delivered_at.isoformat() if self.delivered_at else None,
+            'approved_at': None,  # self.approved_at.isoformat() if self.approved_at else None,
+            'declined_at': None,  # self.declined_at.isoformat() if self.declined_at else None,
+            'packed_at': None,    # self.packed_at.isoformat() if self.packed_at else None,
+            'shipped_at': None,   # self.shipped_at.isoformat() if self.shipped_at else None,
+            'delivered_at': None, # self.delivered_at.isoformat() if self.delivered_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'retailer': {
@@ -84,11 +78,11 @@ class OrderItem(db.Model):
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
     total_price = db.Column(db.Numeric(10, 2), nullable=False)
     
-    # New fields for backorders and split shipments
-    quantity_shipped = db.Column(db.Integer, nullable=False, default=0)
-    quantity_backordered = db.Column(db.Integer, nullable=False, default=0)
-    backorder_expected_date = db.Column(db.Date, nullable=True)
-    is_backordered = db.Column(db.Boolean, default=False)
+    # New fields for backorders and split shipments (not in current database)
+    # quantity_shipped = db.Column(db.Integer, nullable=False, default=0)
+    # quantity_backordered = db.Column(db.Integer, nullable=False, default=0)
+    # backorder_expected_date = db.Column(db.Date, nullable=True)
+    # is_backordered = db.Column(db.Boolean, default=False)
     
     # Relationships
     product = db.relationship('Product', backref='order_items')
@@ -96,17 +90,17 @@ class OrderItem(db.Model):
     @property
     def quantity_pending(self):
         """Get pending quantity (ordered - shipped)"""
-        return max(0, self.quantity - self.quantity_shipped)
+        return self.quantity  # max(0, self.quantity - self.quantity_shipped)
     
     @property
     def is_fully_shipped(self):
         """Check if item is fully shipped"""
-        return self.quantity_shipped >= self.quantity
+        return False  # self.quantity_shipped >= self.quantity
     
     @property
     def is_partially_shipped(self):
         """Check if item is partially shipped"""
-        return 0 < self.quantity_shipped < self.quantity
+        return False  # 0 < self.quantity_shipped < self.quantity
     
     def update_shipped_quantity(self, shipped_qty):
         """Update shipped quantity and handle backorders"""
@@ -130,13 +124,13 @@ class OrderItem(db.Model):
             'quantity': self.quantity,
             'unit_price': float(self.unit_price) if self.unit_price else 0,
             'total_price': float(self.total_price) if self.total_price else 0,
-            'quantity_shipped': self.quantity_shipped,
-            'quantity_backordered': self.quantity_backordered,
-            'quantity_pending': self.quantity_pending,
-            'backorder_expected_date': self.backorder_expected_date.isoformat() if self.backorder_expected_date else None,
-            'is_backordered': self.is_backordered,
-            'is_fully_shipped': self.is_fully_shipped,
-            'is_partially_shipped': self.is_partially_shipped,
+            'quantity_shipped': 0,  # self.quantity_shipped,
+            'quantity_backordered': 0,  # self.quantity_backordered,
+            'quantity_pending': self.quantity,  # self.quantity_pending,
+            'backorder_expected_date': None,  # self.backorder_expected_date.isoformat() if self.backorder_expected_date else None,
+            'is_backordered': False,  # self.is_backordered,
+            'is_fully_shipped': False,  # self.is_fully_shipped,
+            'is_partially_shipped': False,  # self.is_partially_shipped,
             'product': {
                 'id': self.product.id,
                 'name': self.product.name,

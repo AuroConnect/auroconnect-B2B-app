@@ -4,6 +4,7 @@ from app.models.user import User
 from app.models.partnership import Partnership, PartnershipInvite
 from app.utils.decorators import role_required
 from app.utils.email_sender import email_sender
+from app.utils.partnership_validator import PartnershipValidator
 from app import db
 from datetime import datetime, timedelta
 import uuid
@@ -325,20 +326,83 @@ def get_invite_details(token):
     except Exception as e:
         return jsonify({'message': 'Failed to get invitation details', 'error': str(e)}), 500
 
+@partnerships_bp.route('/create-request', methods=['POST'])
+@jwt_required()
+def create_partnership_request():
+    """Create a direct partnership request with role-based validation"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        data = request.get_json()
+        partner_id = data.get('partnerId')
+        message = data.get('message', '')
+        
+        if not partner_id:
+            return jsonify({'message': 'Partner ID is required'}), 400
+        
+        # Validate the partnership request
+        is_valid, error_message, partnership_type = PartnershipValidator.validate_partnership_request(
+            current_user_id, partner_id
+        )
+        
+        if not is_valid:
+            return jsonify({'message': error_message}), 400
+        
+        # Create the partnership request
+        new_partnership = Partnership(
+            requester_id=current_user_id,
+            partner_id=partner_id,
+            partnership_type=partnership_type,
+            status='pending',
+            message=message
+        )
+        
+        db.session.add(new_partnership)
+        db.session.commit()
+        
+        # Send email notification to partner
+        try:
+            partner = User.query.get(partner_id)
+            if partner:
+                email_sent = email_sender.send_partnership_request(
+                    to_user=partner.to_dict(),
+                    from_user=user.to_dict(),
+                    message=message
+                )
+                if email_sent:
+                    print(f"✅ Partnership request email sent to {partner.email}")
+                else:
+                    print(f"⚠️  Partnership request email sending failed for {partner.email}")
+        except Exception as e:
+            print(f"⚠️  Partnership request email sending error: {str(e)}")
+        
+        return jsonify({
+            'message': 'Partnership request sent successfully',
+            'partnership': new_partnership.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': 'Failed to create partnership request', 'error': str(e)}), 500
+
 # Legacy endpoints for backward compatibility
 @partnerships_bp.route('/send-request', methods=['POST'])
 @jwt_required()
 @role_required('manufacturer')
 def send_partnership_request():
     """Legacy endpoint - redirects to new invite system"""
-    return jsonify({'message': 'Please use /send-invite endpoint instead'}), 400
+    return jsonify({'message': 'Please use /create-request endpoint instead'}), 400
 
 @partnerships_bp.route('/request-partnership', methods=['POST'])
 @jwt_required()
 @role_required('distributor')
 def request_partnership():
     """Legacy endpoint - redirects to new invite system"""
-    return jsonify({'message': 'Please use /send-invite endpoint instead'}), 400
+    return jsonify({'message': 'Please use /create-request endpoint instead'}), 400
 
 @partnerships_bp.route('/<partnership_id>/accept', methods=['POST'])
 @jwt_required()
@@ -482,29 +546,10 @@ def get_available_partners():
         if not user:
             return jsonify({'message': 'User not found'}), 404
         
-        # Get all users except current user and those already partnered
-        all_users = User.query.filter(User.id != current_user_id).all()
-        
-        # Get current user's partnerships (both as requester and partner)
-        user_partnerships = Partnership.query.filter(
-            ((Partnership.requester_id == current_user_id) | 
-             (Partnership.partner_id == current_user_id))
-        ).all()
-        
-        # Get IDs of users already partnered with current user
-        partnered_user_ids = set()
-        for partnership in user_partnerships:
-            if partnership.requester_id == current_user_id:
-                partnered_user_ids.add(partnership.partner_id)
-            else:
-                partnered_user_ids.add(partnership.requester_id)
-        
-        # Filter out already partnered users
-        available_partners = []
-        for potential_partner in all_users:
-            if potential_partner.id not in partnered_user_ids:
-                partner_data = potential_partner.to_public_dict()
-                available_partners.append(partner_data)
+        # Use the partnership validator to get available partners
+        available_partners = PartnershipValidator.get_available_partners_for_role(
+            user.role, current_user_id
+        )
         
         return jsonify(available_partners), 200
         
@@ -545,4 +590,35 @@ def get_connected_partners():
         return jsonify(connected_partners), 200
         
     except Exception as e:
-        return jsonify({'message': 'Failed to fetch connected partners', 'error': str(e)}), 500 
+        return jsonify({'message': 'Failed to fetch connected partners', 'error': str(e)}), 500
+
+@partnerships_bp.route('/test', methods=['GET'])
+def test_endpoint():
+    """Test endpoint to verify route registration"""
+    return jsonify({'message': 'Test endpoint working'}), 200
+
+@partnerships_bp.route('/rules', methods=['GET'])
+@jwt_required()
+def get_partnership_rules():
+    """Get partnership rules for the current user's role"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 404
+        
+        # Get all partnership rules
+        all_rules = PartnershipValidator.get_partnership_rules()
+        
+        # Get rules specific to current user's role
+        user_rules = all_rules.get(user.role, {})
+        
+        return jsonify({
+            'userRole': user.role,
+            'userRules': user_rules,
+            'allRules': all_rules
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'message': 'Failed to fetch partnership rules', 'error': str(e)}), 500 

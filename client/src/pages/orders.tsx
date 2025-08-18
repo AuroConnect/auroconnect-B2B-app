@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import Header from "@/components/layout/header";
 import MobileNav from "@/components/layout/mobile-nav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { 
   Search, 
-  Filter, 
+ 
   Eye, 
   Clock, 
   CheckCircle, 
@@ -30,47 +30,42 @@ import {
   DollarSign,
   Users
 } from "lucide-react";
-import OrderStatus from "@/components/orders/order-status";
+
 
 interface Order {
   id: string;
-  orderNumber: string;
+  order_number: string;
   status: string;
-  totalAmount: number;
-  createdAt: string;
-  updatedAt: string;
+  total_amount: number;
+  created_at: string;
+  updated_at: string;
   notes?: string;
   retailer?: {
     id: string;
-    name: string;
+    business_name?: string;
     email: string;
-    phone: string;
-    businessName?: string;
     firstName?: string;
     lastName?: string;
   };
   distributor?: {
     id: string;
-    name: string;
+    business_name?: string;
     email: string;
-    phone: string;
-    businessName?: string;
     firstName?: string;
     lastName?: string;
   };
   items?: Array<{
     id: string;
-    productId: string;
-    productName: string;
+    product_id: string;
     quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-  }>;
-  statusHistory?: Array<{
-    status: string;
-    timestamp: string;
-    notes?: string;
-    updatedBy?: string;
+    unit_price: number;
+    total_price: number;
+    product?: {
+      id: string;
+      name: string;
+      sku: string;
+      image_url?: string;
+    };
   }>;
 }
 
@@ -85,7 +80,7 @@ export default function Orders() {
   const [isStatusUpdateOpen, setIsStatusUpdateOpen] = useState(false);
   const [newStatus, setNewStatus] = useState("");
   const [statusNotes, setStatusNotes] = useState("");
-  const [showStatusHistory, setShowStatusHistory] = useState(false);
+
   const [declineReason, setDeclineReason] = useState("");
   const [isDeclineDialogOpen, setIsDeclineDialogOpen] = useState(false);
   const [selectedOrderForAction, setSelectedOrderForAction] = useState<Order | null>(null);
@@ -191,11 +186,11 @@ export default function Orders() {
 
   // Filter orders based on search term
   const filteredOrders = orders.filter((order) =>
-    order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.retailer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.distributor?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.distributor?.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.retailer?.businessName?.toLowerCase().includes(searchTerm.toLowerCase())
+    order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.retailer?.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.distributor?.business_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.retailer?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.distributor?.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getStatusIcon = (status: string) => {
@@ -397,7 +392,7 @@ export default function Orders() {
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg">{order.orderNumber}</h3>
+                        <h3 className="font-semibold text-lg">{order.order_number}</h3>
                         <Badge className={getStatusColor(order.status)}>
                           <div className="flex items-center gap-1">
                             {getStatusIcon(order.status)}
@@ -409,15 +404,15 @@ export default function Orders() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4" />
-                          <span>{formatCurrency(order.totalAmount)}</span>
+                          <span>{formatCurrency(order.total_amount)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4" />
-                          <span>{formatDate(order.createdAt)}</span>
+                          <span>{formatDate(order.created_at)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <History className="h-4 w-4" />
-                          <span>Updated: {formatDate(order.updatedAt)}</span>
+                          <span>Updated: {formatDate(order.updated_at)}</span>
                         </div>
                       </div>
                       
@@ -425,21 +420,21 @@ export default function Orders() {
                       {user.role === 'manufacturer' && order.distributor && (
                         <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
                           <Users className="h-4 w-4" />
-                          <span>Distributor: {order.distributor.businessName || `${order.distributor.firstName} ${order.distributor.lastName}`}</span>
+                          <span>Distributor: {order.distributor.business_name || `${order.distributor.firstName} ${order.distributor.lastName}`}</span>
                         </div>
                       )}
                       
                       {user.role === 'distributor' && order.retailer && (
                         <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
                           <Users className="h-4 w-4" />
-                          <span>Retailer: {order.retailer.businessName || `${order.retailer.firstName} ${order.retailer.lastName}`}</span>
+                          <span>Retailer: {order.retailer.business_name || `${order.retailer.firstName} ${order.retailer.lastName}`}</span>
                         </div>
                       )}
                       
                       <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <span>Created: {formatDate(order.createdAt)}</span>
+                        <span>Created: {formatDate(order.created_at)}</span>
                         <span>•</span>
-                        <span>Updated: {formatDate(order.updatedAt)}</span>
+                        <span>Updated: {formatDate(order.updated_at)}</span>
                       </div>
                     </div>
                     
@@ -510,87 +505,176 @@ export default function Orders() {
         </div>
       </div>
 
+
+
       {/* Order Details Dialog */}
       <Dialog open={isOrderDetailsOpen} onOpenChange={setIsOrderDetailsOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Order Details - {selectedOrder?.orderNumber}</DialogTitle>
+            <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>
-              Complete order information and status tracking
+              Detailed information about order {selectedOrder?.order_number}
             </DialogDescription>
           </DialogHeader>
           
           {selectedOrder && (
             <div className="space-y-6">
-              {/* Order Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Order Header */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <h4 className="font-semibold mb-2">Order Information</h4>
+                  <h3 className="font-semibold text-lg mb-2">Order Information</h3>
                   <div className="space-y-2 text-sm">
-                    <div><span className="font-medium">Order Number:</span> {selectedOrder.orderNumber}</div>
-                    <div><span className="font-medium">Total Amount:</span> {formatCurrency(selectedOrder.totalAmount)}</div>
-                    <div><span className="font-medium">Created:</span> {formatDate(selectedOrder.createdAt)}</div>
-                    <div><span className="font-medium">Last Updated:</span> {formatDate(selectedOrder.updatedAt)}</div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Order Number:</span>
+                      <span className="font-medium">{selectedOrder.order_number}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <Badge className={getStatusColor(selectedOrder.status)}>
+                        {selectedOrder.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Amount:</span>
+                      <span className="font-medium">{formatCurrency(selectedOrder.total_amount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Created:</span>
+                      <span>{formatDate(selectedOrder.created_at)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Updated:</span>
+                      <span>{formatDate(selectedOrder.updated_at)}</span>
+                    </div>
                   </div>
                 </div>
                 
                 <div>
-                  <h4 className="font-semibold mb-2">Partners</h4>
+                  <h3 className="font-semibold text-lg mb-2">Customer Information</h3>
                   <div className="space-y-2 text-sm">
-                    {selectedOrder.retailer && (
-                      <div>
-                        <span className="font-medium">Retailer:</span> {selectedOrder.retailer.name}
-                      </div>
+                    {user?.role === 'manufacturer' && selectedOrder.distributor && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Distributor:</span>
+                          <span className="font-medium">
+                            {selectedOrder.distributor.business_name || 
+                             `${selectedOrder.distributor.firstName} ${selectedOrder.distributor.lastName}`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Email:</span>
+                          <span>{selectedOrder.distributor.email}</span>
+                        </div>
+                      </>
                     )}
-                    {selectedOrder.distributor && (
-                      <div>
-                        <span className="font-medium">Distributor:</span> {selectedOrder.distributor.name}
-                      </div>
+                    
+                    {user?.role === 'distributor' && selectedOrder.retailer && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Retailer:</span>
+                          <span className="font-medium">
+                            {selectedOrder.retailer.business_name || 
+                             `${selectedOrder.retailer.firstName} ${selectedOrder.retailer.lastName}`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Email:</span>
+                          <span>{selectedOrder.retailer.email}</span>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
-              </div>
-
-              {/* Order Status */}
-              <div>
-                <h4 className="font-semibold mb-3">Order Status</h4>
-                <OrderStatus 
-                  status={selectedOrder.status} 
-                  statusHistory={selectedOrder.statusHistory}
-                  showHistory={true}
-                />
               </div>
 
               {/* Order Items */}
-              {selectedOrder.items && selectedOrder.items.length > 0 && (
-                <div>
-                  <h4 className="font-semibold mb-3">Order Items</h4>
-                  <div className="space-y-3">
-                    {selectedOrder.items.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <div className="font-medium">{item.productName}</div>
-                          <div className="text-sm text-gray-600">Qty: {item.quantity}</div>
+              <div>
+                <h3 className="font-semibold text-lg mb-4">Order Items</h3>
+                <div className="space-y-3">
+                  {selectedOrder.items?.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
+                          {item.product?.image_url ? (
+                            <img 
+                              src={item.product.image_url} 
+                              alt={item.product.name}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
+                          ) : (
+                            <Package className="h-6 w-6 text-gray-400" />
+                          )}
                         </div>
-                        <div className="text-right">
-                          <div className="font-medium">{formatCurrency(item.unitPrice)} each</div>
-                          <div className="text-sm text-gray-600">{formatCurrency(item.totalPrice)}</div>
+                        <div>
+                          <h4 className="font-medium">{item.product?.name || 'Product'}</h4>
+                          <p className="text-sm text-gray-600">SKU: {item.product?.sku || 'N/A'}</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="text-right">
+                        <div className="font-medium">{item.quantity} x {formatCurrency(item.unit_price)}</div>
+                        <div className="text-sm text-gray-600">{formatCurrency(item.total_price)}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
 
               {/* Notes */}
               {selectedOrder.notes && (
                 <div>
-                  <h4 className="font-semibold mb-3">Notes</h4>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm whitespace-pre-wrap">{selectedOrder.notes}</p>
+                  <h3 className="font-semibold text-lg mb-2">Order Notes</h3>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-700">{selectedOrder.notes}</p>
                   </div>
                 </div>
               )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsOrderDetailsOpen(false)}
+                >
+                  Close
+                </Button>
+                
+                {canUpdateStatus(selectedOrder) && (
+                  <Button
+                    onClick={() => {
+                      setIsOrderDetailsOpen(false);
+                      setIsStatusUpdateOpen(true);
+                    }}
+                  >
+                    Update Status
+                  </Button>
+                )}
+                
+                {canApproveDecline(selectedOrder) && (
+                  <>
+                    <Button
+                      onClick={() => {
+                        setIsOrderDetailsOpen(false);
+                        handleApproveOrder(selectedOrder);
+                      }}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Approve
+                    </Button>
+                    
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        setIsOrderDetailsOpen(false);
+                        handleDeclineOrder(selectedOrder);
+                      }}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Decline
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
@@ -602,7 +686,7 @@ export default function Orders() {
           <DialogHeader>
             <DialogTitle>Update Order Status</DialogTitle>
             <DialogDescription>
-              Update the status of order {selectedOrder?.orderNumber}
+              Update the status of order {selectedOrder?.order_number}
             </DialogDescription>
           </DialogHeader>
           
